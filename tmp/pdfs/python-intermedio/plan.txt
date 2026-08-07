@@ -1,0 +1,117 @@
+Plan de estudio Python
+intermedio
+
+Módulo 1 -- Programación Orientada a Objetos
+
+Clase 1
+
+      Clases y objetos
+      atributos
+      métodos
+      self
+      constructores (__init__)
+
+Clase 2
+
+      Encapsulamiento
+      getters/setters simples
+      composición
+      relaciones entre objeto
+
+Clase 3
+
+      Herencia
+      reutilización
+      sobrescritura de métodos
+      Polimorfismo
+      clases abstractas simples
+      práctica guiada
+
+Módulo 2 -- Automatización de tareas
+
+Clase 4
+
+      leer archivos .txt
+      crear archivos
+      modificar texto
+      mover archivos
+      renombrar archivos
+      organizar carpetas
+
+Clase 5
+      Excel
+      recorrer filas
+      extraer datos
+      Generar reportes
+
+Módulo 3 -- Programación en capas
+
+Clase 6
+
+      Qué es arquitectura por capas
+      separación:
+
+          GUI
+          lógica
+          datos
+          dominio
+
+Clase 7
+
+      Crear proyecto por capas
+      flujo completo
+      validaciones
+      organización profesional
+
+Mini proyecto:
+
+      inventario
+      estudiantes
+      clientes
+
+Módulo 4 -- Tkinter (2 clases)
+
+Clase 8
+
+      Ventanas
+      labels
+      entries
+      buttons
+      frames
+
+Clase 9
+
+      tablas
+      formularios
+      eventos
+      integración con lógica
+Módulo 5 -- SQLite
+
+Clase 10
+
+      Introducción a SQLite
+      tablas
+      INSERT
+      SELECT
+
+Clase 11
+
+      CRUD completo
+      conectar SQLite con Tkinter
+      guardar datos reales
+
+Clase 12
+
+Proyecto completo:
+
+      sistema de ventas
+      inventario
+      biblioteca
+      clientes
+
+Aplicando:
+POO
+capas
+Tkinter
+SQLite
+

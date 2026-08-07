@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="title description">
+  <title id="title">Lógica de Programación</title>
+  <desc id="description">Ilustración original de una computadora, un diagrama de flujo y símbolos de lógica.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#326fd7"/>
+      <stop offset="1" stop-color="#5b67d8"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#173b6b"/>
+      <stop offset="1" stop-color="#0d2444"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#background)"/>
+  <circle cx="105" cy="92" r="47" fill="#ffd34f" opacity=".18"/>
+  <circle cx="704" cy="112" r="64" fill="#64d9e8" opacity=".16"/>
+  <path d="M48 377c95-68 159-49 233 8s165 65 250 8 151-49 221 5v102H48Z" fill="#265ab6" opacity=".45"/>
+
+  <g transform="translate(178 75)">
+    <rect x="0" y="0" width="444" height="292" rx="24" fill="#eef5ff"/>
+    <rect x="19" y="19" width="406" height="236" rx="13" fill="url(#screen)"/>
+    <circle cx="45" cy="44" r="7" fill="#ff716b"/>
+    <circle cx="67" cy="44" r="7" fill="#ffd34f"/>
+    <circle cx="89" cy="44" r="7" fill="#59d698"/>
+
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="57" y="76" width="116" height="44" rx="20" fill="#ffd34f" stroke="#ffd34f" stroke-width="5"/>
+      <path d="M115 120v30M115 150h97" stroke="#70deec" stroke-width="7"/>
+      <path d="m212 125 58 25-58 25-58-25Z" fill="#326fd7" stroke="#70deec" stroke-width="6"/>
+      <path d="M270 150h73M343 150v52M343 202h-68" stroke="#70deec" stroke-width="7"/>
+      <rect x="170" y="188" width="105" height="42" rx="8" fill="#ffd34f" stroke="#ffd34f" stroke-width="5"/>
+      <path d="M154 150H75v52h95" stroke="#70deec" stroke-width="7"/>
+    </g>
+
+    <g fill="#17365f" font-family="sans-serif" font-size="16" font-weight="700" text-anchor="middle">
+      <text x="115" y="103">INICIO</text>
+      <text x="212" y="156" fill="#ffffff">¿LÓGICA?</text>
+      <text x="222" y="215">SOLUCIÓN</text>
+    </g>
+
+    <path d="M-35 292h514l-38 58H3Z" fill="#dbe8f7"/>
+    <path d="M174 292h96l20 27H154Z" fill="#a8bfdc"/>
+    <rect x="100" y="350" width="244" height="18" rx="9" fill="#17365f" opacity=".72"/>
+  </g>
+
+  <g transform="translate(58 318)">
+    <rect width="104" height="104" rx="25" fill="#65d9e8"/>
+    <path d="m66 28 19 24-19 24M38 28 19 52l19 24" fill="none" stroke="#17365f" stroke-linecap="round" stroke-linejoin="round" stroke-width="10"/>
+  </g>
+  <g transform="translate(638 318)">
+    <rect width="104" height="104" rx="25" fill="#ffd34f"/>
+    <path d="M30 34h44M30 52h31M30 70h38" fill="none" stroke="#17365f" stroke-linecap="round" stroke-width="10"/>
+  </g>
+</svg>

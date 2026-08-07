@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="title description">
+  <title id="title">Curso Python Práctico</title>
+  <desc id="description">Ilustración original de herramientas prácticas de Python aplicadas a texto, archivos y datos.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#326fd7"/>
+      <stop offset="1" stop-color="#5b67d8"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#173c6d"/>
+      <stop offset="1" stop-color="#0d2342"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#background)"/>
+  <circle cx="108" cy="96" r="48" fill="#ffd34f" opacity=".18"/>
+  <circle cx="700" cy="118" r="64" fill="#66d9e8" opacity=".16"/>
+  <path d="M42 396c95-70 165-56 239-4s158 57 239 4 155-52 238 10v94H42Z" fill="#265ab6" opacity=".42"/>
+
+  <g transform="translate(171 72)">
+    <rect width="458" height="294" rx="24" fill="#eef5ff"/>
+    <rect x="20" y="20" width="418" height="238" rx="13" fill="url(#screen)"/>
+    <circle cx="46" cy="45" r="7" fill="#ff716b"/>
+    <circle cx="68" cy="45" r="7" fill="#ffd34f"/>
+    <circle cx="90" cy="45" r="7" fill="#59d698"/>
+    <g font-family="monospace" font-size="22" font-weight="700">
+      <text x="48" y="94" fill="#ffd34f">from</text>
+      <text x="108" y="94" fill="#f7fbff">pathlib import Path</text>
+      <text x="48" y="136" fill="#74e1ef">datos = texto.split()</text>
+      <text x="48" y="178" fill="#f7fbff">limpios = sorted(datos)</text>
+      <text x="48" y="220" fill="#ffd34f">print</text>
+      <text x="116" y="220" fill="#f7fbff">(len(limpios))</text>
+    </g>
+    <path d="M-35 294h528l-40 58H5Z" fill="#dbe8f7"/>
+    <path d="M181 294h96l20 27H161Z" fill="#a8bfdc"/>
+    <rect x="115" y="352" width="228" height="18" rx="9" fill="#17365f" opacity=".72"/>
+  </g>
+
+  <g transform="translate(64 322)">
+    <rect width="108" height="108" rx="25" fill="#66d9e8"/>
+    <path d="M28 28h52v54H28z" fill="#eef5ff"/>
+    <path d="M38 42h32M38 55h32M38 68h22" stroke="#17365f" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(628 322)">
+    <rect width="108" height="108" rx="25" fill="#ffd34f"/>
+    <path d="M28 38h52v40H28z" fill="#17365f"/>
+    <path d="m37 49 13 10-13 10M70 49 57 69" fill="none" stroke="#eef5ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

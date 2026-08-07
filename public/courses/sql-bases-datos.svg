@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">SQL y bases de datos relacionales</title>
+  <desc id="desc">Ilustración original de una base de datos conectada con tablas y consultas SQL.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3266d8"/>
+      <stop offset="1" stop-color="#5887e5"/>
+    </linearGradient>
+    <linearGradient id="db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd357"/>
+      <stop offset="1" stop-color="#ff9f1c"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" rx="28" fill="url(#bg)"/>
+  <circle cx="78" cy="70" r="32" fill="#fff" opacity=".08"/>
+  <circle cx="574" cy="76" r="46" fill="#fff" opacity=".08"/>
+  <path d="M82 314h476" stroke="#b9d7ff" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+
+  <rect x="70" y="92" width="274" height="190" rx="20" fill="#eef6ff" stroke="#a7c7ff" stroke-width="5"/>
+  <rect x="70" y="92" width="274" height="38" rx="18" fill="#102750"/>
+  <circle cx="94" cy="111" r="6" fill="#ff9f1c"/>
+  <circle cx="115" cy="111" r="6" fill="#ffd357"/>
+  <circle cx="136" cy="111" r="6" fill="#31d3c5"/>
+  <text x="94" y="163" fill="#1d4fae" font-family="monospace" font-size="21" font-weight="700">SELECT nombre, curso</text>
+  <text x="94" y="196" fill="#132c55" font-family="monospace" font-size="21">FROM estudiantes</text>
+  <text x="94" y="229" fill="#132c55" font-family="monospace" font-size="21">WHERE activo = 1;</text>
+  <rect x="92" y="247" width="148" height="9" rx="4.5" fill="#60d5d0"/>
+
+  <path d="M345 180h53M372 180v-58M372 180v73" fill="none" stroke="#d8e8ff" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="372" cy="180" r="9" fill="#ffb21f"/>
+  <circle cx="372" cy="121" r="8" fill="#d8e8ff"/>
+  <circle cx="372" cy="254" r="8" fill="#d8e8ff"/>
+
+  <g transform="translate(402 72)">
+    <ellipse cx="92" cy="32" rx="72" ry="25" fill="#ffe08a"/>
+    <path d="M20 32v57c0 14 32 25 72 25s72-11 72-25V32" fill="url(#db)"/>
+    <ellipse cx="92" cy="32" rx="72" ry="25" fill="#ffd357" stroke="#fff3c9" stroke-width="4"/>
+    <path d="M20 61c0 14 32 25 72 25s72-11 72-25M20 88c0 14 32 25 72 25s72-11 72-25" fill="none" stroke="#fff3c9" stroke-width="4" opacity=".85"/>
+  </g>
+  <g transform="translate(402 220)">
+    <ellipse cx="92" cy="25" rx="72" ry="25" fill="#aee8ea"/>
+    <path d="M20 25v57c0 14 32 25 72 25s72-11 72-25V25" fill="#28bbc5"/>
+    <ellipse cx="92" cy="25" rx="72" ry="25" fill="#5dd7d7" stroke="#dffbff" stroke-width="4"/>
+    <path d="M20 54c0 14 32 25 72 25s72-11 72-25" fill="none" stroke="#dffbff" stroke-width="4" opacity=".8"/>
+  </g>
+  <rect x="73" y="315" width="124" height="42" rx="13" fill="#ffb21f"/>
+  <text x="135" y="343" text-anchor="middle" fill="#102750" font-family="Arial, sans-serif" font-size="22" font-weight="800">SQL</text>
+  <rect x="214" y="315" width="204" height="42" rx="13" fill="#18386d"/>
+  <text x="316" y="342" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="18" font-weight="700">BASES DE DATOS</text>
+</svg>

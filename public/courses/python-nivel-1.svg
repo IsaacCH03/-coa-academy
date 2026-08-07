@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="title description">
+  <title id="title">Curso Python Nivel 1</title>
+  <desc id="description">Ilustración original de una computadora con código y elementos de programación.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#326fd7"/>
+      <stop offset="1" stop-color="#5b67d8"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16345f"/>
+      <stop offset="1" stop-color="#0d2342"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#background)"/>
+  <circle cx="104" cy="96" r="44" fill="#ffd34f" opacity=".18"/>
+  <circle cx="700" cy="118" r="62" fill="#4fd8eb" opacity=".16"/>
+  <path d="M54 368c83-61 142-52 216 2s158 73 248 15 158-46 228 7v108H54Z" fill="#265ab6" opacity=".45"/>
+
+  <g fill="none" stroke-linecap="round" stroke-width="12">
+    <path d="m116 202-40 36 40 36" stroke="#ffd34f"/>
+    <path d="m684 202 40 36-40 36" stroke="#ffd34f"/>
+    <path d="m159 180-30 116" stroke="#74e1ef"/>
+    <path d="m641 180 30 116" stroke="#74e1ef"/>
+  </g>
+
+  <g transform="translate(202 82)">
+    <rect x="0" y="0" width="396" height="274" rx="22" fill="#eef5ff"/>
+    <rect x="18" y="18" width="360" height="222" rx="12" fill="url(#screen)"/>
+    <circle cx="42" cy="42" r="7" fill="#ff716b"/>
+    <circle cx="64" cy="42" r="7" fill="#ffd34f"/>
+    <circle cx="86" cy="42" r="7" fill="#59d698"/>
+
+    <g font-family="monospace" font-size="27" font-weight="700">
+      <text x="50" y="98" fill="#ffd34f">def</text>
+      <text x="110" y="98" fill="#f7fbff">aprender():</text>
+      <text x="78" y="140" fill="#74e1ef">nivel = 1</text>
+      <text x="78" y="182" fill="#f7fbff">print</text>
+      <text x="162" y="182" fill="#ffd34f">("Python")</text>
+    </g>
+
+    <path d="M-34 274h464l-35 54H1Z" fill="#dbe8f7"/>
+    <path d="M155 274h86l18 25H137Z" fill="#a8bfdc"/>
+    <rect x="88" y="328" width="220" height="18" rx="9" fill="#17365f" opacity=".7"/>
+  </g>
+
+  <g transform="translate(618 322)">
+    <rect width="102" height="102" rx="24" fill="#ffd34f"/>
+    <path d="M31 33h40v13H44v11h23v13H31Z" fill="#17365f"/>
+  </g>
+  <g transform="translate(80 326)">
+    <rect width="102" height="102" rx="24" fill="#66d9e8"/>
+    <path d="m64 28 18 23-18 23M38 28 20 51l18 23" fill="none" stroke="#17365f" stroke-linecap="round" stroke-linejoin="round" stroke-width="10"/>
+  </g>
+</svg>

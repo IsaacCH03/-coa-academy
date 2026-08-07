@@ -1,0 +1,25 @@
+<svg width="760" height="560" viewBox="0 0 760 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="760" height="560" rx="42" fill="#EEF4FF"/>
+  <circle cx="650" cy="92" r="48" fill="#FFA51F" fill-opacity=".25"/>
+  <circle cx="104" cy="450" r="66" fill="#16C6DE" fill-opacity=".22"/>
+  <path d="M98 126C161 55 253 66 292 112" stroke="#3F70E8" stroke-width="8" stroke-linecap="round" stroke-dasharray="10 18"/>
+  <rect x="151" y="139" width="458" height="287" rx="24" fill="#14213D"/>
+  <rect x="169" y="158" width="422" height="234" rx="13" fill="#3F70E8"/>
+  <rect x="190" y="181" width="178" height="188" rx="12" fill="#0D1730"/>
+  <circle cx="211" cy="201" r="5" fill="#FF6B6B"/><circle cx="228" cy="201" r="5" fill="#FFC857"/><circle cx="245" cy="201" r="5" fill="#16C6DE"/>
+  <path d="M215 238L240 258L215 278M289 229L267 290M315 238L340 258L315 278" stroke="#16C6DE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="389" y="181" width="181" height="83" rx="12" fill="white"/>
+  <rect x="409" y="201" width="92" height="9" rx="4.5" fill="#3F70E8"/>
+  <rect x="409" y="222" width="138" height="8" rx="4" fill="#DDE7FA"/>
+  <rect x="409" y="241" width="111" height="8" rx="4" fill="#DDE7FA"/>
+  <rect x="389" y="282" width="86" height="87" rx="12" fill="#16C6DE"/>
+  <path d="M414 329L430 345L456 308" stroke="white" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="490" y="282" width="80" height="87" rx="12" fill="#FFA51F"/>
+  <path d="M515 342V326M530 342V310M545 342V298" stroke="#14213D" stroke-width="8" stroke-linecap="round"/>
+  <path d="M120 426H640L598 466H162L120 426Z" fill="#233356"/>
+  <rect x="294" y="440" width="172" height="10" rx="5" fill="#61749A"/>
+  <circle cx="126" cy="145" r="46" fill="#FFA51F"/>
+  <path d="M109 148L122 161L146 132" stroke="#14213D" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="644" cy="400" r="50" fill="#16C6DE"/>
+  <path d="M621 408C621 388 631 377 644 377C657 377 667 388 667 408M631 374C631 366 637 360 644 360C651 360 657 366 657 374" stroke="white" stroke-width="7" stroke-linecap="round"/>
+</svg>
