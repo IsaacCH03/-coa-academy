@@ -50,7 +50,7 @@ export function HeroSection() {
               <p>Estudiantes</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-primary-foreground">6</p>
+              <p className="text-xl font-bold text-primary-foreground">9</p>
               <p>Cursos</p>
             </div>
             <div className="flex items-center gap-1">
