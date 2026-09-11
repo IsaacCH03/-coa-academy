@@ -29,24 +29,24 @@ export function SiteFooter() {
           <h3 className="mb-3 text-sm font-bold text-foreground">Navegación</h3>
           <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
             <li>
-              <a href="/#cursos" className="hover:text-primary">
+              <Link href="/#cursos" className="hover:text-primary">
                 Cursos
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="/#nosotros" className="hover:text-primary">
+              <Link href="/#nosotros" className="hover:text-primary">
                 Nosotros
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="/#beneficios" className="hover:text-primary">
+              <Link href="/#beneficios" className="hover:text-primary">
                 Beneficios
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="/#contacto" className="hover:text-primary">
+              <Link href="/#contacto" className="hover:text-primary">
                 Contacto
-              </a>
+              </Link>
             </li>
           </ul>
         </div>

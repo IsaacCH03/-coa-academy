@@ -37,50 +37,71 @@ export function ModuleExperience({
   const [showTop, setShowTop] = useState(false)
 
   useEffect(() => {
-    const storedPosition = Number(localStorage.getItem(storageKey) ?? 0)
-    let storedVisited: string[] = []
+    let storedPosition = 0
+    let storedVisited: unknown = []
     try {
-      storedVisited = JSON.parse(localStorage.getItem(visitedKey) ?? '[]') as string[]
+      storedPosition = Number(localStorage.getItem(storageKey) ?? 0)
+      storedVisited = JSON.parse(localStorage.getItem(visitedKey) ?? '[]')
     } catch {
-      localStorage.removeItem(visitedKey)
+      // Reading may fail when browser storage is unavailable or malformed.
     }
-    const validVisited = storedVisited.filter((id) =>
-      items.some((item) => item.id === id),
+    const visitedIds = new Set<string>(
+      Array.isArray(storedVisited)
+        ? storedVisited.filter((id): id is string =>
+            typeof id === 'string' && items.some((item) => item.id === id))
+        : [],
     )
-    setResumePosition(storedPosition)
-    setVisited(validVisited)
-
+    let position = Number.isFinite(storedPosition) && storedPosition > 0 ? storedPosition : 0
+    let dirty = false
     let saveTimer = 0
-    const update = () => {
+    const save = () => {
+      if (!dirty) return
+      try {
+        localStorage.setItem(storageKey, String(position))
+        localStorage.setItem(visitedKey, JSON.stringify([...visitedIds]))
+        dirty = false
+      } catch {
+        // Keep the module usable even if persistence is blocked or full.
+      }
+    }
+    const update = (persist = false) => {
       const marker = window.innerHeight * 0.38
       let current = items[0]?.id ?? ''
-      const newlyVisited = new Set(validVisited)
-
       for (const item of items) {
         const element = document.getElementById(item.id)
-        if (!element) continue
-        const top = element.getBoundingClientRect().top
-        if (top <= marker) {
+        if (element && element.getBoundingClientRect().top <= marker) {
           current = item.id
-          newlyVisited.add(item.id)
+          visitedIds.add(item.id)
         }
       }
-
       setActiveId(current)
-      setVisited(Array.from(newlyVisited))
+      setVisited([...visitedIds])
       setShowTop(window.scrollY > 700)
-      window.clearTimeout(saveTimer)
-      saveTimer = window.setTimeout(() => {
-        localStorage.setItem(storageKey, String(window.scrollY))
-        localStorage.setItem(visitedKey, JSON.stringify(Array.from(newlyVisited)))
-      }, 180)
+      if (persist) {
+        position = window.scrollY
+        dirty = true
+        window.clearTimeout(saveTimer)
+        saveTimer = window.setTimeout(save, 180)
+      }
     }
-
-    update()
-    window.addEventListener('scroll', update, { passive: true })
+    const initialFrame = window.requestAnimationFrame(() => {
+      setResumePosition(position)
+      update()
+    })
+    const onScroll = () => update(true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') save()
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('pagehide', save)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
-      window.removeEventListener('scroll', update)
+      window.cancelAnimationFrame(initialFrame)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('pagehide', save)
+      document.removeEventListener('visibilitychange', onVisibility)
       window.clearTimeout(saveTimer)
+      save()
     }
   }, [items, storageKey, visitedKey])
 
