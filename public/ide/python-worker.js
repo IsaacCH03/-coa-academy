@@ -48,6 +48,7 @@ class _Widget:
         self._parent = parent
         self._text = None if text is None else str(text)
         self._place = None
+        self._id = len(parent._controls)
         parent._controls.append(self)
 
     def place(self, *, x, y, width, height):
@@ -57,6 +58,9 @@ class _Widget:
             "height": max(1, _number(height, "height")),
         }
 
+    def config(self, *, text):
+        self._text = str(text)
+
 class Label(_Widget):
     def __init__(self, parent, text=""):
         super().__init__(parent, text)
@@ -64,10 +68,17 @@ class Label(_Widget):
 class Entry(_Widget):
     def __init__(self, parent):
         super().__init__(parent)
+        self._value = ""
+
+    def get(self):
+        return self._value
 
 class Button(_Widget):
-    def __init__(self, parent, text=""):
+    def __init__(self, parent, text="", command=None):
         super().__init__(parent, text)
+        if command is not None and not callable(command):
+            raise TypeError("command debe ser una función")
+        self._command = command
 
 class Frame(_Widget):
     def __init__(self, parent):
@@ -80,9 +91,11 @@ def _coa_snapshot():
     for widget in _window._controls:
         if widget._place is None:
             continue
-        item = {"type": widget.__class__.__name__, **widget._place}
+        item = {"id": widget._id, "type": widget.__class__.__name__, **widget._place}
         if widget._text is not None:
             item["text"] = widget._text
+        if isinstance(widget, Button):
+            item["command"] = widget._command is not None
         controls.append(item)
     return {
         "title": _window._title,
@@ -90,6 +103,19 @@ def _coa_snapshot():
         "height": _window._height,
         "controls": controls,
     }
+
+def _coa_invoke(widget_id, values):
+    if _window is None or not _window._shown:
+        raise RuntimeError("La ventana COA GUI no está activa")
+    for widget in _window._controls:
+        if isinstance(widget, Entry):
+            widget._value = str(values.get(str(widget._id), ""))
+    widget = next((item for item in _window._controls if item._id == widget_id), None)
+    if not isinstance(widget, Button):
+        raise ValueError("El control seleccionado no es un Button")
+    if widget._command is not None:
+        widget._command()
+    return _coa_snapshot()
 `
 function flush() {
   if (pending) {
@@ -180,6 +206,25 @@ self.onmessage = async ({ data }) => {
           'No se pudo cargar Python. Revisa tu conexión e inténtalo de nuevo. ' +
           String(error),
       })
+    }
+    return
+  }
+  if (data.type === 'gui-event' && python) {
+    try {
+      python.globals.set('__coa_widget_id', data.controlId)
+      python.globals.set('__coa_values', JSON.stringify(data.values))
+      const guiJson = await python.runPythonAsync(`
+import coa_gui as __coa_gui, json as __coa_json
+__coa_json.dumps(__coa_gui._coa_invoke(__coa_widget_id, __coa_json.loads(__coa_values)))
+`)
+      flush()
+      self.postMessage({ type: 'gui-update', gui: JSON.parse(guiJson) })
+    } catch (error) {
+      const message = String(error)
+      pending += '\n' + message + '\n'
+      flush()
+      self.postMessage({ type: 'python-error', text: message })
+      self.postMessage({ type: 'gui-error', text: message })
     }
     return
   }

@@ -8,12 +8,14 @@ export type RunResult = {
   gui?: CoaGuiPreview
 }
 export type CoaGuiControl = {
+  id: number
   type: 'Label' | 'Entry' | 'Button' | 'Frame'
   text?: string
   x: number
   y: number
   width: number
   height: number
+  command?: boolean
 }
 export type CoaGuiPreview = {
   title: string
@@ -30,6 +32,8 @@ export class PythonRuntime {
   private worker: Worker | null = null
   private buffer: SharedArrayBuffer | undefined
   private resolve: ((result: RunResult) => void) | undefined
+  private resolveGui: ((preview: CoaGuiPreview) => void) | undefined
+  private rejectGui: ((error: Error) => void) | undefined
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
@@ -60,6 +64,18 @@ export class PythonRuntime {
       if (data.type === 'output') this.events.output(data.text)
       if (data.type === 'input') this.events.state('input')
       if (data.type === 'python-error') this.events.error(data.text)
+      if (data.type === 'gui-update') {
+        this.events.state('ready')
+        this.resolveGui?.(data.gui)
+        this.resolveGui = undefined
+        this.rejectGui = undefined
+      }
+      if (data.type === 'gui-error') {
+        this.events.state('ready')
+        this.rejectGui?.(new Error(data.text))
+        this.resolveGui = undefined
+        this.rejectGui = undefined
+      }
       if (data.type === 'fatal') this.fail(data.text)
       if (data.type === 'done') {
         clearTimeout(this.timeout)
@@ -117,6 +133,16 @@ export class PythonRuntime {
     this.events.output(text + '\n')
     this.events.state('running')
   }
+  invokeGui(controlId: number, values: Record<string, string>) {
+    if (!this.ready || this.resolve || this.resolveGui)
+      return Promise.reject(new Error('Espera a que Python esté listo.'))
+    this.events.state('running')
+    return new Promise<CoaGuiPreview>((resolve, reject) => {
+      this.resolveGui = resolve
+      this.rejectGui = reject
+      this.worker!.postMessage({ type: 'gui-event', controlId, values })
+    })
+  }
   stop() {
     this.dispose()
     this.events.state('stopped')
@@ -129,5 +155,8 @@ export class PythonRuntime {
     clearTimeout(this.loadingTimeout)
     this.resolve?.({ ok: false, output: '' })
     this.resolve = undefined
+    this.rejectGui?.(new Error('La ejecución gráfica fue detenida.'))
+    this.resolveGui = undefined
+    this.rejectGui = undefined
   }
 }

@@ -1,15 +1,20 @@
 'use client'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { CoaGuiPreview as Preview } from '@/lib/ide/runtime'
 
 export function CoaGuiPreview({
   preview,
   onClose,
+  onCommand,
 }: {
   preview: Preview
   onClose: () => void
+  onCommand: (id: number, values: Record<string, string>) => Promise<void>
 }) {
   const order = { Frame: 0, Label: 1, Entry: 2, Button: 3 }
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [running, setRunning] = useState(false)
   return (
     <section className="coa-gui-preview" aria-label="Vista gráfica COA GUI">
       <header>
@@ -36,21 +41,42 @@ export function CoaGuiPreview({
               if (control.type === 'Entry')
                 return (
                   <input
-                    key={index}
+                    key={control.id}
                     aria-label={`Entrada ${index + 1}`}
                     className="coa-gui-entry"
                     style={style}
+                    value={values[control.id] ?? ''}
+                    onChange={(event) =>
+                      setValues((current) => ({
+                        ...current,
+                        [control.id]: event.target.value,
+                      }))
+                    }
                   />
                 )
               if (control.type === 'Button')
                 return (
-                  <button key={index} className="coa-gui-button" style={style}>
+                  <button
+                    key={control.id}
+                    className="coa-gui-button"
+                    style={style}
+                    disabled={running}
+                    onClick={async () => {
+                      if (!control.command) return
+                      setRunning(true)
+                      try {
+                        await onCommand(control.id, values)
+                      } finally {
+                        setRunning(false)
+                      }
+                    }}
+                  >
                     {control.text}
                   </button>
                 )
               return (
                 <div
-                  key={index}
+                  key={control.id}
                   className={`coa-gui-${control.type.toLowerCase()}`}
                   style={style}
                 >

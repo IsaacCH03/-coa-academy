@@ -525,6 +525,14 @@ export function IdeApp() {
               <CoaGuiPreview
                 preview={guiPreview}
                 onClose={() => setGuiPreview(null)}
+                onCommand={async (id, values) => {
+                  try {
+                    const next = await runtime.current!.invokeGui(id, values)
+                    setGuiPreview(next)
+                  } catch (error) {
+                    report((error as Error).message)
+                  }
+                }}
               />
             )}
           </div>
