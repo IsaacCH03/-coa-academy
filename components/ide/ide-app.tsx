@@ -1,0 +1,614 @@
+'use client'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  BookOpen,
+  Files,
+  Bot,
+  GraduationCap,
+  X,
+  Circle,
+  ChevronLeft,
+  PanelLeftOpen,
+} from 'lucide-react'
+import type { editor } from 'monaco-editor'
+import { Toolbar } from './toolbar'
+import { LearnPanel } from './learn-panel'
+import { FileExplorer } from './file-explorer'
+import { ConsolePanel } from './console-panel'
+import { ExercisePanel } from './exercise-panel'
+import { GithubPanel } from './github-panel'
+import { ConfirmDialog } from './confirm-dialog'
+import { useProject } from './use-project'
+import {
+  addEntries,
+  newProject,
+  restoreProject,
+  validateEntries,
+  mergeRuntimeEntries,
+  type Project,
+} from '@/lib/ide/project'
+import { PythonRuntime, type RuntimeState } from '@/lib/ide/runtime'
+import { insertionAt } from '@/lib/ide/insertion'
+import { educationalHints, explainCode } from '@/lib/ide/education'
+import { matchesOutput, type Exercise } from '@/lib/ide/exercises'
+
+const CodeEditor = dynamic(
+  () => import('./code-editor').then((m) => m.CodeEditor),
+  {
+    ssr: false,
+    loading: () => <p className="ide-loading">Cargando editor…</p>,
+  },
+)
+const statusLabels: Record<RuntimeState, string> = {
+  loading: 'Cargando Python…',
+  ready: 'Python listo',
+  running: 'Ejecutando…',
+  input: 'Esperando tu respuesta…',
+  stopped: 'Programa detenido',
+  error: 'Python no disponible',
+}
+type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'github'
+
+export function IdeApp() {
+  const { project, update, save, saveStatus, storageError } = useProject()
+  const [state, setState] = useState<RuntimeState>('loading')
+  const [output, setOutput] = useState('')
+  const [pythonError, setPythonError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [panel, setPanel] = useState<Panel | null>('learn')
+  const [welcome, setWelcome] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [explanation, setExplanation] = useState<string[]>([])
+  const [exercise, setExercise] = useState('hello')
+  const [results, setResults] = useState<boolean[]>([])
+  const [checking, setChecking] = useState(false)
+  const [replacement, setReplacement] = useState<Project | null>(null)
+  const runtime = useRef<PythonRuntime | null>(null)
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const area = useRef<HTMLDivElement>(null)
+  const cancelTests = useRef(false)
+  const busy = state === 'running' || state === 'input' || checking
+  const collapsed =
+    !!project?.consoleCollapsed && state !== 'input' && !expanded
+  const source =
+    project?.entries.find((e) => e.path === project.active)?.content ?? ''
+  const append = useCallback(
+    (text: string) => setOutput((o) => (o + text).slice(-220000)),
+    [],
+  )
+  const report = useCallback((message: string) => setNotice(message), [])
+  useEffect(() => {
+    const runner = new PythonRuntime({
+      state: setState,
+      output: append,
+      error: setPythonError,
+    })
+    runtime.current = runner
+    runner.start()
+    const frame = requestAnimationFrame(() => {
+      try {
+        setWelcome(localStorage.getItem('coa-ide-welcome') !== 'seen')
+      } catch {
+        /* Welcome remains optional. */
+      }
+      if (window.innerWidth < 768) setPanel(null)
+      if (new URLSearchParams(window.location.search).get('github') === 'error')
+        setNotice(
+          'No se pudo conectar GitHub. Inténtalo de nuevo desde su panel.',
+        )
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      cancelTests.current = true
+      runner.dispose()
+    }
+  }, [append])
+  function dismissWelcome() {
+    setWelcome(false)
+    try {
+      localStorage.setItem('coa-ide-welcome', 'seen')
+    } catch {
+      /* No persistence available. */
+    }
+  }
+  const run = useCallback(async () => {
+    if (!project || busy || state !== 'ready') return
+    if (!project.active.endsWith('.py')) {
+      report('Selecciona un archivo .py para ejecutar.')
+      return
+    }
+    setPythonError('')
+    setOutput(`❯ ${project.active}\n`)
+    setNotice('')
+    try {
+      await save()
+      const result = await runtime.current!.run(project)
+      if (result.entries) {
+        validateEntries(result.entries)
+        // The editor is read-only during execution, so runtime writes cannot overwrite new edits.
+        const entries = result.entries
+        update((current) => mergeRuntimeEntries(project, current, entries))
+      }
+      if (result.ok) append('\nPrograma finalizado.\n')
+    } catch (e) {
+      report((e as Error).message)
+    }
+  }, [project, busy, state, report, save, update, append])
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return
+      if (event.key.toLowerCase() === 's' || event.key === 'Enter') {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.key === 'Enter') void run()
+        else void save()
+      }
+    }
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [run, save])
+  function stop() {
+    cancelTests.current = true
+    runtime.current?.stop()
+    append(
+      '\nPrograma detenido. Pulsa Recargar Python para volver a ejecutar.\n',
+    )
+  }
+  function open(path: string) {
+    update((p) => ({
+      ...p,
+      active: path,
+      tabs: [...new Set([...p.tabs, path])],
+    }))
+    if (window.innerWidth < 768) setPanel(null)
+  }
+  function closeTab(path: string) {
+    update((p) => {
+      const tabs = p.tabs.filter((t) => t !== path)
+      return {
+        ...p,
+        tabs,
+        active: p.active === path ? (tabs[0] ?? '') : p.active,
+      }
+    })
+  }
+  function insert(code: string) {
+    const ed = editorRef.current
+    if (busy || !project?.active.endsWith('.py')) {
+      report('Abre un archivo .py para agregar código.')
+      return
+    }
+    const range = ed?.getSelection()
+    if (!ed || !range) {
+      report('Coloca el cursor en el editor antes de agregar código.')
+      return
+    }
+    const edit = insertionAt(ed.getValue(), range, code)
+    ed.pushUndoStop()
+    ed.executeEdits('coa-builder', [edit])
+    ed.pushUndoStop()
+    ed.focus()
+    if (window.innerWidth < 768) setPanel(null)
+  }
+  function explain() {
+    const ed = editorRef.current
+    const selection = ed?.getSelection()
+    const fragment =
+      selection && ed
+        ? ed.getModel()?.getValueInRange(selection) ||
+          ed.getModel()?.getLineContent(selection.startLineNumber) ||
+          ''
+        : source
+    setExplanation(explainCode(fragment))
+    setPanel('learn')
+  }
+  async function download(all: boolean) {
+    if (!project) return
+    try {
+      const service = await import('@/lib/ide/downloads')
+      if (all)
+        service.downloadBlob(
+          await service.projectZip(project),
+          'proyecto-coa.zip',
+        )
+      else
+        service.downloadBlob(
+          new Blob([source], { type: 'text/plain;charset=utf-8' }),
+          project.active.split('/').pop() || 'main.py',
+        )
+    } catch {
+      report('No se pudo descargar. Inténtalo de nuevo.')
+    }
+  }
+  function loadExercise(e: Exercise) {
+    if (!project) return
+    const base = `ejercicio-${e.id}`
+    let path = base + '.py'
+    let index = 2
+    while (project.entries.some((entry) => entry.path === path))
+      path = `${base}-${index++}.py`
+    update(
+      addEntries(project, [{ path, kind: 'file', content: e.initialCode }]),
+    )
+    setResults([])
+  }
+  async function check(e: Exercise) {
+    if (!project || state !== 'ready' || busy) return
+    if (!project.active.endsWith('.py')) {
+      report('Selecciona el archivo Python de tu ejercicio.')
+      return
+    }
+    setChecking(true)
+    setResults([])
+    setPythonError('')
+    cancelTests.current = false
+    setOutput(`Comprobando ${project.active} · ${e.title}\n`)
+    try {
+      for (const [index, test] of e.tests.entries()) {
+        if (cancelTests.current) break
+        append(`\nCaso ${index + 1}\n`)
+        const result = await runtime.current!.run(project, test.inputs)
+        setResults((r) => [
+          ...r,
+          result.ok && matchesOutput(result.output, test.expected),
+        ])
+      }
+    } catch (error) {
+      report((error as Error).message)
+    } finally {
+      setChecking(false)
+    }
+  }
+  function resize(clientY: number) {
+    const bounds = area.current?.getBoundingClientRect()
+    if (bounds)
+      update((p) => ({
+        ...p,
+        consoleHeight: Math.round(
+          Math.max(
+            120,
+            Math.min(bounds.height * 0.65, bounds.bottom - clientY),
+          ),
+        ),
+      }))
+  }
+  if (!project)
+    return (
+      <main className="coa-ide">
+        <p className="ide-loading">Abriendo tu espacio de Python…</p>
+      </main>
+    )
+  return (
+    <main className="coa-ide">
+      <Toolbar
+        active={project.active}
+        canRun={state === 'ready' && project.active.endsWith('.py')}
+        busy={busy}
+        canStop={['loading', 'running', 'input'].includes(state)}
+        onRun={() => void run()}
+        onStop={stop}
+        onDownload={(all) => void download(all)}
+        onGithub={() => setPanel((p) => (p === 'github' ? null : 'github'))}
+        onRestart={() => runtime.current?.start()}
+        needsRestart={state === 'stopped' || state === 'error'}
+      />
+      {welcome && (
+        <div className="ide-welcome">
+          <div>
+            <strong>Bienvenido al IDE de COA</strong>
+            <span>
+              Escribe Python, ejecútalo y abre Aprender cuando necesites ayuda.
+            </span>
+          </div>
+          <button onClick={dismissWelcome}>Comenzar</button>
+          <button className="ide-text-button" onClick={dismissWelcome}>
+            Ya sé cómo funciona
+          </button>
+        </div>
+      )}
+      {(notice || storageError) && (
+        <div className="ide-notice" role="status">
+          <span>{notice || storageError}</span>
+          {notice && (
+            <button aria-label="Cerrar aviso" onClick={() => setNotice('')}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="ide-workspace">
+        <nav className="ide-activity" aria-label="Herramientas del IDE">
+          {(
+            [
+              { id: 'learn', label: 'Aprender', icon: BookOpen },
+              { id: 'files', label: 'Archivos', icon: Files },
+              { id: 'ai', label: 'COA IA', icon: Bot },
+              { id: 'exercise', label: 'Ejercicios', icon: GraduationCap },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              aria-label={item.label}
+              title={item.label}
+              aria-pressed={panel === item.id}
+              className={panel === item.id ? 'active' : ''}
+              onClick={() => setPanel((p) => (p === item.id ? null : item.id))}
+            >
+              <item.icon size={23} />
+              <small>{item.label}</small>
+            </button>
+          ))}
+          <span className="ide-activity-bottom">PY</span>
+        </nav>
+        {panel && (
+          <>
+            <button
+              className="ide-drawer-backdrop"
+              aria-label="Cerrar panel"
+              onClick={() => setPanel(null)}
+            />
+            <aside className="ide-sidebar">
+              <button
+                className="ide-close-panel"
+                aria-label="Cerrar panel"
+                title="Cerrar panel"
+                onClick={() => setPanel(null)}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              {panel === 'learn' && (
+                <LearnPanel
+                  source={source}
+                  mode={project.helpMode}
+                  onMode={(helpMode) => update((p) => ({ ...p, helpMode }))}
+                  onInsert={insert}
+                  onExplain={explain}
+                  explanation={explanation}
+                  hints={
+                    project.helpMode === 'free'
+                      ? []
+                      : educationalHints(source, pythonError)
+                  }
+                  disabled={busy || !project.active.endsWith('.py')}
+                />
+              )}
+              {panel === 'files' && (
+                <FileExplorer
+                  project={project}
+                  onChange={update}
+                  onOpen={open}
+                  onError={report}
+                  onNew={() => setReplacement(newProject())}
+                  disabled={busy}
+                />
+              )}
+              {panel === 'exercise' && (
+                <ExercisePanel
+                  selected={exercise}
+                  onSelect={(id) => {
+                    setExercise(id)
+                    setResults([])
+                  }}
+                  onLoad={loadExercise}
+                  onCheck={(e) => void check(e)}
+                  results={results}
+                  busy={busy}
+                  ready={state === 'ready'}
+                />
+              )}
+              {panel === 'github' && (
+                <GithubPanel
+                  project={project}
+                  onImport={(p) => setReplacement(restoreProject(p))}
+                  onError={report}
+                  onSave={save}
+                />
+              )}
+              {panel === 'ai' && (
+                <section className="ide-panel ide-ai">
+                  <div className="ide-ai-icon">
+                    <Bot size={38} />
+                  </div>
+                  <p className="ide-eyebrow">UN COMPAÑERO PARA APRENDER</p>
+                  <h2>COA IA</h2>
+                  <span className="ide-badge">Próximamente</span>
+                  <p>
+                    Un espacio para entender errores, explorar tu código y
+                    recibir pistas sin perder la oportunidad de pensar.
+                  </p>
+                  <p className="ide-muted">
+                    El Builder de Aprender ya funciona y no necesita
+                    inteligencia artificial.
+                  </p>
+                  <button
+                    className="ide-primary wide"
+                    onClick={() => setPanel('learn')}
+                  >
+                    <BookOpen size={16} /> Abrir Aprender
+                  </button>
+                </section>
+              )}
+            </aside>
+          </>
+        )}
+        <div className="ide-editor-area" ref={area}>
+          <div
+            className="ide-tabs"
+            role="tablist"
+            aria-label="Archivos abiertos"
+          >
+            {!panel && (
+              <button
+                title="Abrir explorador"
+                aria-label="Abrir explorador"
+                onClick={() => setPanel('files')}
+              >
+                <PanelLeftOpen size={17} />
+              </button>
+            )}
+            {project.tabs.map((path) => (
+              <div
+                className={
+                  'ide-tab ' + (path === project.active ? 'active' : '')
+                }
+                key={path}
+              >
+                <button
+                  role="tab"
+                  aria-selected={path === project.active}
+                  onClick={() => open(path)}
+                >
+                  <span className="ide-py">
+                    {path.endsWith('.py') ? 'py' : '·'}
+                  </span>
+                  {path.split('/').pop()}
+                </button>
+                <button
+                  aria-label={`Cerrar ${path}`}
+                  title={`Cerrar ${path}`}
+                  onClick={() => closeTab(path)}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div
+            className="ide-editor"
+            style={{ display: expanded ? 'none' : undefined }}
+          >
+            {project.active ? (
+              <CodeEditor
+                path={project.active}
+                content={source}
+                readOnly={busy}
+                onChange={(content) =>
+                  update((p) => ({
+                    ...p,
+                    entries: p.entries.map((e) =>
+                      e.path === p.active ? { ...e, content } : e,
+                    ),
+                  }))
+                }
+                onMount={(ed) => {
+                  editorRef.current = ed
+                }}
+              />
+            ) : (
+              <div className="ide-empty">
+                <Files size={32} />
+                <h2>Tu próxima idea empieza aquí</h2>
+                <p>Crea un archivo o abre uno desde el explorador.</p>
+                <button
+                  className="ide-primary"
+                  onClick={() => setPanel('files')}
+                >
+                  Abrir archivos
+                </button>
+              </div>
+            )}
+          </div>
+          {!expanded && !collapsed && (
+            <div
+              className="ide-separator"
+              role="separator"
+              aria-label="Cambiar tamaño de consola"
+              aria-orientation="horizontal"
+              aria-valuemin={120}
+              aria-valuemax={500}
+              aria-valuenow={project.consoleHeight}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  update((p) => ({
+                    ...p,
+                    consoleHeight: Math.min(
+                      500,
+                      Math.max(
+                        120,
+                        p.consoleHeight + (e.key === 'ArrowUp' ? 20 : -20),
+                      ),
+                    ),
+                  }))
+                }
+              }}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId)
+                resize(e.clientY)
+              }}
+              onPointerMove={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  resize(e.clientY)
+              }}
+              onPointerUp={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId)
+              }}
+            />
+          )}
+          <div
+            className={
+              'ide-console-container ' +
+              (expanded ? 'expanded' : collapsed ? 'collapsed' : '')
+            }
+            style={expanded ? undefined : { height: project.consoleHeight }}
+          >
+            <ConsolePanel
+              output={output}
+              waiting={state === 'input'}
+              onInput={(text) => {
+                try {
+                  runtime.current?.input(text)
+                } catch (e) {
+                  report((e as Error).message)
+                }
+              }}
+              onClear={() => setOutput('')}
+              expanded={expanded}
+              collapsed={collapsed}
+              onCollapse={() => {
+                setExpanded(false)
+                update((p) => ({ ...p, consoleCollapsed: !collapsed }))
+              }}
+              onExpand={() => setExpanded((e) => !e)}
+            />
+          </div>
+        </div>
+      </div>
+      <footer className="ide-status">
+        <span>
+          <Circle
+            size={8}
+            fill="currentColor"
+            className={state === 'ready' ? 'ide-success' : ''}
+          />
+          {statusLabels[state]}
+        </span>
+        <span title="Ctrl+S para guardar">{saveStatus}</span>
+        <span className="ide-status-help">Python · UTF-8 · 4 espacios</span>
+      </footer>
+      {replacement && (
+        <ConfirmDialog
+          title="Reemplazar proyecto actual"
+          onCancel={() => setReplacement(null)}
+          onConfirm={() => {
+            if (busy) stop()
+            update(replacement)
+            setReplacement(null)
+            setResults([])
+          }}
+        >
+          <p>
+            Se reemplazará el proyecto de este navegador. Descarga una copia si
+            deseas conservarlo.
+          </p>
+          <button className="ide-secondary" onClick={() => void download(true)}>
+            Descargar proyecto actual
+          </button>
+        </ConfirmDialog>
+      )}
+    </main>
+  )
+}

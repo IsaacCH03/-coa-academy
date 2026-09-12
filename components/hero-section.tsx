@@ -1,5 +1,6 @@
 import Image from 'next/image'
-import { MessageCircle, GraduationCap, Star } from 'lucide-react'
+import Link from 'next/link'
+import { MessageCircle, GraduationCap, Star, Code2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createWhatsAppLink } from '@/lib/site'
 
@@ -24,7 +25,7 @@ export function HeroSection() {
             Encuentra cursos prácticos con explicaciones claras, ejercicios y proyectos
             para aprender a tu propio ritmo, desde cualquier lugar.
           </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button
               asChild
               size="lg"
@@ -43,6 +44,10 @@ export function HeroSection() {
                 Hablar por WhatsApp
               </a>
             </Button>
+            <Link href="/ide" prefetch={false} className="relative inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-primary shadow-md transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+              <Code2 className="h-5 w-5" /> Abrir IDE Online
+              <span className="absolute -right-1 -top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">Nuevo</span>
+            </Link>
           </div>
           <div className="flex items-center gap-6 pt-2 text-sm text-primary-foreground/80">
             <div>
