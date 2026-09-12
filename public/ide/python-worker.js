@@ -73,6 +73,11 @@ class Entry(_Widget):
     def get(self):
         return self._value
 
+    def delete(self, first, last=None):
+        if first != 0 or last != "end":
+            raise ValueError('delete() solo admite (0, "end") en esta versión')
+        self._value = ""
+
 class Button(_Widget):
     def __init__(self, parent, text="", command=None):
         super().__init__(parent, text)
@@ -94,6 +99,8 @@ def _coa_snapshot():
         item = {"id": widget._id, "type": widget.__class__.__name__, **widget._place}
         if widget._text is not None:
             item["text"] = widget._text
+        if isinstance(widget, Entry):
+            item["value"] = widget._value
         if isinstance(widget, Button):
             item["command"] = widget._command is not None
         controls.append(item)

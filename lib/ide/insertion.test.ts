@@ -31,3 +31,18 @@ it('indents after the end of a block header', () => {
     '\n    print(1)\n    ',
   )
 })
+it('keeps nested indentation for all snippets and preserves tabs', () => {
+  expect(
+    insertionAt(
+      'for i in range(5):\n    while True:\n        ',
+      cursor(3, 9),
+      'if condicion:\n    pass',
+    ).text,
+  ).toBe('        if condicion:\n            pass\n        ')
+  expect(
+    insertionAt('\t', cursor(1, 2), 'while condicion:\n\tprint("Texto")').text,
+  ).toBe('\twhile condicion:\n\t\tprint("Texto")\n\t')
+  expect(insertionAt('', cursor(1, 1), 'while condicion:\n    pass').text).toBe(
+    'while condicion:\n    pass\n',
+  )
+})

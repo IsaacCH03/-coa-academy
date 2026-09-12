@@ -536,8 +536,10 @@ export function IdeApp() {
                   try {
                     const next = await runtime.current!.invokeGui(id, values)
                     setGuiPreview(next)
+                    return next
                   } catch (error) {
                     report((error as Error).message)
+                    throw error
                   }
                 }}
               />

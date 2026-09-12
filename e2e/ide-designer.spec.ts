@@ -177,6 +177,48 @@ ventana.mainloop()`
   await expect(page.getByTestId('python-output')).toContainText('Contenido: Evelio')
 })
 
+test('COA GUI Entry.delete clears one or several fields and updates get()', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/ide')
+  await page.getByRole('button', { name: 'Comenzar', exact: true }).click()
+  await expect(page.getByText('Python listo', { exact: true })).toBeVisible({ timeout: 100000 })
+  await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 45000 })
+  const program = `import coa_gui as gui
+
+ventana = gui.Tk()
+ventana.title("Prueba Entry delete")
+ventana.geometry("400x260")
+
+entrada_nombre = gui.Entry(ventana)
+entrada_nombre.place(x=50, y=30, width=200, height=30)
+entrada_edad = gui.Entry(ventana)
+entrada_edad.place(x=50, y=70, width=200, height=30)
+entrada_curso = gui.Entry(ventana)
+entrada_curso.place(x=50, y=110, width=200, height=30)
+
+def limpiar_campos():
+    entrada_nombre.delete(0, "end")
+    entrada_edad.delete(0, "end")
+    entrada_curso.delete(0, "end")
+    print("Contenido:", entrada_nombre.get())
+
+boton = gui.Button(ventana, text="Limpiar", command=limpiar_campos)
+boton.place(x=50, y=170, width=120, height=35)
+ventana.mainloop()`
+  await edit(page, program)
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click()
+  const fields = page.locator('.coa-gui-entry')
+  await fields.nth(0).fill('Evelio')
+  await fields.nth(1).fill('30')
+  await fields.nth(2).fill('Python')
+  await page.locator('.coa-gui-button', { hasText: 'Limpiar' }).click()
+  await expect(fields.nth(0)).toHaveValue('')
+  await expect(fields.nth(1)).toHaveValue('')
+  await expect(fields.nth(2)).toHaveValue('')
+  await expect(page.getByTestId('python-output')).toContainText('Contenido:')
+  await expect(page.getByTestId('python-output')).not.toContainText('AttributeError')
+})
+
 test('imports COA GUI with AST and preserves calculator logic while editing visuals', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/ide')
@@ -228,6 +270,9 @@ def sumar():
         text="Resultado: " + str(suma)
     )
 
+def limpiar():
+    numero1.delete(0, "end")
+
 boton = gui.Button(
     ventana,
     text="Sumar",
@@ -259,6 +304,7 @@ ventana.mainloop()`
   const generated = page.getByTestId('gui-code')
   await expect(generated).toContainText('def sumar():')
   await expect(generated).toContainText('numero1.get()')
+  await expect(generated).toContainText('numero1.delete(0, "end")')
   await expect(generated).toContainText('resultado.config(')
   await expect(generated).toContainText('command=sumar')
   await expect(generated).toContainText('text="Calcular"')
@@ -269,6 +315,7 @@ ventana.mainloop()`
   await page.getByRole('button', { name: 'Exportar a Tkinter' }).click()
   await expect(generated).toContainText('import tkinter as tk')
   await expect(generated).toContainText('numero1 = tk.Entry(ventana)')
+  await expect(generated).toContainText('numero1.delete(0, "end")')
   await expect(generated).toContainText('def sumar():')
   await expect(generated).toContainText('command=sumar')
 

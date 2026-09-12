@@ -10,7 +10,7 @@ export function CoaGuiPreview({
 }: {
   preview: Preview
   onClose: () => void
-  onCommand: (id: number, values: Record<string, string>) => Promise<void>
+  onCommand: (id: number, values: Record<string, string>) => Promise<Preview>
 }) {
   const order = { Frame: 0, Label: 1, Entry: 2, Button: 3 }
   const [values, setValues] = useState<Record<string, string>>({})
@@ -65,7 +65,18 @@ export function CoaGuiPreview({
                       if (!control.command) return
                       setRunning(true)
                       try {
-                        await onCommand(control.id, values)
+                        const next = await onCommand(control.id, values)
+                        setValues(
+                          Object.fromEntries(
+                            next.controls
+                              .filter(
+                                (item) =>
+                                  item.type === 'Entry' &&
+                                  item.value !== undefined,
+                              )
+                              .map((item) => [item.id, item.value!]),
+                          ),
+                        )
                       } finally {
                         setRunning(false)
                       }

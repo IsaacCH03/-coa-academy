@@ -17,6 +17,7 @@ export type CoaGuiControl = {
   width: number
   height: number
   command?: boolean
+  value?: string
 }
 export type CoaGuiPreview = {
   title: string
