@@ -565,6 +565,88 @@
   min-height: 100px;
   position: relative;
 }
+.coa-gui-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: #182235;
+}
+.coa-gui-preview > header {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 16px;
+  background: #111a28;
+  border-bottom: 1px solid var(--ide-border);
+  color: #b8cae4;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.coa-gui-preview > header button {
+  padding: 5px !important;
+}
+.coa-gui-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px;
+}
+.coa-gui-window {
+  position: relative;
+  overflow: hidden;
+  margin: auto;
+  background: #f4f5f7;
+  border: 1px solid #8e99a8;
+  box-shadow: 0 15px 45px #0007;
+  color: #161a20;
+}
+.coa-gui-window-title {
+  height: 25px;
+  padding: 4px 8px;
+  background: #e3e7ec;
+  border-bottom: 1px solid #c0c7d0;
+  color: #333b46;
+  font: 11px Arial, sans-serif;
+}
+.coa-gui-label,
+.coa-gui-frame,
+.coa-gui-entry,
+.coa-gui-button {
+  position: absolute;
+  box-sizing: border-box;
+  font: 13px Arial, sans-serif;
+}
+.coa-gui-frame {
+  z-index: 1;
+  border: 1px solid #9da5ae;
+  background: #e9ebee;
+}
+.coa-gui-label,
+.coa-gui-entry,
+.coa-gui-button {
+  z-index: 2;
+}
+.coa-gui-label {
+  display: flex;
+  align-items: center;
+}
+.coa-gui-entry {
+  background: white;
+  color: #161a20;
+  border: 1px solid #8b929c;
+  border-radius: 2px;
+}
+.coa-gui-button {
+  display: block;
+  background: #e7e9ec !important;
+  color: #161a20 !important;
+  border: 1px solid #8d939b !important;
+  border-radius: 4px !important;
+}
 .ide-loading {
   margin: auto !important;
   padding: 40px;

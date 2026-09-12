@@ -21,6 +21,7 @@ import { ExercisePanel } from './exercise-panel'
 import { GithubPanel } from './github-panel'
 import { ConfirmDialog } from './confirm-dialog'
 import { GuiDesigner } from './gui-designer'
+import { CoaGuiPreview } from './coa-gui-preview'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -31,6 +32,7 @@ import {
   type Project,
 } from '@/lib/ide/project'
 import { PythonRuntime, type RuntimeState } from '@/lib/ide/runtime'
+import type { CoaGuiPreview as CoaGuiPreviewModel } from '@/lib/ide/runtime'
 import { insertionAt } from '@/lib/ide/insertion'
 import { educationalHints, explainCode } from '@/lib/ide/education'
 import { matchesOutput, type Exercise } from '@/lib/ide/exercises'
@@ -66,6 +68,7 @@ export function IdeApp() {
   const [results, setResults] = useState<boolean[]>([])
   const [checking, setChecking] = useState(false)
   const [replacement, setReplacement] = useState<Project | null>(null)
+  const [guiPreview, setGuiPreview] = useState<CoaGuiPreviewModel | null>(null)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const area = useRef<HTMLDivElement>(null)
@@ -121,11 +124,13 @@ export function IdeApp() {
       return
     }
     setPythonError('')
+    setGuiPreview(null)
     setOutput(`❯ ${project.active}\n`)
     setNotice('')
     try {
       await save()
       const result = await runtime.current!.run(project)
+      setGuiPreview(result.gui ?? null)
       if (result.entries) {
         validateEntries(result.entries)
         // The editor is read-only during execution, so runtime writes cannot overwrite new edits.
@@ -515,6 +520,12 @@ export function IdeApp() {
                   Abrir archivos
                 </button>
               </div>
+            )}
+            {guiPreview && (
+              <CoaGuiPreview
+                preview={guiPreview}
+                onClose={() => setGuiPreview(null)}
+              />
             )}
           </div>
           {!expanded && !collapsed && (

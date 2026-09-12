@@ -83,7 +83,15 @@ export function generateGuiCode(
     `ventana.title(${JSON.stringify(window.title)})`,
     `ventana.geometry(${JSON.stringify(`${window.width}x${window.height}`)})`,
   ]
-  for (const control of controls) {
+  const order: Record<GuiControlType, number> = {
+    Frame: 0,
+    Label: 1,
+    Entry: 2,
+    Button: 3,
+  }
+  for (const control of [...controls].sort(
+    (left, right) => order[left.type] - order[right.type],
+  )) {
     lines.push('')
     const text = control.text === undefined ? '' : `, text=${JSON.stringify(control.text)}`
     lines.push(

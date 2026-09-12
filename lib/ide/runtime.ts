@@ -5,6 +5,21 @@ export type RunResult = {
   ok: boolean
   output: string
   entries?: ProjectEntry[]
+  gui?: CoaGuiPreview
+}
+export type CoaGuiControl = {
+  type: 'Label' | 'Entry' | 'Button' | 'Frame'
+  text?: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+export type CoaGuiPreview = {
+  title: string
+  width: number
+  height: number
+  controls: CoaGuiControl[]
 }
 type RuntimeEvents = {
   state: (state: RuntimeState) => void

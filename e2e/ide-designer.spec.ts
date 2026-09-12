@@ -47,23 +47,42 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   await canvas.getByRole('button', { name: 'Frame frame1' }).click()
   await properties.getByRole('button', { name: 'Eliminar componente' }).click()
   await expect(canvas.getByRole('button')).toHaveCount(3)
+  await page
+    .locator('.gui-palette')
+    .getByRole('button', { name: 'Frame', exact: true })
+    .dragTo(canvas, { targetPosition: { x: 25, y: 40 } })
 
   await page.getByRole('button', { name: 'Generar código COA GUI' }).click()
   await expect(page.getByTestId('gui-code')).toContainText('import coa_gui as gui')
-  await expect(page.getByTestId('gui-code')).not.toContainText('frame1')
+  const coaCode = (await page.getByTestId('gui-code').textContent()) ?? ''
+  expect(coaCode.indexOf('frame1 = gui.Frame')).toBeLessThan(
+    coaCode.indexOf('label1 = gui.Label'),
+  )
+  await page.getByRole('button', { name: 'Copiar código' }).click()
+  await expect(page.getByRole('button', { name: 'Copiado' })).toBeVisible()
+  const copiedCoa = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copiedCoa).toContain('import coa_gui as gui')
   await page.getByRole('button', { name: 'Exportar a Tkinter' }).click()
   await expect(page.getByTestId('gui-code')).toContainText('import tkinter as tk')
   await expect(page.getByTestId('gui-code')).toContainText('text="Guardar"')
-  await page.getByRole('button', { name: 'Copiar código' }).click()
-  await expect(page.getByRole('button', { name: 'Copiado' })).toBeVisible()
-  const copied = await page.evaluate(() => navigator.clipboard.readText())
-  expect(copied).toContain('import tkinter as tk')
-  expect(copied).toContain('guardar = tk.Button')
+  const tkinter = (await page.getByTestId('gui-code').textContent()) ?? ''
+  expect(tkinter.indexOf('frame1 = tk.Frame')).toBeLessThan(
+    tkinter.indexOf('label1 = tk.Label'),
+  )
 
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
   await expect(page.locator('.monaco-editor')).toBeVisible()
   await expect(page.locator('.view-lines')).toContainText('El editor conserva este código')
-  await edit(page, `compile(${JSON.stringify(copied)}, "interfaz.py", "exec")\nprint("Tkinter válido")`)
+  await edit(page, copiedCoa)
   await page.keyboard.press('Control+Enter')
-  await expect(page.getByTestId('python-output')).toContainText('Tkinter válido')
+  const preview = page.getByLabel('Vista gráfica COA GUI')
+  await expect(preview).toBeVisible()
+  await expect(preview.getByText('Nombre del estudiante')).toBeVisible()
+  await expect(preview.getByRole('textbox')).toBeVisible()
+  await expect(preview.getByRole('button', { name: 'Guardar' })).toBeVisible()
+  await expect(preview.locator('.coa-gui-frame')).toBeVisible()
+  await preview.getByRole('button', { name: 'Cerrar vista gráfica' }).click()
+  await edit(page, 'print("Hola COA")')
+  await page.keyboard.press('Control+Enter')
+  await expect(page.getByTestId('python-output')).toContainText('Hola COA')
 })

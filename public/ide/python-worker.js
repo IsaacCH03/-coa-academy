@@ -10,6 +10,87 @@ let output = ''
 let testing = false
 const LIMIT = 200000
 const decoder = new TextDecoder()
+const COA_GUI_MODULE = `
+_window = None
+
+def _number(value, name):
+    if not isinstance(value, (int, float)):
+        raise TypeError(f"{name} debe ser un número")
+    return round(value)
+
+class Tk:
+    def __init__(self):
+        global _window
+        self._title = "Mi interfaz"
+        self._width = 500
+        self._height = 400
+        self._controls = []
+        self._shown = False
+        _window = self
+
+    def title(self, text):
+        self._title = str(text)
+
+    def geometry(self, value):
+        parts = str(value).lower().split("x")
+        if len(parts) != 2 or not all(part.isdigit() for part in parts):
+            raise ValueError('geometry() espera un valor como "500x400"')
+        self._width = max(1, int(parts[0]))
+        self._height = max(1, int(parts[1]))
+
+    def mainloop(self):
+        self._shown = True
+
+class _Widget:
+    def __init__(self, parent, text=None):
+        if not isinstance(parent, Tk):
+            raise TypeError("El primer argumento debe ser una ventana gui.Tk()")
+        self._parent = parent
+        self._text = None if text is None else str(text)
+        self._place = None
+        parent._controls.append(self)
+
+    def place(self, *, x, y, width, height):
+        self._place = {
+            "x": _number(x, "x"), "y": _number(y, "y"),
+            "width": max(1, _number(width, "width")),
+            "height": max(1, _number(height, "height")),
+        }
+
+class Label(_Widget):
+    def __init__(self, parent, text=""):
+        super().__init__(parent, text)
+
+class Entry(_Widget):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+class Button(_Widget):
+    def __init__(self, parent, text=""):
+        super().__init__(parent, text)
+
+class Frame(_Widget):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+def _coa_snapshot():
+    if _window is None or not _window._shown:
+        return None
+    controls = []
+    for widget in _window._controls:
+        if widget._place is None:
+            continue
+        item = {"type": widget.__class__.__name__, **widget._place}
+        if widget._text is not None:
+            item["text"] = widget._text
+        controls.append(item)
+    return {
+        "title": _window._title,
+        "width": _window._width,
+        "height": _window._height,
+        "controls": controls,
+    }
+`
 function flush() {
   if (pending) {
     self.postMessage({ type: 'output', text: pending })
@@ -90,6 +171,7 @@ self.onmessage = async ({ data }) => {
         stderr: () => {},
       })
       python.FS.mkdirTree('/home/coa')
+      python.FS.writeFile('/home/pyodide/coa_gui.py', COA_GUI_MODULE)
       self.postMessage({ type: 'ready' })
     } catch (error) {
       self.postMessage({
@@ -108,6 +190,7 @@ self.onmessage = async ({ data }) => {
   truncated = false
   testing = Array.isArray(data.inputs)
   let ok = true
+  let gui
   try {
     python.FS.chdir('/home/pyodide')
     removeTree('/home/coa')
@@ -156,6 +239,8 @@ for __name, __module in list(__sys.modules.items()):
 __sys.path[:] = [p for p in __sys.path if not p.startswith('/home/coa')]
 __sys.path.insert(0, '/home/coa')
 __sys.path.insert(0, __os.path.dirname(__coa_entry))
+__sys.path.insert(0, '/home/pyodide')
+__sys.modules.pop('coa_gui', None)
 __importlib.invalidate_caches()
 __original_input = __builtins.input
 __test_inputs = __json.loads(__coa_inputs)
@@ -173,6 +258,12 @@ try:
 finally:
     __builtins.input = __original_input
 `)
+    const guiJson = python.runPython(`
+import sys as __coa_sys, json as __coa_json
+__coa_module = __coa_sys.modules.get('coa_gui')
+__coa_json.dumps(__coa_module._coa_snapshot()) if __coa_module else 'null'
+`)
+    gui = JSON.parse(guiJson)
   } catch (error) {
     ok = false
     const message = String(error)
@@ -185,6 +276,7 @@ finally:
       type: 'done',
       ok,
       output,
+      gui: testing ? undefined : gui,
       entries: testing ? undefined : snapshot(),
     })
   } catch {
