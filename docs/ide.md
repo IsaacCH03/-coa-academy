@@ -39,6 +39,10 @@ Para añadir ejercicios, agrega un objeto a `lib/ide/exercises.ts` con descripci
 
 `lib/ide/ai.ts` define el contrato de un tutor futuro. No existe una conexión a IA ni se envía código a un proveedor. El panel muestra **Próximamente**.
 
+## Diseñador visual mínimo
+
+La opción **Diseñador**, debajo de Ejercicios, abre una vista propia dentro del Studio. `components/ide/gui-designer.tsx` contiene la paleta, el lienzo y las propiedades; `lib/ide/gui-designer.ts` define el modelo sencillo, los límites y la generación de código. Permite únicamente Label, Entry, Button y Frame, con posición absoluta, tamaño, nombre y texto cuando corresponde. Los botones generan código COA GUI o Tkinter y permiten copiarlo. La sincronización es solo del diseño hacia el código; no analiza archivos Python ni implementa eventos, estilos, ventanas adicionales o una librería `coa_gui` ejecutable.
+
 ## GitHub (opcional)
 
 El IDE funciona sin configurar GitHub. Para activar la integración:

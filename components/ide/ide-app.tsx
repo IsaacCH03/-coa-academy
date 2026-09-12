@@ -6,6 +6,7 @@ import {
   Files,
   Bot,
   GraduationCap,
+  PanelsTopLeft,
   X,
   Circle,
   ChevronLeft,
@@ -19,6 +20,7 @@ import { ConsolePanel } from './console-panel'
 import { ExercisePanel } from './exercise-panel'
 import { GithubPanel } from './github-panel'
 import { ConfirmDialog } from './confirm-dialog'
+import { GuiDesigner } from './gui-designer'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -48,7 +50,7 @@ const statusLabels: Record<RuntimeState, string> = {
   stopped: 'Programa detenido',
   error: 'Python no disponible',
 }
-type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'github'
+type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github'
 
 export function IdeApp() {
   const { project, update, save, saveStatus, storageError } = useProject()
@@ -325,6 +327,7 @@ export function IdeApp() {
               { id: 'files', label: 'Archivos', icon: Files },
               { id: 'ai', label: 'COA IA', icon: Bot },
               { id: 'exercise', label: 'Ejercicios', icon: GraduationCap },
+              { id: 'designer', label: 'Diseñador', icon: PanelsTopLeft },
             ] as const
           ).map((item) => (
             <button
@@ -341,7 +344,7 @@ export function IdeApp() {
           ))}
           <span className="ide-activity-bottom">PY</span>
         </nav>
-        {panel && (
+        {panel && panel !== 'designer' && (
           <>
             <button
               className="ide-drawer-backdrop"
@@ -432,7 +435,12 @@ export function IdeApp() {
             </aside>
           </>
         )}
-        <div className="ide-editor-area" ref={area}>
+        {panel === 'designer' && <GuiDesigner />}
+        <div
+          className="ide-editor-area"
+          ref={area}
+          style={{ display: panel === 'designer' ? 'none' : undefined }}
+        >
           <div
             className="ide-tabs"
             role="tablist"
