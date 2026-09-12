@@ -902,6 +902,26 @@
 .gui-palette > button:active {
   cursor: grabbing;
 }
+.gui-design-actions {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 8px;
+}
+.gui-design-actions button {
+  justify-content: flex-start;
+  padding: 8px 10px;
+  border: 1px solid #314866;
+  background: #16273d;
+}
+.gui-design-actions button:last-child {
+  color: #ffaaaa;
+  border-color: #633b47;
+}
+.gui-design-actions + small {
+  display: block;
+  color: #65d5a1;
+  margin-bottom: 8px;
+}
 .gui-window-fields {
   border-top: 1px solid var(--ide-border);
   margin-top: 20px;

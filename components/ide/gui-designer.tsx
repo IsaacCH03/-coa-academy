@@ -1,31 +1,44 @@
 'use client'
 import { useRef, useState, type PointerEvent } from 'react'
-import { Copy, Trash2 } from 'lucide-react'
+import { Copy, Save, Trash2 } from 'lucide-react'
 import {
   clampControl,
   generateGuiCode,
+  newGuiDesign,
   nextControl,
   validControls,
   type GuiControl,
   type GuiControlType,
+  type GuiDesign,
   type GuiWindow,
 } from '@/lib/ide/gui-designer'
+import { ConfirmDialog } from './confirm-dialog'
 
 const types: GuiControlType[] = ['Label', 'Entry', 'Button', 'Frame']
 
-export function GuiDesigner() {
-  const [windowConfig, setWindowConfig] = useState<GuiWindow>({
-    title: 'Mi interfaz',
-    width: 500,
-    height: 400,
-  })
-  const [controls, setControls] = useState<GuiControl[]>([])
+export function GuiDesigner({
+  design,
+  onChange,
+  onSave,
+}: {
+  design: GuiDesign
+  onChange: (design: GuiDesign) => void
+  onSave: () => Promise<void>
+}) {
+  const { window: windowConfig, controls } = design
   const [selected, setSelected] = useState<string | null>(null)
   const [generated, setGenerated] = useState('')
   const [copyLabel, setCopyLabel] = useState('Copiar código')
+  const [saved, setSaved] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const canvas = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
   const current = controls.find((control) => control.id === selected)
+
+  function change(next: GuiDesign) {
+    onChange(next)
+    setSaved(false)
+  }
 
   function add(type: GuiControlType, clientX: number, clientY: number) {
     const bounds = canvas.current?.getBoundingClientRect()
@@ -33,26 +46,29 @@ export function GuiDesigner() {
     const x = ((clientX - bounds.left) * windowConfig.width) / bounds.width
     const y = ((clientY - bounds.top) * windowConfig.height) / bounds.height
     const control = nextControl(type, controls, x, y, windowConfig)
-    setControls((items) => [...items, control])
+    change({ ...design, controls: [...controls, control] })
     setSelected(control.id)
     setGenerated('')
   }
 
-  function updateControl(change: Partial<GuiControl>) {
-    setControls((items) =>
-      items.map((control) =>
+  function updateControl(update: Partial<GuiControl>) {
+    change({
+      ...design,
+      controls: controls.map((control) =>
         control.id === selected
-          ? clampControl({ ...control, ...change }, windowConfig)
+          ? clampControl({ ...control, ...update }, windowConfig)
           : control,
       ),
-    )
+    })
     setGenerated('')
   }
 
-  function resizeWindow(change: Partial<GuiWindow>) {
-    const next = { ...windowConfig, ...change }
-    setWindowConfig(next)
-    setControls((items) => items.map((control) => clampControl(control, next)))
+  function resizeWindow(update: Partial<GuiWindow>) {
+    const next = { ...windowConfig, ...update }
+    change({
+      window: next,
+      controls: controls.map((control) => clampControl(control, next)),
+    })
     setGenerated('')
   }
 
@@ -72,8 +88,9 @@ export function GuiDesigner() {
     if (!bounds || !moving) return
     const x = ((event.clientX - bounds.left) * windowConfig.width) / bounds.width
     const y = ((event.clientY - bounds.top) * windowConfig.height) / bounds.height
-    setControls((items) =>
-      items.map((control) =>
+    change({
+      ...design,
+      controls: controls.map((control) =>
         control.id === moving.id
           ? clampControl(
               { ...control, x: x - moving.offsetX, y: y - moving.offsetY },
@@ -81,7 +98,7 @@ export function GuiDesigner() {
             )
           : control,
       ),
-    )
+    })
     setGenerated('')
   }
 
@@ -96,6 +113,20 @@ export function GuiDesigner() {
         <p className="ide-eyebrow">COMPONENTES</p>
         <h2>Diseñador</h2>
         <p className="ide-muted">Arrastra un componente hacia la ventana.</p>
+        <div className="gui-design-actions">
+          <button
+            onClick={async () => {
+              await onSave()
+              setSaved(true)
+            }}
+          >
+            <Save size={15} /> Guardar diseño
+          </button>
+          <button onClick={() => setConfirmClear(true)}>
+            <Trash2 size={15} /> Limpiar diseño
+          </button>
+        </div>
+        {saved && <small role="status">Diseño guardado</small>}
         {types.map((type) => (
           <button
             key={type}
@@ -175,11 +206,27 @@ export function GuiDesigner() {
             {(['x', 'y', 'width', 'height'] as const).map((property) => (
               <label key={property}>{property === 'x' ? 'Posición X' : property === 'y' ? 'Posición Y' : property === 'width' ? 'Ancho' : 'Alto'}<input type="number" min={property === 'width' || property === 'height' ? 20 : 0} value={current[property]} onChange={(e) => updateControl({ [property]: Number(e.target.value) || 0 })} /></label>
             ))}
-            <button className="gui-delete" onClick={() => { setControls((items) => items.filter((control) => control.id !== current.id)); setSelected(null); setGenerated('') }}><Trash2 size={16} /> Eliminar componente</button>
+            <button className="gui-delete" onClick={() => { change({ ...design, controls: controls.filter((control) => control.id !== current.id) }); setSelected(null); setGenerated('') }}><Trash2 size={16} /> Eliminar componente</button>
           </>
         ) : <p className="ide-muted">Selecciona un componente para editarlo.</p>}
         {!validControls(controls) && <p className="ide-warning" role="status">Usa nombres válidos, únicos y no vacíos.</p>}
       </aside>
+      {confirmClear && (
+        <ConfirmDialog
+          title="Limpiar diseño"
+          onCancel={() => setConfirmClear(false)}
+          confirmLabel="Limpiar"
+          onConfirm={() => {
+            change(newGuiDesign())
+            setSelected(null)
+            setGenerated('')
+            setConfirmClear(false)
+            void onSave()
+          }}
+        >
+          <p>¿Deseas limpiar el diseño? Se eliminarán todos los componentes.</p>
+        </ConfirmDialog>
+      )}
     </section>
   )
 }

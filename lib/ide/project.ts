@@ -1,3 +1,9 @@
+import {
+  newGuiDesign,
+  restoreGuiDesign,
+  type GuiDesign,
+} from './gui-designer'
+
 export type HelpMode = 'guided' | 'assisted' | 'free'
 export type ProjectEntry = {
   path: string
@@ -12,6 +18,7 @@ export type Project = {
   consoleHeight: number
   consoleCollapsed: boolean
   helpMode: HelpMode
+  guiDesign: GuiDesign
 }
 export const extensions = ['py', 'txt', 'csv', 'json', 'md']
 export const MAX_FILE_SIZE = 1024 * 1024
@@ -31,6 +38,7 @@ export function newProject(): Project {
     consoleHeight: 240,
     consoleCollapsed: false,
     helpMode: 'guided',
+    guiDesign: newGuiDesign(),
   }
 }
 export function validPath(path: string, kind: ProjectEntry['kind'] = 'file') {
@@ -183,6 +191,7 @@ export function restoreProject(value: unknown): Project {
       p.helpMode && ['guided', 'assisted', 'free'].includes(p.helpMode)
         ? p.helpMode
         : 'guided',
+    guiDesign: restoreGuiDesign(p.guiDesign),
   }
 }
 

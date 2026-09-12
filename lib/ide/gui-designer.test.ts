@@ -3,6 +3,7 @@ import {
   clampControl,
   generateGuiCode,
   nextControl,
+  restoreGuiDesign,
   type GuiControl,
   type GuiWindow,
 } from './gui-designer'
@@ -38,5 +39,15 @@ describe('GUI designer helpers', () => {
   it('rejects empty, duplicated or unsafe variable names', () => {
     expect(() => generateGuiCode(window, [{ ...controls[0], variableName: '' }], 'tkinter')).toThrow()
     expect(() => generateGuiCode(window, [...controls, { ...controls[0], id: '5' }], 'coa')).toThrow()
+  })
+
+  it('restores a saved design and falls back for invalid data', () => {
+    const restored = restoreGuiDesign({ window, controls })
+    expect(restored.window.title).toBe('Mi "interfaz"')
+    expect(restored.controls).toHaveLength(4)
+    expect(restoreGuiDesign({ broken: true })).toEqual({
+      window: { title: 'Mi interfaz', width: 500, height: 400 },
+      controls: [],
+    })
   })
 })

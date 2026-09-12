@@ -12,6 +12,44 @@ export type GuiControl = {
 }
 
 export type GuiWindow = { title: string; width: number; height: number }
+export type GuiDesign = { window: GuiWindow; controls: GuiControl[] }
+
+export function newGuiDesign(): GuiDesign {
+  return {
+    window: { title: 'Mi interfaz', width: 500, height: 400 },
+    controls: [],
+  }
+}
+
+export function restoreGuiDesign(value: unknown): GuiDesign {
+  if (!value || typeof value !== 'object') return newGuiDesign()
+  const design = value as Partial<GuiDesign>
+  if (
+    !design.window ||
+    typeof design.window.title !== 'string' ||
+    !Number.isFinite(design.window.width) ||
+    !Number.isFinite(design.window.height) ||
+    !Array.isArray(design.controls)
+  )
+    return newGuiDesign()
+  const window = {
+    title: design.window.title,
+    width: Math.max(240, Math.min(900, Math.round(design.window.width))),
+    height: Math.max(200, Math.min(700, Math.round(design.window.height))),
+  }
+  const controls = design.controls.filter(
+    (control): control is GuiControl =>
+      !!control &&
+      typeof control.id === 'string' &&
+      ['Label', 'Entry', 'Button', 'Frame'].includes(control.type) &&
+      typeof control.variableName === 'string' &&
+      [control.x, control.y, control.width, control.height].every(Number.isFinite) &&
+      (control.text === undefined || typeof control.text === 'string'),
+  )
+  if (new Set(controls.map((control) => control.id)).size !== controls.length)
+    return newGuiDesign()
+  return { window, controls: controls.map((control) => clampControl(control, window)) }
+}
 
 export const controlDefaults: Record<
   GuiControlType,

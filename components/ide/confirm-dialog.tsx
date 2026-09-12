@@ -5,11 +5,13 @@ export function ConfirmDialog({
   children,
   onCancel,
   onConfirm,
+  confirmLabel = 'Confirmar',
 }: {
   title: string
   children: ReactNode
   onCancel: () => void
   onConfirm: () => void
+  confirmLabel?: string
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -32,7 +34,7 @@ export function ConfirmDialog({
           Cancelar
         </button>
         <button className="ide-primary" onClick={onConfirm}>
-          Confirmar
+          {confirmLabel}
         </button>
       </div>
     </dialog>

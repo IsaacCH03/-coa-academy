@@ -440,7 +440,13 @@ export function IdeApp() {
             </aside>
           </>
         )}
-        {panel === 'designer' && <GuiDesigner />}
+        {panel === 'designer' && (
+          <GuiDesigner
+            design={project.guiDesign}
+            onChange={(guiDesign) => update((p) => ({ ...p, guiDesign }))}
+            onSave={save}
+          />
+        )}
         <div
           className="ide-editor-area"
           ref={area}
