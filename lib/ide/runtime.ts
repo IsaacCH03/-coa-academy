@@ -1,4 +1,5 @@
 import type { Project, ProjectEntry } from './project'
+import type { GuiImportResult } from './gui-designer'
 export type RuntimeState =
   'loading' | 'ready' | 'running' | 'input' | 'stopped' | 'error'
 export type RunResult = {
@@ -34,6 +35,8 @@ export class PythonRuntime {
   private resolve: ((result: RunResult) => void) | undefined
   private resolveGui: ((preview: CoaGuiPreview) => void) | undefined
   private rejectGui: ((error: Error) => void) | undefined
+  private resolveAnalysis: ((result: GuiImportResult) => void) | undefined
+  private rejectAnalysis: ((error: Error) => void) | undefined
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
@@ -75,6 +78,16 @@ export class PythonRuntime {
         this.rejectGui?.(new Error(data.text))
         this.resolveGui = undefined
         this.rejectGui = undefined
+      }
+      if (data.type === 'analyze-result') {
+        this.resolveAnalysis?.(data.result)
+        this.resolveAnalysis = undefined
+        this.rejectAnalysis = undefined
+      }
+      if (data.type === 'analyze-error') {
+        this.rejectAnalysis?.(new Error(data.text))
+        this.resolveAnalysis = undefined
+        this.rejectAnalysis = undefined
       }
       if (data.type === 'fatal') this.fail(data.text)
       if (data.type === 'done') {
@@ -143,6 +156,15 @@ export class PythonRuntime {
       this.worker!.postMessage({ type: 'gui-event', controlId, values })
     })
   }
+  analyzeGui(source: string) {
+    if (!this.ready || this.resolve || this.resolveGui || this.resolveAnalysis)
+      return Promise.reject(new Error('Espera a que Python esté listo.'))
+    return new Promise<GuiImportResult>((resolve, reject) => {
+      this.resolveAnalysis = resolve
+      this.rejectAnalysis = reject
+      this.worker!.postMessage({ type: 'analyze-gui', source })
+    })
+  }
   stop() {
     this.dispose()
     this.events.state('stopped')
@@ -158,5 +180,8 @@ export class PythonRuntime {
     this.rejectGui?.(new Error('La ejecución gráfica fue detenida.'))
     this.resolveGui = undefined
     this.rejectGui = undefined
+    this.rejectAnalysis?.(new Error('El análisis fue detenido.'))
+    this.resolveAnalysis = undefined
+    this.rejectAnalysis = undefined
   }
 }

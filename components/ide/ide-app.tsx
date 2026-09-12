@@ -445,6 +445,7 @@ export function IdeApp() {
             design={project.guiDesign}
             onChange={(guiDesign) => update((p) => ({ ...p, guiDesign }))}
             onSave={save}
+            onAnalyze={(source) => runtime.current!.analyzeGui(source)}
           />
         )}
         <div

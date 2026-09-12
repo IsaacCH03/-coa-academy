@@ -1,15 +1,17 @@
 'use client'
 import { useRef, useState, type PointerEvent } from 'react'
-import { Copy, Save, Trash2 } from 'lucide-react'
+import { Copy, FileCode2, Save, Trash2 } from 'lucide-react'
 import {
   clampControl,
   generateGuiCode,
   newGuiDesign,
   nextControl,
+  restoreGuiDesign,
   validControls,
   type GuiControl,
   type GuiControlType,
   type GuiDesign,
+  type GuiImportResult,
   type GuiWindow,
 } from '@/lib/ide/gui-designer'
 import { ConfirmDialog } from './confirm-dialog'
@@ -20,10 +22,12 @@ export function GuiDesigner({
   design,
   onChange,
   onSave,
+  onAnalyze,
 }: {
   design: GuiDesign
   onChange: (design: GuiDesign) => void
   onSave: () => Promise<void>
+  onAnalyze: (source: string) => Promise<GuiImportResult>
 }) {
   const { window: windowConfig, controls } = design
   const [selected, setSelected] = useState<string | null>(null)
@@ -31,6 +35,11 @@ export function GuiDesigner({
   const [copyLabel, setCopyLabel] = useState('Copiar código')
   const [saved, setSaved] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importSource, setImportSource] = useState('')
+  const [importError, setImportError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [pendingImport, setPendingImport] = useState<GuiDesign | null>(null)
   const canvas = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
   const current = controls.find((control) => control.id === selected)
@@ -103,8 +112,19 @@ export function GuiDesigner({
   }
 
   function createCode(target: 'coa' | 'tkinter') {
-    setGenerated(generateGuiCode(windowConfig, controls, target))
+    setGenerated(
+      generateGuiCode(windowConfig, controls, target, design.importedSource),
+    )
     setCopyLabel('Copiar código')
+  }
+
+  function applyImport(next: GuiDesign) {
+    change(restoreGuiDesign(next))
+    setSelected(null)
+    setGenerated('')
+    setImportOpen(false)
+    setPendingImport(null)
+    void onSave()
   }
 
   return (
@@ -124,6 +144,14 @@ export function GuiDesigner({
           </button>
           <button onClick={() => setConfirmClear(true)}>
             <Trash2 size={15} /> Limpiar diseño
+          </button>
+          <button
+            onClick={() => {
+              setImportError('')
+              setImportOpen(true)
+            }}
+          >
+            <FileCode2 size={15} /> Importar código COA GUI
           </button>
         </div>
         {saved && <small role="status">Diseño guardado</small>}
@@ -210,7 +238,66 @@ export function GuiDesigner({
           </>
         ) : <p className="ide-muted">Selecciona un componente para editarlo.</p>}
         {!validControls(controls) && <p className="ide-warning" role="status">Usa nombres válidos, únicos y no vacíos.</p>}
+        {design.importedSource?.warning && (
+          <p className="ide-warning" role="status">
+            Algunas instrucciones no pueden editarse visualmente y se conservarán en el código.
+          </p>
+        )}
       </aside>
+      {importOpen && (
+        <section className="gui-import-dialog" role="dialog" aria-label="Importar código COA GUI">
+          <h2>Importar código COA GUI</h2>
+          <p>Pega el código que quieres cargar en el Diseñador.</p>
+          <textarea
+            aria-label="Código COA GUI"
+            value={importSource}
+            onChange={(event) => {
+              setImportSource(event.target.value)
+              setImportError('')
+            }}
+            autoFocus
+          />
+          {importError && <p className="ide-warning" role="status">{importError}</p>}
+          <div className="ide-row">
+            <button onClick={() => setImportOpen(false)}>Cancelar</button>
+            <button
+              className="ide-primary"
+              disabled={importing || !importSource.trim()}
+              onClick={async () => {
+                setImporting(true)
+                try {
+                  const result = await onAnalyze(importSource)
+                  if (!result.ok) {
+                    setImportError(
+                      result.reason === 'syntax'
+                        ? 'No se pudo importar el código porque contiene un error de sintaxis.'
+                        : 'No se encontró una interfaz COA GUI compatible.',
+                    )
+                  } else if (controls.length) {
+                    setPendingImport(result.design)
+                  } else applyImport(result.design)
+                } catch {
+                  setImportError('No se pudo analizar el código. Inténtalo de nuevo.')
+                } finally {
+                  setImporting(false)
+                }
+              }}
+            >
+              Cargar en diseñador
+            </button>
+          </div>
+        </section>
+      )}
+      {pendingImport && (
+        <ConfirmDialog
+          title="Reemplazar diseño actual"
+          confirmLabel="Importar"
+          onCancel={() => setPendingImport(null)}
+          onConfirm={() => applyImport(pendingImport)}
+        >
+          <p>Importar este código reemplazará el diseño actual.</p>
+        </ConfirmDialog>
+      )}
       {confirmClear && (
         <ConfirmDialog
           title="Limpiar diseño"

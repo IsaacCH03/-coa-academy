@@ -228,6 +228,172 @@ __coa_json.dumps(__coa_gui._coa_invoke(__coa_widget_id, __coa_json.loads(__coa_v
     }
     return
   }
+  if (data.type === 'analyze-gui' && python) {
+    try {
+      python.globals.set('__coa_import_source', data.source)
+      const result = await python.runPythonAsync(`
+import ast as __ast, json as __json
+
+def __coa_range(node):
+    lines = __coa_import_source.splitlines(keepends=True)
+    def offset(line, column):
+        before = ''.join(lines[:line - 1])
+        current = lines[line - 1].encode('utf-8')[:column].decode('utf-8')
+        return len(before) + len(current)
+    return [offset(node.lineno, node.col_offset), offset(node.end_lineno, node.end_col_offset)]
+
+def __coa_literal(node, kind):
+    if not isinstance(node, __ast.Constant):
+        return None
+    if kind == 'text' and isinstance(node.value, str):
+        return node.value
+    if kind == 'number' and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+        return round(node.value)
+    return None
+
+try:
+    tree = __ast.parse(__coa_import_source)
+except SyntaxError:
+    __coa_result = {'ok': False, 'reason': 'syntax'}
+else:
+    import_node = None
+    for node in tree.body:
+        if isinstance(node, __ast.Import) and any(alias.name == 'coa_gui' and alias.asname == 'gui' for alias in node.names):
+            import_node = node
+            break
+    window_node = None
+    window_name = None
+    for node in tree.body:
+        if (isinstance(node, __ast.Assign) and len(node.targets) == 1 and
+            isinstance(node.targets[0], __ast.Name) and isinstance(node.value, __ast.Call) and
+            isinstance(node.value.func, __ast.Attribute) and node.value.func.attr == 'Tk' and
+            isinstance(node.value.func.value, __ast.Name) and node.value.func.value.id == 'gui'):
+            window_node = node
+            window_name = node.targets[0].id
+            break
+    if import_node is None or window_node is None:
+        __coa_result = {'ok': False, 'reason': 'missing'}
+    else:
+        title = 'Mi interfaz'
+        width, height = 500, 400
+        title_range = None
+        geometry_range = None
+        mainloop_start = len(__coa_import_source)
+        creations = {}
+        places = {}
+        gui_ranges = [__coa_range(window_node.value.func.value)]
+        warning = False
+        supported = {'Tk', 'Label', 'Entry', 'Button', 'Frame'}
+        for call in (item for item in __ast.walk(tree) if isinstance(item, __ast.Call)):
+            if isinstance(call.func, __ast.Attribute):
+                if isinstance(call.func.value, __ast.Name) and call.func.value.id == 'gui' and call.func.attr not in supported:
+                    warning = True
+                if call.func.attr in {'pack', 'grid'}:
+                    warning = True
+        for node in tree.body:
+            if isinstance(node, __ast.Expr) and isinstance(node.value, __ast.Call) and isinstance(node.value.func, __ast.Attribute):
+                call = node.value
+                owner = call.func.value
+                if isinstance(owner, __ast.Name) and owner.id == window_name and call.func.attr in {'title', 'geometry', 'mainloop'}:
+                    if call.func.attr == 'mainloop':
+                        mainloop_start = __coa_range(node)[0]
+                    elif len(call.args) == 1:
+                        value = __coa_literal(call.args[0], 'text')
+                        if value is None:
+                            warning = True
+                        elif call.func.attr == 'title':
+                            title, title_range = value, __coa_range(call.args[0])
+                        else:
+                            parts = value.lower().split('x')
+                            if len(parts) == 2 and all(part.isdigit() for part in parts):
+                                width, height = int(parts[0]), int(parts[1])
+                                geometry_range = __coa_range(call.args[0])
+                            else:
+                                warning = True
+                elif isinstance(owner, __ast.Name) and call.func.attr == 'place':
+                    places[owner.id] = (node, call)
+            if (isinstance(node, __ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], __ast.Name) and
+                isinstance(node.value, __ast.Call) and isinstance(node.value.func, __ast.Attribute) and
+                isinstance(node.value.func.value, __ast.Name) and node.value.func.value.id == 'gui' and
+                node.value.func.attr in {'Label', 'Entry', 'Button', 'Frame'}):
+                creations[node.targets[0].id] = node
+                gui_ranges.append(__coa_range(node.value.func.value))
+        controls = []
+        sources = {}
+        for name, create in creations.items():
+            placed = places.get(name)
+            if placed is None:
+                warning = True
+                continue
+            place_node, place_call = placed
+            place_keywords = {keyword.arg: keyword.value for keyword in place_call.keywords if keyword.arg}
+            if not all(key in place_keywords for key in ('x', 'y', 'width', 'height')):
+                warning = True
+                continue
+            values = {key: __coa_literal(place_keywords[key], 'number') for key in ('x', 'y', 'width', 'height')}
+            if any(value is None for value in values.values()):
+                warning = True
+                continue
+            keywords = {keyword.arg: keyword.value for keyword in create.value.keywords if keyword.arg}
+            unsupported_keywords = set(keywords) - {'text', 'command'}
+            if unsupported_keywords:
+                warning = True
+            text = None
+            if 'text' in keywords:
+                text = __coa_literal(keywords['text'], 'text')
+                if text is None:
+                    warning = True
+            elif create.value.func.attr in {'Label', 'Button'}:
+                text = ''
+            command = keywords.get('command')
+            command_name = command.id if isinstance(command, __ast.Name) else None
+            if command is not None and command_name is None:
+                warning = True
+            source_key = name
+            control = {
+                'id': 'import-' + name, 'type': create.value.func.attr, 'variableName': name,
+                'x': values['x'], 'y': values['y'], 'width': values['width'], 'height': values['height'],
+                'sourceKey': source_key,
+            }
+            if text is not None:
+                control['text'] = text
+            if command_name:
+                control['commandName'] = command_name
+            controls.append(control)
+            sources[source_key] = {
+                'createRange': __coa_range(create), 'placeRange': __coa_range(place_node),
+                'nameRanges': [__coa_range(item) for item in __ast.walk(tree) if isinstance(item, __ast.Name) and item.id == name],
+                'constructorEnd': __coa_range(create.value)[1] - 1,
+                'xRange': __coa_range(place_keywords['x']), 'yRange': __coa_range(place_keywords['y']),
+                'widthRange': __coa_range(place_keywords['width']), 'heightRange': __coa_range(place_keywords['height']),
+            }
+            if 'text' in keywords:
+                sources[source_key]['textRange'] = __coa_range(keywords['text'])
+        if not controls and creations:
+            warning = True
+        __coa_result = {
+            'ok': True,
+            'warning': warning,
+            'design': {
+                'window': {'title': title, 'width': width, 'height': height},
+                'controls': controls,
+                'importedSource': {
+                    'source': __coa_import_source, 'importRange': __coa_range(import_node),
+                    'guiRanges': gui_ranges, 'titleRange': title_range, 'geometryRange': geometry_range,
+                    'mainloopStart': mainloop_start, 'windowName': window_name,
+                    'windowCreateEnd': __coa_range(window_node)[1], 'controls': sources,
+                    'warning': warning,
+                },
+            },
+        }
+__json.dumps(__coa_result)
+`)
+      self.postMessage({ type: 'analyze-result', result: JSON.parse(result) })
+    } catch (error) {
+      self.postMessage({ type: 'analyze-error', text: String(error) })
+    }
+    return
+  }
   if (data.type !== 'run' || !python) return
   pending = ''
   output = ''

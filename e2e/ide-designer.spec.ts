@@ -176,3 +176,109 @@ ventana.mainloop()`
   await preview.getByRole('button', { name: 'Mostrar' }).click()
   await expect(page.getByTestId('python-output')).toContainText('Contenido: Evelio')
 })
+
+test('imports COA GUI with AST and preserves calculator logic while editing visuals', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/ide')
+  await page.getByRole('button', { name: 'Comenzar', exact: true }).click()
+  await expect(page.getByText('Python listo', { exact: true })).toBeVisible({ timeout: 100000 })
+  await page.getByRole('button', { name: 'Diseñador', exact: true }).click()
+  const canvas = page.getByLabel('Área de diseño')
+  await page
+    .locator('.gui-palette')
+    .getByRole('button', { name: 'Label', exact: true })
+    .dragTo(canvas, { targetPosition: { x: 50, y: 50 } })
+
+  await page.getByRole('button', { name: 'Importar código COA GUI' }).click()
+  const importer = page.getByRole('dialog', { name: 'Importar código COA GUI' })
+  const sourceInput = importer.getByLabel('Código COA GUI')
+  await sourceInput.fill('import coa_gui as gui\nif:')
+  await importer.getByRole('button', { name: 'Cargar en diseñador' }).click()
+  await expect(page.getByText('No se pudo importar el código porque contiene un error de sintaxis.')).toBeVisible()
+  await expect(canvas.getByRole('button')).toHaveCount(1)
+  await sourceInput.fill('print("sin interfaz")')
+  await importer.getByRole('button', { name: 'Cargar en diseñador' }).click()
+  await expect(page.getByText('No se encontró una interfaz COA GUI compatible.')).toBeVisible()
+
+  const calculator = `import coa_gui as gui
+
+ventana = gui.Tk()
+ventana.title("Calculadora")
+ventana.geometry("400x300")
+
+numero1 = gui.Entry(ventana)
+numero1.place(x=50, y=40, width=150, height=30)
+
+numero2 = gui.Entry(ventana)
+numero2.place(x=50, y=90, width=150, height=30)
+
+resultado = gui.Label(
+    ventana,
+    text="Resultado:"
+)
+resultado.place(x=50, y=140, width=200, height=30)
+
+def sumar():
+    n1 = int(numero1.get())
+    n2 = int(numero2.get())
+
+    suma = n1 + n2
+
+    resultado.config(
+        text="Resultado: " + str(suma)
+    )
+
+boton = gui.Button(
+    ventana,
+    text="Sumar",
+    command=sumar
+)
+boton.place(x=50, y=190, width=120, height=35)
+
+ventana.mainloop()`
+  await sourceInput.fill(calculator)
+  await importer.getByRole('button', { name: 'Cargar en diseñador' }).click()
+  const replacement = page.getByRole('dialog', { name: 'Reemplazar diseño actual' })
+  await replacement.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(canvas.getByRole('button')).toHaveCount(1)
+  await importer.getByRole('button', { name: 'Cargar en diseñador' }).click()
+  await replacement.getByRole('button', { name: 'Importar' }).click()
+
+  await expect(canvas).toHaveCSS('width', '400px')
+  await expect(canvas).toHaveCSS('height', '300px')
+  await expect(canvas.getByRole('button')).toHaveCount(4)
+  await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  await page.getByRole('button', { name: 'Diseñador', exact: true }).click()
+  const importedButton = canvas.getByRole('button', { name: 'Button boton' })
+  await importedButton.click()
+  const properties = page.locator('.gui-properties')
+  await properties.getByLabel('Texto').fill('Calcular')
+  await properties.getByLabel('Posición X').fill('220')
+  await properties.getByLabel('Posición Y').fill('200')
+  await page.getByRole('button', { name: 'Generar código COA GUI' }).click()
+  const generated = page.getByTestId('gui-code')
+  await expect(generated).toContainText('def sumar():')
+  await expect(generated).toContainText('numero1.get()')
+  await expect(generated).toContainText('resultado.config(')
+  await expect(generated).toContainText('command=sumar')
+  await expect(generated).toContainText('text="Calcular"')
+  await expect(generated).toContainText('x=220, y=200, width=120, height=35')
+  await page.getByRole('button', { name: 'Copiar código' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+
+  await page.getByRole('button', { name: 'Exportar a Tkinter' }).click()
+  await expect(generated).toContainText('import tkinter as tk')
+  await expect(generated).toContainText('numero1 = tk.Entry(ventana)')
+  await expect(generated).toContainText('def sumar():')
+  await expect(generated).toContainText('command=sumar')
+
+  await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  await edit(page, copied)
+  await page.keyboard.press('Control+Enter')
+  const preview = page.getByLabel('Vista gráfica COA GUI')
+  const entries = preview.getByRole('textbox')
+  await entries.nth(0).fill('7')
+  await entries.nth(1).fill('7')
+  await preview.getByRole('button', { name: 'Calcular' }).click()
+  await expect(preview.getByText('Resultado: 14', { exact: true })).toBeVisible()
+})
