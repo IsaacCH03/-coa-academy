@@ -12,7 +12,12 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'C.O.A | Cursos Online Avanzados',
   description:
-    'Academia de Cursos Online Avanzados (C.O.A). Aprende marketing, desarrollo web, diseño, finanzas e inglés con clases prácticas y certificación.',
+    'Academia de programación online (C.O.A). Aprende Python, desarrollo web, bases de datos e inteligencia artificial con cursos prácticos y proyectos reales.',
+  icons: {
+    icon: '/logoCOA.png',
+    shortcut: '/logoCOA.png',
+    apple: '/logoCOA.png',
+  },
   generator: 'v0.app',
 }
 

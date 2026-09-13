@@ -4,7 +4,7 @@ export const site = {
   // Reemplaza con el número real (formato internacional, sin + ni espacios)
   whatsappNumber: '50660045660',
   whatsappMessage: 'Hola, me interesa recibir más información sobre los cursos de C.O.A.',
-  facebookUrl: 'https://facebook.com/',
+  facebookUrl: 'https://www.facebook.com/profile.php?id=100064086669988',
   email: 'coagocrc@gmail.com',
 }
 
