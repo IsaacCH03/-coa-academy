@@ -50,7 +50,7 @@ class Persona:
   await expect(page.locator('.ide-preview')).toContainText('for i in range(len(nombres)):')
   await page.getByRole('button', { name: 'Volver' }).click()
   await page.getByRole('button', { name: 'Nivel 2' }).click()
-  await page.getByRole('button', { name: /^Crear objeto/ }).click()
+  await page.getByRole('button', { name: 'Crear objeto +', exact: true }).click()
   await expect(page.getByLabel('Clase', { exact: true })).toHaveValue('Persona')
   await expect(page.getByText('Valores: nombre, edad')).toBeVisible()
   await page.getByRole('button', { name: 'Volver' }).click()

@@ -585,6 +585,12 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
     loads = {}
     functions = {}
     classes = {}
+    for imported in (item for item in __ast.walk(__coa_tree) if isinstance(item, __ast.ImportFrom) and item.module in __coa_modules):
+        target_tree = __coa_trees.get(__coa_modules[imported.module])
+        if target_tree:
+            target_classes = {item.name: item for item in target_tree.body if isinstance(item, __ast.ClassDef)}
+            for alias in imported.names:
+                if alias.name in target_classes: classes[alias.asname or alias.name] = target_classes[alias.name]
     instances = {}
     literal_lists, literal_dicts = {}, {}
     imported_names = {}
@@ -689,6 +695,7 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                 if not method.args.vararg and len(node.args) != expected:
                     __coa_diagnostics.append(__coa_item(__coa_path, 'method-args', node, f'El método "{node.func.attr}" necesita {expected} argumentos y recibió {len(node.args)}.', 'self se envía automáticamente; revisa los demás parámetros.'))
     for class_name, cls in classes.items():
+        if cls not in __coa_tree.body: continue
         for base in cls.bases:
             if isinstance(base, __ast.Name) and base.id not in classes and base.id not in definitions and base.id not in known:
                 suggestion = __coa_best(base.id, classes)
@@ -703,6 +710,11 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
     for node in (item for item in __ast.walk(__coa_tree) if isinstance(item, (__ast.Import, __ast.ImportFrom))):
         modules = [(alias.name, alias) for alias in node.names] if isinstance(node, __ast.Import) else [(node.module or '', node)]
         for module, target in modules:
+            source_layer = __coa_path.split('/')[0] if '/' in __coa_path else ''
+            target_layer = module.split('.')[0]
+            unusual = (source_layer == 'presentation' and target_layer == 'data') or (source_layer in ('data', 'domain') and target_layer == 'presentation')
+            if unusual:
+                __coa_diagnostics.append(__coa_item(__coa_path, 'layer-connection', node, f'{source_layer.capitalize()} está accediendo directamente a {target_layer.capitalize()}.', 'En la arquitectura utilizada por COA normalmente Presentation se comunica con Business, y Business conecta las demás capas.', 'warning'))
             if module in __coa_modules: continue
             root = module.split('.')[0]
             if any(existing == root or existing.startswith(root + '.') for existing in __coa_modules):

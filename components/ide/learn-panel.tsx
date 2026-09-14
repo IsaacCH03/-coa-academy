@@ -9,6 +9,9 @@ import {
   type BuilderAnalysis,
 } from '@/lib/ide/builder'
 import type { HelpMode } from '@/lib/ide/project'
+import type { ProjectEntry } from '@/lib/ide/project'
+import type { BuilderChange } from '@/lib/ide/layers'
+import { EncapsulationBuilder, LayerBuilder } from './layer-builder'
 
 export function LearnPanel({
   source,
@@ -21,6 +24,9 @@ export function LearnPanel({
   disabled,
   cursorOffset,
   onAnalyze,
+  entries,
+  activePath,
+  onApplyChanges,
 }: {
   source: string
   mode: HelpMode
@@ -32,6 +38,9 @@ export function LearnPanel({
   disabled: boolean
   cursorOffset: number
   onAnalyze: (source: string, offset: number) => Promise<BuilderAnalysis>
+  entries: ProjectEntry[]
+  activePath: string
+  onApplyChanges: (changes: BuilderChange[]) => void
 }) {
   const [query, setQuery] = useState('')
   const [actionId, setActionId] = useState<string | null>(null)
@@ -128,6 +137,11 @@ export function LearnPanel({
           </button>
           <h3>{action.title}</h3>
           <p className="ide-muted">{action.description}</p>
+          {action.id === 'encapsulation' ? (
+            <EncapsulationBuilder entries={entries} active={activePath} onApply={onApplyChanges} />
+          ) : action.id.startsWith('layer-') ? (
+            <LayerBuilder actionId={action.id} entries={entries} active={activePath} onApply={onApplyChanges} />
+          ) : (<>
           {mode === 'guided' &&
             action.fields.map((field) => (
               <label className="ide-field" key={field.key}>
@@ -212,6 +226,7 @@ export function LearnPanel({
           <small className="ide-muted">
             Se inserta en el cursor. Puedes deshacer con Ctrl+Z.
           </small>
+          </>)}
         </>
       ) : (
         <>
@@ -242,7 +257,7 @@ export function LearnPanel({
           <>
           {[...new Set(filtered.map((a) => a.category))].map((category) => (
             <details key={category} open>
-              <summary>{category}</summary>
+              <summary title={category === 'Programación por capas' ? 'Ayudas para presentation, business, domain y data según la arquitectura utilizada en COA.' : undefined}>{category}{category === 'Programación por capas' ? ' ⓘ' : ''}</summary>
               <div className="ide-action-list">
                 {filtered
                   .filter((a) => a.category === category)

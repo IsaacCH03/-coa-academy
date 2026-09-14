@@ -44,6 +44,7 @@ import {
   type DiagnosticFix,
   type RuntimeDiagnostic,
 } from '@/lib/ide/diagnostics'
+import type { BuilderChange } from '@/lib/ide/layers'
 
 const CodeEditor = dynamic(
   () => import('./code-editor').then((m) => m.CodeEditor),
@@ -316,6 +317,17 @@ export function IdeApp() {
     ed.focus()
     if (window.innerWidth < 768) setPanel(null)
   }
+  function applyBuilderChanges(changes: BuilderChange[]) {
+    update((current) => ({
+      ...current,
+      entries: current.entries.map((entry) => {
+        const change = changes.find((item) => item.path === entry.path)
+        return change && entry.kind === 'file' ? { ...entry, content: change.content } : entry
+      }),
+    }))
+    const first = changes[0]?.path
+    if (first && first !== project?.active) open(first)
+  }
   function applyDiagnosticFix(item: CodeDiagnostic, fix: DiagnosticFix) {
     if (item.path && item.path !== project?.active) {
       pendingFix.current = fix
@@ -512,6 +524,9 @@ export function IdeApp() {
                   source={source}
                   cursorOffset={cursor.source === source ? cursor.offset : source.length}
                   onAnalyze={analyzeBuilder}
+                  entries={project.entries}
+                  activePath={project.active}
+                  onApplyChanges={applyBuilderChanges}
                   mode={project.helpMode}
                   onMode={(helpMode) => update((p) => ({ ...p, helpMode }))}
                   onInsert={insert}

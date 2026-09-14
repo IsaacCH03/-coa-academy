@@ -1354,3 +1354,13 @@
     transition: none !important;
   }
 }
+
+.layer-builder { display: grid; gap: 12px; }
+.layer-builder fieldset { border: 1px solid #3a506e; border-radius: 7px; padding: 10px; display: grid; gap: 7px; }
+.layer-builder fieldset label { display: flex; gap: 8px; align-items: center; }
+.layer-status, .layer-flow, .layer-plan, .layer-review { display: grid; gap: 6px; padding: 12px; border: 1px solid #334b68; border-radius: 8px; background: #101c2c; }
+.layer-status span, .layer-plan span { display: block; font-size: 12px; }
+.layer-flow { text-align: center; color: #bcd0e9; }
+.layer-flow b { color: #ffad24; }
+.layer-plan { border-color: #577da9; }
+.layer-review p { margin: 0; font-size: 12px; line-height: 1.45; }

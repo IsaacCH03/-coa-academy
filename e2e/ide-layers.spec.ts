@@ -1,0 +1,55 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function edit(page: Page, code: string) {
+  await page.locator('.monaco-editor textarea').focus()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.insertText(code)
+}
+async function start(page: Page) {
+  await page.goto('/ide')
+  const welcome = page.getByRole('button', { name: 'Comenzar', exact: true })
+  if (await welcome.isVisible()) await welcome.click()
+  await expect(page.getByText('Python listo', { exact: true })).toBeVisible({ timeout: 100000 })
+}
+async function createFile(page: Page, path: string) {
+  await page.getByRole('button', { name: 'Nuevo archivo' }).click()
+  await page.getByLabel('Nombre o ruta', { exact: true }).fill(path)
+  await page.getByRole('button', { name: 'Crear', exact: true }).click()
+}
+
+test('Builder encapsulates an attribute with preview and no duplicate methods', async ({ page }) => {
+  await start(page)
+  await edit(page, 'class Persona:\n    def __init__(self, nombre):\n        self.nombre = nombre')
+  await page.getByRole('button', { name: 'Nivel 2' }).click()
+  await page.getByRole('button', { name: /^Encapsulamiento/ }).click()
+  const attributes = page.getByRole('group', { name: 'Atributos encontrados' })
+  await expect(attributes.getByText('nombre', { exact: true })).toBeVisible()
+  await attributes.getByLabel('nombre', { exact: true }).check()
+  await page.getByRole('button', { name: 'Previsualizar cambios' }).click()
+  await expect(page.getByText('SE REALIZARÁN ESTOS CAMBIOS')).toBeVisible()
+  await page.getByRole('button', { name: 'Aplicar cambios' }).click()
+  await expect(page.locator('.monaco-editor')).toContainText('self.__nombre = nombre')
+  await expect(page.locator('.monaco-editor')).toContainText('def get_nombre(self):')
+  await expect(page.locator('.monaco-editor')).toContainText('def set_nombre(self, nombre):')
+})
+
+test('Builder recognizes COA layers and connects Presentation to a real Business class', async ({ page }) => {
+  await start(page)
+  await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  await createFile(page, 'business/logic.py')
+  await edit(page, 'class Logic:\n    pass')
+  await createFile(page, 'presentation/main.py')
+  await page.getByRole('button', { name: 'Builder', exact: true }).click()
+  await page.getByRole('button', { name: 'Nivel 2' }).click()
+  await page.getByRole('button', { name: /^Crear objeto de Business/ }).click()
+  await expect(page.getByText('✓ business', { exact: true })).toBeVisible()
+  await expect(page.getByText('✓ presentation', { exact: true })).toBeVisible()
+  await expect(page.getByText('○ domain — no encontrada', { exact: true })).toBeVisible()
+  await expect(page.locator('.ide-tip').filter({ hasText: 'Capa actual:' })).toContainText('Presentation')
+  await expect(page.getByLabel('Clase de otra capa')).toHaveValue('Logic')
+  await page.getByRole('button', { name: 'Previsualizar cambios' }).click()
+  await expect(page.getByText('SE REALIZARÁN ESTOS CAMBIOS')).toBeVisible()
+  await page.getByRole('button', { name: 'Aplicar cambios' }).click()
+  await expect(page.locator('.monaco-editor')).toContainText('from business.logic import Logic')
+  await expect(page.locator('.monaco-editor')).toContainText('logic = Logic()')
+})

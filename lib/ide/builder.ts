@@ -418,6 +418,10 @@ export const actions: BuilderAction[] = [
     generate: (v) => `${v.objectName} = ${v.className}(${v.arguments})`,
   },
   {
+    id: 'encapsulation', title: 'Encapsulamiento', category: 'Programación orientada a objetos', level: 2,
+    description: 'Convierte atributos en privados y agrega getter, setter o ambos sin duplicarlos.', fields: [], template: '# Previsualiza el encapsulamiento', generate: () => '# Previsualiza el encapsulamiento',
+  },
+  {
     id: 'inheritance', title: 'Crear herencia', category: 'Programación orientada a objetos', level: 2,
     description: 'Crea una clase hija respetando los parámetros del constructor padre.',
     fields: [name('parent', 'Clase padre', 'Persona'), name('className', 'Nueva clase', 'Estudiante'), { key: 'parentParams', label: 'Parámetros heredados', value: 'nombre, edad', kind: 'parameters' }, { key: 'ownAttributes', label: 'Atributos propios (opcional)', value: '' }],
@@ -431,6 +435,18 @@ export const actions: BuilderAction[] = [
     template: 'class Hija(Padre):\n    def metodo(self):\n        pass',
     generate: (v) => `class ${v.className}(${v.parent}):\n    def ${v.method}(self):\n        pass`,
   },
+  ...[
+    ['layer-presentation-business', 'Presentation → Business', 'Conecta la interfaz con una clase de lógica.'],
+    ['layer-business-data', 'Business → Data', 'Conecta la lógica con una clase de acceso a datos.'],
+    ['layer-business-domain', 'Business → Domain', 'Crea y utiliza objetos del dominio.'],
+    ['layer-object-business', 'Crear objeto de Business', 'Crea un objeto usando una clase real de Business.'],
+    ['layer-object-data', 'Crear objeto de Data', 'Crea un objeto usando una clase real de Data.'],
+    ['layer-object-domain', 'Crear objeto de Domain', 'Crea un objeto usando una clase real de Domain.'],
+    ['layer-call-method', 'Llamar método de otra capa', 'Selecciona una clase, método y sus parámetros.'],
+    ['layer-create-method', 'Crear método que reciba parámetros', 'Crea solamente la firma compatible y un cuerpo pass.'],
+    ['layer-return', 'Retornar resultado a otra capa', 'Agrega un return sencillo al código actual.'],
+    ['layer-review', 'Revisar conexiones', 'Analiza conexiones y dependencias sin modificar archivos.'],
+  ].map(([id, title, description]): BuilderAction => ({ id, title, description, category: 'Programación por capas', level: 2, fields: [], template: '# Previsualiza la conexión entre capas', generate: () => '# Previsualiza la conexión entre capas' })),
   ...(['Try / Except', 'Try / Except / Else', 'Try / Except / Finally'] as const).map((title, index): BuilderAction => ({
     id: ['try-except', 'try-else', 'try-finally'][index], title, category: 'Manejo de errores', level: 2,
     description: 'Controla errores previsibles sin detener todo el programa.',
