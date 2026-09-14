@@ -401,6 +401,67 @@ __json.dumps(__coa_result)
     }
     return
   }
+  if (data.type === 'analyze-builder' && python) {
+    try {
+      python.globals.set('__coa_builder_source', data.source)
+      python.globals.set('__coa_builder_offset', data.offset)
+      const result = await python.runPythonAsync(`
+import ast as __ast, json as __json
+try:
+    __coa_builder_tree = __ast.parse(__coa_builder_source[:__coa_builder_offset])
+except SyntaxError:
+    __coa_builder_result = {'valid': False, 'variables': [], 'classes': []}
+else:
+    __coa_variables = {}
+    __coa_classes = []
+    def __coa_kind(value):
+        if isinstance(value, __ast.List): return 'list'
+        if isinstance(value, __ast.Dict): return 'dict'
+        if isinstance(value, __ast.Tuple): return 'tuple'
+        if isinstance(value, __ast.Set): return 'set'
+        if isinstance(value, __ast.Constant):
+            if isinstance(value.value, str): return 'string'
+            if isinstance(value.value, (int, float)) and not isinstance(value.value, bool): return 'number'
+            if isinstance(value.value, bool): return 'boolean'
+        if isinstance(value, __ast.Call) and isinstance(value.func, __ast.Name):
+            if value.func.id == 'input': return 'input'
+            if value.func.id in ('int', 'float'): return 'number'
+            if value.func.id in ('list', 'dict', 'tuple', 'set'): return value.func.id
+        return 'unknown'
+    for __coa_node in __coa_builder_tree.body:
+        if isinstance(__coa_node, (__ast.Assign, __ast.AnnAssign)):
+            __coa_targets = __coa_node.targets if isinstance(__coa_node, __ast.Assign) else [__coa_node.target]
+            for __coa_target in __coa_targets:
+                if isinstance(__coa_target, __ast.Name):
+                    __coa_variables[__coa_target.id] = __coa_kind(__coa_node.value)
+        elif isinstance(__coa_node, (__ast.For, __ast.AsyncFor)) and isinstance(__coa_node.target, __ast.Name):
+            __coa_variables[__coa_node.target.id] = 'loop'
+        elif isinstance(__coa_node, __ast.ClassDef):
+            __coa_params, __coa_methods = [], []
+            for __coa_item in __coa_node.body:
+                if isinstance(__coa_item, (__ast.FunctionDef, __ast.AsyncFunctionDef)):
+                    if __coa_item.name == '__init__':
+                        __coa_params = [arg.arg for arg in __coa_item.args.args if arg.arg != 'self']
+                    elif not __coa_item.name.startswith('_'):
+                        __coa_methods.append(__coa_item.name)
+            __coa_classes.append({
+                'name': __coa_node.name, 'parameters': __coa_params,
+                'methods': __coa_methods,
+                'bases': [base.id for base in __coa_node.bases if isinstance(base, __ast.Name)],
+            })
+    __coa_builder_result = {
+        'valid': True,
+        'variables': [{'name': name, 'kind': kind} for name, kind in __coa_variables.items()],
+        'classes': __coa_classes,
+    }
+__json.dumps(__coa_builder_result)
+`)
+      self.postMessage({ type: 'builder-result', result: JSON.parse(result) })
+    } catch (error) {
+      self.postMessage({ type: 'builder-error', text: String(error) })
+    }
+    return
+  }
   if (data.type !== 'run' || !python) return
   pending = ''
   output = ''

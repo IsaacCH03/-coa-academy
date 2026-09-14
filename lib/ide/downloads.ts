@@ -9,6 +9,16 @@ export async function projectZip(project: Project) {
   }
   return zip.generateAsync({ type: 'blob' })
 }
+export async function folderZip(project: Project, folder: string) {
+  const zip = new JSZip()
+  const prefix = folder + '/'
+  for (const entry of project.entries) {
+    if (entry.path !== folder && !entry.path.startsWith(prefix)) continue
+    if (entry.kind === 'folder') zip.folder(entry.path)
+    else zip.file(entry.path, entry.content)
+  }
+  return zip.generateAsync({ type: 'blob' })
+}
 export function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

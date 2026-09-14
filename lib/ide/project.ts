@@ -19,6 +19,8 @@ export type Project = {
   consoleCollapsed: boolean
   helpMode: HelpMode
   guiDesign: GuiDesign
+  explorerExpanded: string[]
+  selectedFolder: string
 }
 export const extensions = ['py', 'txt', 'csv', 'json', 'md']
 export const MAX_FILE_SIZE = 1024 * 1024
@@ -39,6 +41,8 @@ export function newProject(): Project {
     consoleCollapsed: false,
     helpMode: 'guided',
     guiDesign: newGuiDesign(),
+    explorerExpanded: [],
+    selectedFolder: '',
   }
 }
 export function validPath(path: string, kind: ProjectEntry['kind'] = 'file') {
@@ -116,6 +120,16 @@ export function addEntries(
     entries,
     active: file ?? project.active,
     tabs: file ? [...new Set([...project.tabs, file])] : project.tabs,
+    explorerExpanded: [
+      ...new Set([
+        ...project.explorerExpanded,
+        ...incoming.flatMap((entry) => {
+          const parts = entry.path.split('/')
+          parts.pop()
+          return parts.map((_, index) => parts.slice(0, index + 1).join('/'))
+        }),
+      ]),
+    ],
   }
 }
 export function renameEntry(
@@ -139,6 +153,8 @@ export function renameEntry(
     entries: normalized.entries,
     active: rename(project.active),
     tabs: project.tabs.map(rename),
+    explorerExpanded: project.explorerExpanded.map(rename),
+    selectedFolder: rename(project.selectedFolder),
   }
 }
 export function deleteEntry(project: Project, path: string): Project {
@@ -156,6 +172,13 @@ export function deleteEntry(project: Project, path: string): Project {
     entries,
     active,
     tabs: active ? [...new Set([...tabs, active])] : [],
+    explorerExpanded: project.explorerExpanded.filter(
+      (folder) => folder !== path && !folder.startsWith(path + '/'),
+    ),
+    selectedFolder:
+      project.selectedFolder === path || project.selectedFolder.startsWith(path + '/')
+        ? ''
+        : project.selectedFolder,
   }
 }
 export function restoreProject(value: unknown): Project {
@@ -192,6 +215,20 @@ export function restoreProject(value: unknown): Project {
         ? p.helpMode
         : 'guided',
     guiDesign: restoreGuiDesign(p.guiDesign),
+    explorerExpanded: Array.isArray(p.explorerExpanded)
+      ? p.explorerExpanded.filter(
+          (path): path is string =>
+            typeof path === 'string' &&
+            p.entries!.some((entry) => entry.kind === 'folder' && entry.path === path),
+        )
+      : [],
+    selectedFolder:
+      typeof p.selectedFolder === 'string' &&
+      p.entries.some(
+        (entry) => entry.kind === 'folder' && entry.path === p.selectedFolder,
+      )
+        ? p.selectedFolder
+        : '',
   }
 }
 

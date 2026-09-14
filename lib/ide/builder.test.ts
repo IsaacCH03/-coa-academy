@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   actions,
+  actionsWithAnalysis,
   detectedVariables,
   generateCode,
   isPythonName,
@@ -72,5 +73,34 @@ describe('Python Builder', () => {
       ).toBeTruthy()
       expect(action.template).toBeTruthy()
     }
+  })
+  it('generates the required intelligent and level 2 structures', () => {
+    const analysis = {
+      valid: true,
+      variables: [
+        { name: 'edad', kind: 'number' },
+        { name: 'limite', kind: 'number' },
+        { name: 'nombres', kind: 'list' },
+      ],
+      classes: [
+        { name: 'Persona', parameters: ['nombre', 'edad'], methods: ['mostrar_datos'], bases: [] },
+      ],
+    }
+    const intelligent = actionsWithAnalysis(analysis)
+    const build = (id: string, values: Record<string, string>) => {
+      const action = intelligent.find((item) => item.id === id)!
+      return generateCode(action, { ...Object.fromEntries(action.fields.map((field) => [field.key, field.value])), ...values })
+    }
+    expect(build('if', { name: 'edad', op: '>=', value: '18' })).toBe('if edad >= 18:\n    pass')
+    expect(build('while', { name: 'edad', op: '<=', value: 'limite' })).toBe('while edad <= limite:\n    pass')
+    expect(build('for', { name: 'nombre', items: 'nombres', traversal: 'Por elemento' })).toBe('for nombre in nombres:\n    pass')
+    expect(build('for', { name: 'i', items: 'nombres', traversal: 'Por índice' })).toBe('for i in range(len(nombres)):\n    pass')
+    expect(build('class', {})).toContain('def __init__(self, nombre, edad):\n        self.nombre = nombre\n        self.edad = edad')
+    expect(build('object', { arguments: '"Ana", 20' })).toBe('persona1 = Persona("Ana", 20)')
+    expect(build('inheritance', {})).toContain('super().__init__(nombre, edad)')
+    expect(build('polymorphism', {})).toContain('def mostrar_datos(self):\n        pass')
+    expect(build('try-except', {})).toContain('except ValueError:')
+    expect(build('dictionary', {})).toBe('estudiante = {\n    "nombre": "Ana",\n    "edad": 20\n}')
+    expect(build('dictionary-list', {})).toContain('estudiantes = [\n    {')
   })
 })

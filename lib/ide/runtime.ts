@@ -1,5 +1,6 @@
 import type { Project, ProjectEntry } from './project'
 import type { GuiImportResult } from './gui-designer'
+import type { BuilderAnalysis } from './builder'
 export type RuntimeState =
   'loading' | 'ready' | 'running' | 'input' | 'stopped' | 'error'
 export type RunResult = {
@@ -38,6 +39,8 @@ export class PythonRuntime {
   private rejectGui: ((error: Error) => void) | undefined
   private resolveAnalysis: ((result: GuiImportResult) => void) | undefined
   private rejectAnalysis: ((error: Error) => void) | undefined
+  private resolveBuilder: ((result: BuilderAnalysis) => void) | undefined
+  private rejectBuilder: ((error: Error) => void) | undefined
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
@@ -89,6 +92,16 @@ export class PythonRuntime {
         this.rejectAnalysis?.(new Error(data.text))
         this.resolveAnalysis = undefined
         this.rejectAnalysis = undefined
+      }
+      if (data.type === 'builder-result') {
+        this.resolveBuilder?.(data.result)
+        this.resolveBuilder = undefined
+        this.rejectBuilder = undefined
+      }
+      if (data.type === 'builder-error') {
+        this.rejectBuilder?.(new Error(data.text))
+        this.resolveBuilder = undefined
+        this.rejectBuilder = undefined
       }
       if (data.type === 'fatal') this.fail(data.text)
       if (data.type === 'done') {
@@ -166,6 +179,15 @@ export class PythonRuntime {
       this.worker!.postMessage({ type: 'analyze-gui', source })
     })
   }
+  analyzeBuilder(source: string, offset = source.length) {
+    if (!this.ready || this.resolve || this.resolveBuilder)
+      return Promise.reject(new Error('Espera a que Python esté listo.'))
+    return new Promise<BuilderAnalysis>((resolve, reject) => {
+      this.resolveBuilder = resolve
+      this.rejectBuilder = reject
+      this.worker!.postMessage({ type: 'analyze-builder', source, offset })
+    })
+  }
   stop() {
     this.dispose()
     this.events.state('stopped')
@@ -184,5 +206,8 @@ export class PythonRuntime {
     this.rejectAnalysis?.(new Error('El análisis fue detenido.'))
     this.resolveAnalysis = undefined
     this.rejectAnalysis = undefined
+    this.rejectBuilder?.(new Error('El análisis fue detenido.'))
+    this.resolveBuilder = undefined
+    this.rejectBuilder = undefined
   }
 }

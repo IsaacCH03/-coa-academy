@@ -142,7 +142,7 @@ test('help modes, indentation, files, preferences and console controls', async (
   )
   await page.getByRole('button', { name: 'Contraer consola' }).click()
   await expect(page.getByTestId('python-output')).toBeHidden()
-  await page.getByRole('button', { name: 'Aprender', exact: true }).click()
+  await page.getByRole('button', { name: 'Builder', exact: true }).click()
   await page
     .getByRole('combobox', { name: 'Nivel de ayuda' })
     .selectOption('free')

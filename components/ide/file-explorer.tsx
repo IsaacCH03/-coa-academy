@@ -8,6 +8,9 @@ import {
   Upload,
   Pencil,
   Trash2,
+  ChevronRight,
+  ChevronDown,
+  Download,
 } from 'lucide-react'
 import {
   addEntries,
@@ -45,6 +48,9 @@ export function FileExplorer({
   const [importing, setImporting] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
+  const destination = project.selectedFolder
+  const destinationPath = (value: string) =>
+    destination ? `${destination}/${value}` : value
   function submit() {
     if (!form) return
     try {
@@ -55,7 +61,7 @@ export function FileExplorer({
       else
         onChange(
           addEntries(project, [
-            { path: name.trim(), kind: form.kind, content: '' },
+            { path: destinationPath(name.trim()), kind: form.kind, content: '' },
           ]),
         )
       setForm(null)
@@ -139,6 +145,17 @@ export function FileExplorer({
       <p className="ide-eyebrow">EXPLORADOR</p>
       <h2>Mi proyecto</h2>
       <p className="ide-muted">Tus archivos se guardan en este navegador.</p>
+      <p className="ide-tip" data-testid="selected-folder">
+        Destino: {destination || 'raíz del proyecto'}
+        {destination && (
+          <button
+            className="ide-text-button"
+            onClick={() => onChange((current) => ({ ...current, selectedFolder: '' }))}
+          >
+            Usar raíz
+          </button>
+        )}
+      </p>
       <div className="ide-file-actions">
         <button
           disabled={disabled}
@@ -242,26 +259,75 @@ export function FileExplorer({
       <ul className="ide-tree">
         {[...project.entries]
           .sort((a, b) => a.path.localeCompare(b.path))
+          .filter((entry) => {
+            const parts = entry.path.split('/')
+            parts.pop()
+            return parts.every((_, index) =>
+              project.explorerExpanded.includes(parts.slice(0, index + 1).join('/')),
+            )
+          })
           .map((entry) => (
             <li
               key={entry.path}
               style={{
                 paddingLeft: Math.min(entry.path.split('/').length - 1, 5) * 12,
               }}
-              className={entry.path === project.active ? 'selected' : ''}
+              className={
+                entry.path === project.active || entry.path === project.selectedFolder
+                  ? 'selected'
+                  : ''
+              }
             >
               <button
                 title={entry.path}
-                onClick={() => entry.kind === 'file' && onOpen(entry.path)}
+                aria-expanded={
+                  entry.kind === 'folder'
+                    ? project.explorerExpanded.includes(entry.path)
+                    : undefined
+                }
+                onClick={() => {
+                  if (entry.kind === 'file') onOpen(entry.path)
+                  else
+                    onChange((current) => ({
+                      ...current,
+                      selectedFolder: entry.path,
+                      explorerExpanded: current.explorerExpanded.includes(entry.path)
+                        ? current.explorerExpanded.filter((path) => path !== entry.path)
+                        : [...current.explorerExpanded, entry.path],
+                    }))
+                }}
                 className="ide-tree-name"
               >
                 {entry.kind === 'folder' ? (
-                  <Folder size={16} />
+                  <>
+                    {project.explorerExpanded.includes(entry.path) ? (
+                      <ChevronDown size={13} />
+                    ) : (
+                      <ChevronRight size={13} />
+                    )}
+                    <Folder size={16} />
+                  </>
                 ) : (
                   <FileCode2 size={16} />
                 )}
                 <span>{entry.path.split('/').pop()}</span>
               </button>
+              {entry.kind === 'folder' && (
+                <button
+                  disabled={disabled}
+                  title={`Descargar ${entry.path}`}
+                  aria-label={`Descargar ${entry.path}`}
+                  onClick={async () => {
+                    const service = await import('@/lib/ide/downloads')
+                    service.downloadBlob(
+                      await service.folderZip(project, entry.path),
+                      `${entry.path.split('/').pop()}.zip`,
+                    )
+                  }}
+                >
+                  <Download size={13} />
+                </button>
+              )}
               <button
                 disabled={disabled}
                 title={`Renombrar ${entry.path}`}

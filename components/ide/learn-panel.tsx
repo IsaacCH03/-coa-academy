@@ -1,12 +1,12 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Search, Code2, Lightbulb } from 'lucide-react'
 import {
-  actions,
-  detectedVariables,
+  actionsWithAnalysis,
+  fallbackBuilderAnalysis,
   generateCode,
   operatorMeaning,
-  type BuilderAction,
+  type BuilderAnalysis,
 } from '@/lib/ide/builder'
 import type { HelpMode } from '@/lib/ide/project'
 
@@ -19,6 +19,8 @@ export function LearnPanel({
   explanation,
   hints,
   disabled,
+  cursorOffset,
+  onAnalyze,
 }: {
   source: string
   mode: HelpMode
@@ -28,33 +30,81 @@ export function LearnPanel({
   explanation: string[]
   hints: string[]
   disabled: boolean
+  cursorOffset: number
+  onAnalyze: (source: string, offset: number) => Promise<BuilderAnalysis>
 }) {
   const [query, setQuery] = useState('')
-  const [action, setAction] = useState<BuilderAction | null>(null)
+  const [actionId, setActionId] = useState<string | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
-  const variables = useMemo(() => detectedVariables(source), [source])
+  const [level, setLevel] = useState<1 | 2 | 3>(1)
+  const [analysis, setAnalysis] = useState<BuilderAnalysis>({ valid: false, variables: [], classes: [] })
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout>
+    const analyze = () => {
+      void onAnalyze(source, cursorOffset).then(
+        (result) => active && setAnalysis(result),
+        () => {
+          if (active) timer = setTimeout(analyze, 150)
+        },
+      )
+    }
+    timer = setTimeout(analyze, 80)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [source, cursorOffset, onAnalyze])
+  const fallbackAnalysis = useMemo(
+    () => fallbackBuilderAnalysis(source.slice(0, cursorOffset)),
+    [source, cursorOffset],
+  )
+  const effectiveAnalysis = analysis.valid ? analysis : fallbackAnalysis
+  const availableActions = useMemo(
+    () => actionsWithAnalysis(effectiveAnalysis),
+    [effectiveAnalysis],
+  )
+  const action = availableActions.find((item) => item.id === actionId) ?? null
+  const resolvedValues = useMemo(
+    () =>
+      action
+        ? {
+            ...Object.fromEntries(
+              action.fields.map((field) => [field.key, field.value]),
+            ),
+            ...values,
+          }
+        : values,
+    [action, values],
+  )
   const preview = useMemo(() => {
     if (!action) return { code: '', error: '' }
     if (mode === 'assisted') return { code: action.template, error: '' }
     try {
-      return { code: generateCode(action, values), error: '' }
+      return { code: generateCode(action, resolvedValues), error: '' }
     } catch (e) {
       return { code: '', error: (e as Error).message }
     }
-  }, [action, values, mode])
+  }, [action, resolvedValues, mode])
   const normalized = (s: string) =>
     s
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
-  const filtered = actions.filter((a) =>
+  const filtered = availableActions.filter((a) =>
+    (a.level ?? 1) === level &&
     normalized(a.title + ' ' + a.description).includes(normalized(query)),
   )
   return (
     <section className="ide-panel learn-panel">
-      <p className="ide-eyebrow">APRENDER</p>
+      <p className="ide-eyebrow">BUILDER</p>
       <h2>COA Python Builder</h2>
       <p className="ide-muted">De tu idea a tu primera línea.</p>
+      {effectiveAnalysis.valid && (
+        <p className="ide-muted" data-testid="builder-analysis">
+          Detectado: {effectiveAnalysis.variables.length} variables y {effectiveAnalysis.classes.length} clases.
+        </p>
+      )}
       <label className="ide-field">
         Nivel de ayuda
         <select
@@ -73,7 +123,7 @@ export function LearnPanel({
         </p>
       ) : action ? (
         <>
-          <button className="ide-text-button" onClick={() => setAction(null)}>
+          <button className="ide-text-button" onClick={() => setActionId(null)}>
             <ArrowLeft size={15} /> Volver
           </button>
           <h3>{action.title}</h3>
@@ -84,7 +134,7 @@ export function LearnPanel({
                 {field.label}
                 {field.options ? (
                   <select
-                    value={values[field.key]}
+                    value={resolvedValues[field.key]}
                     onChange={(e) =>
                       setValues((v) => ({ ...v, [field.key]: e.target.value }))
                     }
@@ -95,8 +145,8 @@ export function LearnPanel({
                   </select>
                 ) : field.kind ? (
                   <input
-                    list={field.kind === 'name' ? 'coa-variables' : undefined}
-                    value={values[field.key]}
+                    list={field.suggestions?.length ? `coa-${field.key}-suggestions` : undefined}
+                    value={resolvedValues[field.key]}
                     onChange={(e) =>
                       setValues((v) => ({ ...v, [field.key]: e.target.value }))
                     }
@@ -104,23 +154,25 @@ export function LearnPanel({
                 ) : (
                   <textarea
                     rows={2}
-                    value={values[field.key]}
+                    value={resolvedValues[field.key]}
                     onChange={(e) =>
                       setValues((v) => ({ ...v, [field.key]: e.target.value }))
                     }
                   />
                 )}
+                {field.suggestions?.length ? (
+                  <datalist id={`coa-${field.key}-suggestions`}>
+                    {field.suggestions.map((suggestion) => (
+                      <option key={suggestion} value={suggestion} />
+                    ))}
+                  </datalist>
+                ) : null}
                 {field.hint && <small>{field.hint}</small>}
               </label>
             ))}
-          <datalist id="coa-variables">
-            {variables.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-          {mode === 'guided' && values.op && (
+          {mode === 'guided' && resolvedValues.op && (
             <p className="ide-tip">
-              {values.name} {operatorMeaning[values.op]} {values.value}
+              {resolvedValues.name} {operatorMeaning[resolvedValues.op]} {resolvedValues.value}
             </p>
           )}
           <p className="ide-eyebrow">VISTA PREVIA</p>
@@ -172,6 +224,22 @@ export function LearnPanel({
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
+          <div className="builder-levels" aria-label="Niveles del Builder">
+            {([1, 2, 3] as const).map((item) => (
+              <button
+                key={item}
+                className={level === item ? 'active' : ''}
+                aria-pressed={level === item}
+                onClick={() => { setLevel(item); setActionId(null) }}
+              >
+                Nivel {item}
+              </button>
+            ))}
+          </div>
+          {level === 3 ? (
+            <p className="ide-tip"><strong>Nivel 3</strong><br />Próximamente</p>
+          ) : (
+          <>
           {[...new Set(filtered.map((a) => a.category))].map((category) => (
             <details key={category} open>
               <summary>{category}</summary>
@@ -182,7 +250,7 @@ export function LearnPanel({
                     <button
                       key={a.id}
                       onClick={() => {
-                        setAction(a)
+                        setActionId(a.id)
                         setValues(
                           Object.fromEntries(
                             a.fields.map((f) => [f.key, f.value]),
@@ -197,10 +265,22 @@ export function LearnPanel({
               </div>
             </details>
           ))}
+          {level === 2 && (
+            <details open>
+              <summary>Archivos</summary>
+              <div className="ide-action-list">
+                {['TXT', 'CSV', 'Excel'].map((name) => (
+                  <button key={name} disabled>{name}<small>Próximamente</small></button>
+                ))}
+              </div>
+            </details>
+          )}
           {!filtered.length && (
             <p className="ide-muted">
               No encontramos esa acción. Prueba «número», «lista» o «condición».
             </p>
+          )}
+          </>
           )}
         </>
       )}

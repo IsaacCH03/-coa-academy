@@ -69,6 +69,7 @@ export function IdeApp() {
   const [checking, setChecking] = useState(false)
   const [replacement, setReplacement] = useState<Project | null>(null)
   const [guiPreview, setGuiPreview] = useState<CoaGuiPreviewModel | null>(null)
+  const [cursor, setCursor] = useState({ source: '', offset: 0 })
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const area = useRef<HTMLDivElement>(null)
@@ -83,6 +84,11 @@ export function IdeApp() {
     [],
   )
   const report = useCallback((message: string) => setNotice(message), [])
+  const analyzeBuilder = useCallback(
+    (code: string, offset: number) =>
+      runtime.current!.analyzeBuilder(code, offset),
+    [],
+  )
   useEffect(() => {
     const runner = new PythonRuntime({
       state: setState,
@@ -305,7 +311,7 @@ export function IdeApp() {
           <div>
             <strong>Bienvenido al IDE de COA</strong>
             <span>
-              Escribe Python, ejecútalo y abre Aprender cuando necesites ayuda.
+              Escribe Python, ejecútalo y abre Builder cuando necesites ayuda.
             </span>
           </div>
           <button onClick={dismissWelcome}>Comenzar</button>
@@ -328,7 +334,7 @@ export function IdeApp() {
         <nav className="ide-activity" aria-label="Herramientas del IDE">
           {(
             [
-              { id: 'learn', label: 'Aprender', icon: BookOpen },
+              { id: 'learn', label: 'Builder', icon: BookOpen },
               { id: 'files', label: 'Archivos', icon: Files },
               { id: 'ai', label: 'COA IA', icon: Bot },
               { id: 'exercise', label: 'Ejercicios', icon: GraduationCap },
@@ -368,6 +374,8 @@ export function IdeApp() {
               {panel === 'learn' && (
                 <LearnPanel
                   source={source}
+                  cursorOffset={cursor.source === source ? cursor.offset : source.length}
+                  onAnalyze={analyzeBuilder}
                   mode={project.helpMode}
                   onMode={(helpMode) => update((p) => ({ ...p, helpMode }))}
                   onInsert={insert}
@@ -426,14 +434,14 @@ export function IdeApp() {
                     recibir pistas sin perder la oportunidad de pensar.
                   </p>
                   <p className="ide-muted">
-                    El Builder de Aprender ya funciona y no necesita
+                    El Builder ya funciona y no necesita
                     inteligencia artificial.
                   </p>
                   <button
                     className="ide-primary wide"
                     onClick={() => setPanel('learn')}
                   >
-                    <BookOpen size={16} /> Abrir Aprender
+                    <BookOpen size={16} /> Abrir Builder
                   </button>
                 </section>
               )}
@@ -513,6 +521,18 @@ export function IdeApp() {
                 }
                 onMount={(ed) => {
                   editorRef.current = ed
+                  const position = ed.getPosition()
+                  if (position)
+                    setCursor({
+                      source: ed.getValue(),
+                      offset: ed.getModel()?.getOffsetAt(position) ?? 0,
+                    })
+                  ed.onDidChangeCursorPosition(({ position: next }) =>
+                    setCursor({
+                      source: ed.getValue(),
+                      offset: ed.getModel()?.getOffsetAt(next) ?? 0,
+                    }),
+                  )
                 }}
               />
             ) : (

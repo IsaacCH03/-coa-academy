@@ -75,7 +75,7 @@ test('Python, input, imports, persistence, builder, exercises and downloads', as
   await expect(
     page.getByRole('button', { name: 'logic.py', exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Aprender', exact: true }).click()
+  await page.getByRole('button', { name: 'Builder', exact: true }).click()
   await page
     .getByRole('button', { name: 'Variable de texto', exact: false })
     .click()
@@ -117,7 +117,7 @@ test('Python, input, imports, persistence, builder, exercises and downloads', as
   await expect(
     page.getByText('Configura GitHub para conectar tu cuenta', { exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Aprender', exact: true }).click()
+  await page.getByRole('button', { name: 'Builder', exact: true }).click()
   await page.screenshot({
     path: test.info().outputPath('ide-desktop.png'),
     fullPage: true,
@@ -141,7 +141,7 @@ test('home CTA and mobile layout', async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
-  await page.getByRole('button', { name: 'Aprender', exact: true }).click()
+  await page.getByRole('button', { name: 'Builder', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'COA Python Builder' }),
   ).toBeVisible()

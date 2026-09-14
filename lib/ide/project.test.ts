@@ -79,3 +79,18 @@ it('preserves files imported or edited while execution was finishing', () => {
   expect(result.entries.find((e) => e.path === 'nuevo.py')).toBeTruthy()
   expect(result.entries.find((e) => e.path === 'resultado.txt')).toBeTruthy()
 })
+it('restores old projects and persists valid explorer state', () => {
+  const legacy = newProject()
+  const restored = restoreProject({
+    ...legacy,
+    explorerExpanded: undefined,
+    selectedFolder: undefined,
+  })
+  expect(restored.explorerExpanded).toEqual([])
+  expect(restored.selectedFolder).toBe('')
+  const nested = addEntries(restored, [
+    { path: 'Proyecto/business/data/files.py', kind: 'file', content: 'print(1)' },
+  ])
+  expect(nested.entries.map((entry) => entry.path)).toContain('Proyecto/business/data')
+  expect(nested.explorerExpanded).toContain('Proyecto/business')
+})
