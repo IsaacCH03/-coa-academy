@@ -209,13 +209,13 @@ export class PythonRuntime {
       this.worker!.postMessage({ type: 'analyze-builder', source, offset })
     })
   }
-  analyzeDiagnostics(source: string) {
+  analyzeDiagnostics(entries: ProjectEntry[]) {
     if (!this.ready || this.resolve || this.resolveDiagnostics)
       return Promise.reject(new Error('Espera a que Python esté listo.'))
     return new Promise<CodeDiagnostic[]>((resolve, reject) => {
       this.resolveDiagnostics = resolve
       this.rejectDiagnostics = reject
-      this.worker!.postMessage({ type: 'analyze-diagnostics', source })
+      this.worker!.postMessage({ type: 'analyze-diagnostics', entries })
     })
   }
   stop() {

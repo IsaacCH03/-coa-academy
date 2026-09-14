@@ -1,6 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
   Files,
@@ -80,11 +80,15 @@ export function IdeApp() {
   const [cursor, setCursor] = useState({ source: '', offset: 0 })
   const [diagnostics, setDiagnostics] = useState<CodeDiagnostic[]>([])
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<RuntimeDiagnostic | null>(null)
+  const [runtimeMarker, setRuntimeMarker] = useState<CodeDiagnostic | null>(null)
   const [problemsOpen, setProblemsOpen] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const diagnosticsRef = useRef<CodeDiagnostic[]>([])
+  const projectRef = useRef(project)
+  const pendingLocation = useRef<{ path: string; line: number; column: number } | null>(null)
+  const pendingFix = useRef<DiagnosticFix | null>(null)
   const codeActions = useRef<{ dispose(): void } | null>(null)
   const area = useRef<HTMLDivElement>(null)
   const cancelTests = useRef(false)
@@ -93,6 +97,8 @@ export function IdeApp() {
     !!project?.consoleCollapsed && state !== 'input' && !expanded
   const source =
     project?.entries.find((e) => e.path === project.active)?.content ?? ''
+  const allDiagnostics = useMemo(() => runtimeMarker ? [...diagnostics, runtimeMarker] : diagnostics, [diagnostics, runtimeMarker])
+  useEffect(() => { projectRef.current = project }, [project])
   const append = useCallback(
     (text: string) => setOutput((o) => (o + text).slice(-220000)),
     [],
@@ -109,7 +115,25 @@ export function IdeApp() {
       output: append,
       error: (technical) => {
         setPythonError(technical)
-        setRuntimeDiagnostic(explainRuntimeError(technical))
+        const explained = explainRuntimeError(technical)
+        const current = projectRef.current
+        const path = explained.path ?? current?.active
+        setRuntimeDiagnostic({ ...explained, path })
+        if (path && explained.line) {
+          setRuntimeMarker({
+            id: `runtime-${path}-${explained.line}`,
+            path,
+            origin: 'runtime',
+            severity: 'error',
+            line: explained.line,
+            column: explained.column ?? 1,
+            endLine: explained.line,
+            endColumn: 1000,
+            message: explained.title,
+            explanation: explained.explanation,
+            technical,
+          })
+        }
       },
     })
     runtime.current = runner
@@ -138,35 +162,17 @@ export function IdeApp() {
     let active = true
     let retry: ReturnType<typeof setTimeout>
     const analyze = () => {
-      void runtime.current!.analyzeDiagnostics(source).then(
+      void runtime.current!.analyzeDiagnostics(project.entries).then(
         (result) => {
           if (!active) return
           diagnosticsRef.current = result
           setDiagnostics(result)
-          const model = editorRef.current?.getModel()
-          const monaco = monacoRef.current
-          if (model && monaco)
-            monaco.editor.setModelMarkers(
-              model,
-              'coa-diagnostics',
-              result.map((item) => ({
-                startLineNumber: item.line,
-                startColumn: item.column,
-                endLineNumber: item.endLine,
-                endColumn: item.endColumn,
-                message: `${item.message}\n\n${item.explanation}`,
-                severity:
-                  item.severity === 'error'
-                    ? monaco.MarkerSeverity.Error
-                    : item.severity === 'warning'
-                      ? monaco.MarkerSeverity.Warning
-                      : monaco.MarkerSeverity.Info,
-                source: 'Diagnósticos COA',
-              })),
-            )
         },
-        () => {
-          if (active) retry = setTimeout(analyze, 180)
+        (error) => {
+          if (active) {
+            setNotice(`No se pudo completar Diagnósticos: ${(error as Error).message}`)
+            retry = setTimeout(analyze, 180)
+          }
         },
       )
     }
@@ -176,7 +182,49 @@ export function IdeApp() {
       clearTimeout(debounce)
       clearTimeout(retry)
     }
-  }, [source, project?.active, state])
+  }, [source, project?.active, project?.entries, state])
+  useEffect(() => {
+    const model = editorRef.current?.getModel()
+    const monaco = monacoRef.current
+    if (!model || !monaco || !project) return
+    const visible = allDiagnostics.filter((item) => item.path === project.active)
+    diagnosticsRef.current = visible
+    monaco.editor.setModelMarkers(model, 'coa-diagnostics', visible.map((item) => ({
+      startLineNumber: item.line,
+      startColumn: item.column,
+      endLineNumber: item.endLine,
+      endColumn: item.endColumn,
+      message: `${item.message}\n\n${item.explanation}`,
+      severity: item.severity === 'error' ? monaco.MarkerSeverity.Error : item.severity === 'warning' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
+      source: item.origin === 'runtime' ? 'Ejecución COA' : 'Diagnósticos COA',
+    })))
+  }, [allDiagnostics, project])
+  useEffect(() => {
+    const target = pendingLocation.current
+    if (!target || target.path !== project?.active) return
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.setPosition({ lineNumber: target.line, column: target.column })
+      editorRef.current?.revealLineInCenter(target.line)
+      editorRef.current?.focus()
+      pendingLocation.current = null
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [project?.active])
+  useEffect(() => {
+    const fix = pendingFix.current
+    if (!fix) return
+    const frame = requestAnimationFrame(() => {
+      pendingFix.current = null
+      const ed = editorRef.current
+      if (!ed) return
+      ed.executeEdits('coa-diagnostics', [{ range: {
+        startLineNumber: fix.startLine, startColumn: fix.startColumn,
+        endLineNumber: fix.endLine, endColumn: fix.endColumn,
+      }, text: fix.text }])
+      ed.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [project?.active])
   function dismissWelcome() {
     setWelcome(false)
     try {
@@ -193,6 +241,7 @@ export function IdeApp() {
     }
     setPythonError('')
     setRuntimeDiagnostic(null)
+    setRuntimeMarker(null)
     setGuiPreview(null)
     setOutput(`❯ ${project.active}\n`)
     setNotice('')
@@ -267,7 +316,15 @@ export function IdeApp() {
     ed.focus()
     if (window.innerWidth < 768) setPanel(null)
   }
-  function applyDiagnosticFix(fix: DiagnosticFix) {
+  function applyDiagnosticFix(item: CodeDiagnostic, fix: DiagnosticFix) {
+    if (item.path && item.path !== project?.active) {
+      pendingFix.current = fix
+      open(item.path)
+      return
+    }
+    applyEditorFix(fix)
+  }
+  function applyEditorFix(fix: DiagnosticFix) {
     const ed = editorRef.current
     if (!ed) return
     ed.executeEdits('coa-diagnostics', [
@@ -591,12 +648,16 @@ export function IdeApp() {
                 content={source}
                 readOnly={busy}
                 onChange={(content) =>
-                  update((p) => ({
-                    ...p,
-                    entries: p.entries.map((e) =>
-                      e.path === p.active ? { ...e, content } : e,
-                    ),
-                  }))
+                  {
+                    setRuntimeMarker(null)
+                    setRuntimeDiagnostic(null)
+                    update((p) => ({
+                      ...p,
+                      entries: p.entries.map((e) =>
+                        e.path === p.active ? { ...e, content } : e,
+                      ),
+                    }))
+                  }
                 }
                 onMount={(ed, monaco) => {
                   editorRef.current = ed
@@ -771,19 +832,25 @@ export function IdeApp() {
           aria-expanded={problemsOpen}
           onClick={() => setProblemsOpen((open) => !open)}
         >
-          ❌ {diagnostics.filter((item) => item.severity === 'error').length}
-          {'  '}⚠️ {diagnostics.filter((item) => item.severity === 'warning').length}
-          {'  '}💡 {diagnostics.filter((item) => item.fix).length}
+          ❌ {allDiagnostics.filter((item) => item.severity === 'error').length}
+          {'  '}⚠️ {allDiagnostics.filter((item) => item.severity === 'warning').length}
+          {'  '}💡 {allDiagnostics.filter((item) => item.fix).length}
         </button>
         <span className="ide-status-help">Python · UTF-8 · 4 espacios</span>
       </footer>
       {problemsOpen && (
         <DiagnosticsPanel
-          diagnostics={diagnostics}
+          diagnostics={allDiagnostics}
           onSelect={(item) => {
-            editorRef.current?.setPosition({ lineNumber: item.line, column: item.column })
-            editorRef.current?.revealLineInCenter(item.line)
-            editorRef.current?.focus()
+            const path = item.path ?? project.active
+            pendingLocation.current = { path, line: item.line, column: item.column }
+            if (path !== project.active) open(path)
+            else {
+              editorRef.current?.setPosition({ lineNumber: item.line, column: item.column })
+              editorRef.current?.revealLineInCenter(item.line)
+              editorRef.current?.focus()
+              pendingLocation.current = null
+            }
           }}
           onFix={applyDiagnosticFix}
         />

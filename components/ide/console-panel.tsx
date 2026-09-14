@@ -85,7 +85,7 @@ export function ConsolePanel({
       </pre>
       {diagnostic && !collapsed && (
         <aside className="runtime-diagnostic" role="alert">
-          <strong>❌ {diagnostic.line ? `Error en la línea ${diagnostic.line}` : 'Error de Python'}</strong>
+          <strong>❌ {diagnostic.line ? `Error en ${diagnostic.path ? `${diagnostic.path}, ` : ''}línea ${diagnostic.line}` : 'Error de Python'}</strong>
           <p>{diagnostic.title}</p>
           <small>{diagnostic.explanation}</small>
           <details>
