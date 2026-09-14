@@ -471,6 +471,11 @@ __coa_files = {entry['path']: entry.get('content', '') for entry in __coa_entrie
 __coa_python = {path: source for path, source in __coa_files.items() if path.endswith('.py')}
 __coa_modules = {path[:-3].replace('/', '.'): path for path in __coa_python}
 for __coa_path in list(__coa_python):
+    __coa_parts = __coa_path[:-3].split('/')
+    __coa_layer_at = next((index for index, part in enumerate(__coa_parts) if part in ('presentation', 'business', 'domain', 'data')), None)
+    if __coa_layer_at is not None:
+        __coa_modules['.'.join(__coa_parts[__coa_layer_at:])] = __coa_path
+for __coa_path in list(__coa_python):
     if __coa_path.endswith('/__init__.py'):
         __coa_modules[__coa_path[:-12].replace('/', '.')] = __coa_path
 __coa_trees, __coa_exports = {}, {}
@@ -710,7 +715,7 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
     for node in (item for item in __ast.walk(__coa_tree) if isinstance(item, (__ast.Import, __ast.ImportFrom))):
         modules = [(alias.name, alias) for alias in node.names] if isinstance(node, __ast.Import) else [(node.module or '', node)]
         for module, target in modules:
-            source_layer = __coa_path.split('/')[0] if '/' in __coa_path else ''
+            source_layer = next((part for part in __coa_path.split('/') if part in ('presentation', 'business', 'domain', 'data')), '')
             target_layer = module.split('.')[0]
             unusual = (source_layer == 'presentation' and target_layer == 'data') or (source_layer in ('data', 'domain') and target_layer == 'presentation')
             if unusual:
@@ -793,6 +798,9 @@ __json.dumps(__coa_diagnostics)
       },
     })
     python.globals.set('__coa_entry', '/home/coa/' + data.active)
+    const activeParts = data.active.split('/')
+    const layerAt = activeParts.findIndex((part) => ['presentation', 'business', 'domain', 'data'].includes(part))
+    python.globals.set('__coa_project_root', '/home/coa/' + (layerAt > 0 ? activeParts.slice(0, layerAt).join('/') : ''))
     python.globals.set('__coa_inputs', JSON.stringify(data.inputs ?? null))
     await python.runPythonAsync(`
 import sys as __sys, importlib as __importlib, builtins as __builtins, json as __json, os as __os
@@ -801,6 +809,7 @@ for __name, __module in list(__sys.modules.items()):
         del __sys.modules[__name]
 __sys.path[:] = [p for p in __sys.path if not p.startswith('/home/coa')]
 __sys.path.insert(0, '/home/coa')
+if __coa_project_root != '/home/coa/': __sys.path.insert(0, __coa_project_root)
 __sys.path.insert(0, __os.path.dirname(__coa_entry))
 __sys.path.insert(0, '/home/pyodide')
 __sys.modules.pop('coa_gui', None)

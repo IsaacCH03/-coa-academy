@@ -13,6 +13,7 @@ import {
   encapsulationChange,
   layerOf,
   reviewLayerConnections,
+  wouldCreateCircularImport,
   type BuilderChange,
   type CoaLayer,
 } from '@/lib/ide/layers'
@@ -20,16 +21,22 @@ import {
 const targetByAction: Record<string, CoaLayer> = {
   'layer-presentation-business': 'business', 'layer-business-data': 'data', 'layer-business-domain': 'domain',
   'layer-object-business': 'business', 'layer-object-data': 'data', 'layer-object-domain': 'domain',
+  'layer-ui-controller': 'business', 'layer-controller-ui': 'presentation',
 }
-export function LayerBuilder({ actionId, entries, active, onApply }: {
+export function LayerBuilder({ actionId, entries, active, projectRoot, roots, onProjectRoot, onApply }: {
   actionId: string
   entries: ProjectEntry[]
   active: string
+  projectRoot: string | null
+  roots: string[]
+  onProjectRoot: (root: string) => void
   onApply: (changes: BuilderChange[]) => void
 }) {
-  const classes = useMemo(() => analyzeLayerClasses(entries), [entries])
-  const status = useMemo(() => architectureStatus(entries), [entries])
-  const currentLayer = layerOf(active)
+  const root = projectRoot ?? ''
+  const rootAvailable = projectRoot !== null && (root === '' || entries.some((entry) => entry.kind === 'folder' && entry.path === root))
+  const classes = useMemo(() => rootAvailable ? analyzeLayerClasses(entries, root) : [], [entries, root, rootAvailable])
+  const status = useMemo(() => rootAvailable ? architectureStatus(entries, root) : { presentation: false, business: false, domain: false, data: false }, [entries, root, rootAvailable])
+  const currentLayer = rootAvailable ? layerOf(active, root) : null
   const initialTarget = targetByAction[actionId] ?? (currentLayer === 'presentation' ? 'business' : currentLayer === 'business' ? 'domain' : 'business')
   const [targetLayer, setTargetLayer] = useState<CoaLayer>(initialTarget)
   const targets = classes.filter((item) => item.layer === targetLayer)
@@ -40,7 +47,7 @@ export function LayerBuilder({ actionId, entries, active, onApply }: {
   const [argumentsText, setArgumentsText] = useState('')
   const [steps, setSteps] = useState({ addImport: true, addObject: true, addCall: true })
   const [plan, setPlan] = useState<BuilderChange[] | null>(null)
-  const review = useMemo(() => reviewLayerConnections(entries), [entries])
+  const review = useMemo(() => reviewLayerConnections(entries, root), [entries, root])
   const source = entries.find((entry) => entry.path === active)?.content ?? ''
   const isReview = actionId === 'layer-review'
   const isReturn = actionId === 'layer-return'
@@ -60,20 +67,26 @@ export function LayerBuilder({ actionId, entries, active, onApply }: {
     if (!selected) return
     const values = argumentsText.split(',').map((item) => item.trim()).filter(Boolean)
     const objectOnly = actionId.startsWith('layer-object-')
-    setPlan([objectOnly ? buildObjectChange(source, active, selected, objectName, values) : buildConnectionChange(source, active, selected, objectName, methodName, values, steps)])
+    if (actionId === 'layer-controller-ui' && steps.addImport && wouldCreateCircularImport(entries, active, selected)) {
+      setPlan([{ path: active, content: source, blocked: true, summary: ['⚠ No se aplicará: este import produciría una dependencia circular clara'] }])
+      return
+    }
+    setPlan([objectOnly ? buildObjectChange(source, active, selected, objectName, values) : buildConnectionChange(source, active, selected, objectName, methodName, values, { ...steps, member: actionId === 'layer-ui-controller' })])
   }
   return <div className="layer-builder">
     <details className="ide-tip" open>
       <summary>ⓘ ARQUITECTURA UTILIZADA POR COA</summary>
-      <p>Esta herramienta reconoce la estructura usada en los cursos de COA: <strong>presentation</strong> para interacción, <strong>business</strong> para lógica, <strong>domain</strong> para clases del dominio y <strong>data</strong> para persistencia.</p>
+      <p>Esta herramienta reconoce la estructura usada en los cursos de COA: <strong>presentation</strong> para la Interfaz de usuario (UI), ventanas, formularios, botones, labels y entradas; <strong>business</strong> para lógica y coordinación; <strong>domain</strong> para clases y objetos principales; y <strong>data</strong> para acceso y persistencia.</p>
       <p>Existen otras arquitecturas válidas. Las ayudas automáticas de esta categoría se limitan a estos cuatro nombres.</p>
     </details>
+    <label className="ide-field">📁 Proyecto analizado<select aria-label="Proyecto analizado" value={rootAvailable ? root : '__none'} onChange={(event) => event.target.value !== '__none' && onProjectRoot(event.target.value)}><option value="__none">Selecciona una carpeta</option>{architectureStatus(entries).business || architectureStatus(entries).presentation || architectureStatus(entries).domain || architectureStatus(entries).data ? <option value="">Raíz del Explorador</option> : null}{roots.map((item) => <option key={item}>{item}</option>)}</select></label>
+    {!rootAvailable && projectRoot !== null && <p className="ide-warning">El proyecto seleccionado ya no está disponible. Selecciona otra carpeta.</p>}
     <div className="layer-status">
       <strong>ARQUITECTURA COA</strong>
       {coaLayers.map((layer) => <span key={layer}>{status[layer] ? '✓' : '○'} {layer}{!status[layer] && ' — no encontrada'}</span>)}
       <small>{Object.values(status).every(Boolean) ? 'Estructura reconocida correctamente.' : 'Puedes continuar; crea las capas faltantes manualmente desde el Explorador.'}</small>
     </div>
-    <p className="ide-tip"><strong>Capa actual:</strong> {currentLayer ? capitalize(currentLayer) : 'No reconocida por la arquitectura COA'}</p>
+    <p className="ide-tip"><strong>Capa actual:</strong> {currentLayer === 'presentation' ? 'Presentation / UI' : currentLayer ? capitalize(currentLayer) : 'No reconocida por la arquitectura COA'}</p>
     {isReview ? <div className="layer-review">
       <strong>REVISAR CONEXIONES</strong>
       {!review.length ? <p>No se encontraron conexiones para revisar.</p> : review.map((item, index) => <p key={index}>{item.severity === 'ok' ? '✓' : item.severity === 'warning' ? '⚠' : '❌'} {item.path}: {item.message}</p>)}
@@ -89,7 +102,7 @@ export function LayerBuilder({ actionId, entries, active, onApply }: {
       {(selected?.constructor.length || selected?.methods.find((item) => item.name === methodName)?.parameters.length || isReturn || isCreateMethod) ? <label className="ide-field">{isReturn ? 'Resultado que se devolverá' : isCreateMethod ? 'Parámetros separados por coma' : 'Variables o valores separados por coma'}<input value={argumentsText} onChange={(event) => setArgumentsText(event.target.value)} /></label> : null}
       <div className="layer-flow"><strong>FLUJO</strong><span>Presentation · parámetros</span><b>↓</b><span>Business · lógica</span><b>↓</b><span>Domain · objeto</span><b>↓</b><span>Data · persistencia</span></div>
       <button className="ide-primary wide" disabled={!selected && !isReturn && !isCreateMethod} onClick={prepare}>Previsualizar cambios</button>
-      {plan && <div className="layer-plan"><strong>SE REALIZARÁN ESTOS CAMBIOS</strong>{plan.map((change) => <div key={change.path}><b>{change.path}</b>{change.summary.map((summary) => <span key={summary}>+ {summary}</span>)}</div>)}<button className="ide-primary wide" onClick={() => { onApply(plan); setPlan(null) }}>Aplicar cambios</button></div>}
+      {plan && <div className="layer-plan"><strong>SE REALIZARÁN ESTOS CAMBIOS</strong>{plan.map((change) => <div key={change.path}><b>{change.path}</b>{change.summary.map((summary) => <span key={summary}>+ {summary}</span>)}</div>)}<button className="ide-primary wide" disabled={plan.some((change) => change.blocked)} onClick={() => { onApply(plan); setPlan(null) }}>Aplicar cambios</button></div>}
     </>}
   </div>
 }

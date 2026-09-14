@@ -446,7 +446,27 @@ export const actions: BuilderAction[] = [
     ['layer-create-method', 'Crear método que reciba parámetros', 'Crea solamente la firma compatible y un cuerpo pass.'],
     ['layer-return', 'Retornar resultado a otra capa', 'Agrega un return sencillo al código actual.'],
     ['layer-review', 'Revisar conexiones', 'Analiza conexiones y dependencias sin modificar archivos.'],
+    ['layer-ui-controller', 'Conectar UI con Controller', 'Importa y conecta una clase real de Business/Controller con la UI.'],
+    ['layer-controller-ui', 'Llamar / abrir interfaz', 'Permite que un Controller abra una clase real de Presentation sin crear ciclos.'],
   ].map(([id, title, description]): BuilderAction => ({ id, title, description, category: 'Programación por capas', level: 2, fields: [], template: '# Previsualiza la conexión entre capas', generate: () => '# Previsualiza la conexión entre capas' })),
+  {
+    id: 'ui-window', title: 'Crear ventana básica', category: 'Presentation / UI', level: 2,
+    description: 'Crea una interfaz de usuario encapsulada en una clase usando COA GUI.',
+    fields: [name('className', 'Nombre de la clase', 'VentanaPrincipal'), text('title', 'Título', 'Mi programa'), { ...number('width', 'Ancho', '400'), kind: 'integer' }, { ...number('height', 'Alto', '300'), kind: 'integer' }],
+    template: 'import coa_gui as gui\n\nclass VentanaPrincipal:\n    def __init__(self):\n        self.ventana = gui.Tk()',
+    generate: (v) => `import coa_gui as gui\n\nclass ${v.className}:\n    def __init__(self):\n        self.ventana = gui.Tk()\n        self.ventana.title(${quote(v.title)})\n        self.ventana.geometry(${quote(`${v.width}x${v.height}`)})\n\n    def mostrar(self):\n        self.ventana.mainloop()`,
+  },
+  ...([
+    ['ui-label', 'Agregar Label', 'Label', 'nombre_label', 'Nombre:'],
+    ['ui-entry', 'Agregar Entry', 'Entry', 'nombre_entry', ''],
+    ['ui-button', 'Agregar Button', 'Button', 'guardar_button', 'Guardar'],
+  ] as const).map(([id, title, widget, defaultName, defaultText]): BuilderAction => ({
+    id, title, category: 'Presentation / UI', level: 2,
+    description: `Agrega un ${widget} básico compatible con COA GUI y la exportación a Tkinter.`,
+    fields: [name('name', 'Nombre del componente', defaultName), text('text', 'Texto', defaultText), { ...number('x', 'Posición X', '30'), kind: 'integer' }, { ...number('y', 'Posición Y', '40'), kind: 'integer' }, { ...number('width', 'Ancho', '100'), kind: 'integer' }, { ...number('height', 'Alto', '30'), kind: 'integer' }],
+    template: `self.${defaultName} = gui.${widget}(self.ventana)`,
+    generate: (v) => `self.${v.name} = gui.${widget}(self.ventana${widget !== 'Entry' ? `, text=${quote(v.text)}` : ''})\nself.${v.name}.place(x=${v.x}, y=${v.y}, width=${v.width}, height=${v.height})`,
+  })),
   ...(['Try / Except', 'Try / Except / Else', 'Try / Except / Finally'] as const).map((title, index): BuilderAction => ({
     id: ['try-except', 'try-else', 'try-finally'][index], title, category: 'Manejo de errores', level: 2,
     description: 'Controla errores previsibles sin detener todo el programa.',

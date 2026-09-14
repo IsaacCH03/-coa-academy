@@ -12,6 +12,7 @@ import type { HelpMode } from '@/lib/ide/project'
 import type { ProjectEntry } from '@/lib/ide/project'
 import type { BuilderChange } from '@/lib/ide/layers'
 import { EncapsulationBuilder, LayerBuilder } from './layer-builder'
+import { detectProjectRoot, projectRoots } from '@/lib/ide/layers'
 
 export function LearnPanel({
   source,
@@ -47,6 +48,24 @@ export function LearnPanel({
   const [values, setValues] = useState<Record<string, string>>({})
   const [level, setLevel] = useState<1 | 2 | 3>(1)
   const [analysis, setAnalysis] = useState<BuilderAnalysis>({ valid: false, variables: [], classes: [] })
+  const [layerRoot, setLayerRoot] = useState<string | null>(() => {
+    try { return localStorage.getItem('coa-builder-project-root') }
+    catch { return null }
+  })
+  useEffect(() => {
+    const detected = detectProjectRoot(activePath, entries)
+    if ((layerRoot === null || layerRoot === '') && detected) {
+      const frame = requestAnimationFrame(() => {
+        setLayerRoot(detected)
+        try { localStorage.setItem('coa-builder-project-root', detected) } catch { /* Persistence is optional. */ }
+      })
+      return () => cancelAnimationFrame(frame)
+    }
+  }, [activePath, entries, layerRoot])
+  const changeLayerRoot = (root: string) => {
+    setLayerRoot(root)
+    try { localStorage.setItem('coa-builder-project-root', root) } catch { /* Persistence is optional. */ }
+  }
   useEffect(() => {
     let active = true
     let timer: ReturnType<typeof setTimeout>
@@ -140,7 +159,7 @@ export function LearnPanel({
           {action.id === 'encapsulation' ? (
             <EncapsulationBuilder entries={entries} active={activePath} onApply={onApplyChanges} />
           ) : action.id.startsWith('layer-') ? (
-            <LayerBuilder actionId={action.id} entries={entries} active={activePath} onApply={onApplyChanges} />
+            <LayerBuilder actionId={action.id} entries={entries} active={activePath} projectRoot={layerRoot} roots={[...new Set([...projectRoots(entries), ...entries.filter((entry) => entry.kind === 'folder').map((entry) => entry.path)])]} onProjectRoot={changeLayerRoot} onApply={onApplyChanges} />
           ) : (<>
           {mode === 'guided' &&
             action.fields.map((field) => (

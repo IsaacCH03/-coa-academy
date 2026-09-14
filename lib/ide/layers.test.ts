@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeLayerClasses, architectureStatus, buildConnectionChange,
   buildObjectChange, buildReturnChange, encapsulationChange, layerOf, reviewLayerConnections,
+  detectProjectRoot, projectRoots, wouldCreateCircularImport,
 } from './layers'
 import type { ProjectEntry } from './project'
 
@@ -98,5 +99,42 @@ describe('Builder de programación por capas', () => {
     const second = buildReturnChange(first.content, first.path, 'resultado')
     expect(first.content).toContain('        return resultado')
     expect(second.content.match(/return resultado/g)).toHaveLength(1)
+  })
+  it('resolves layers and classes relative to a selected nested project', () => {
+    const entries = [folder('ClaseCapas'), folder('ClaseCapas/business'), file('ClaseCapas/business/controller.py', 'class Controller:\n    pass'), file('ClaseCapas/business/logic.py', 'class Logic:\n    pass'), file('ClaseCapas/Main.py')]
+    expect(architectureStatus(entries, 'ClaseCapas')).toEqual({ presentation: false, business: true, domain: false, data: false })
+    expect(analyzeLayerClasses(entries, 'ClaseCapas').map((item) => item.name)).toEqual(['Controller', 'Logic'])
+    expect(layerOf('ClaseCapas/business/controller.py', 'ClaseCapas')).toBe('business')
+    expect(layerOf('ClaseCapas/Main.py', 'ClaseCapas')).toBeNull()
+  })
+  it('autodetects the project root from the active layer', () => {
+    const entries = [folder('ClaseCapas'), folder('ClaseCapas/business'), file('ClaseCapas/business/controller.py')]
+    expect(detectProjectRoot('ClaseCapas/business/controller.py', entries)).toBe('ClaseCapas')
+    expect(projectRoots(entries)).toEqual(['ClaseCapas'])
+  })
+  it('isolates classes from other projects', () => {
+    const entries = [file('ProyectoA/business/a.py', 'class ClaseA:\n    pass'), file('ProyectoB/business/b.py', 'class ClaseB:\n    pass')]
+    expect(analyzeLayerClasses(entries, 'ProyectoA').map((item) => item.name)).toEqual(['ClaseA'])
+  })
+  it('generates imports relative to the selected project root', () => {
+    const target = analyzeLayerClasses([file('ClaseCapas/business/controller.py', 'class Controller:\n    pass')], 'ClaseCapas')[0]
+    expect(buildObjectChange('', 'ClaseCapas/presentation/ui.py', target, 'controller', []).content).toContain('from business.controller import Controller')
+  })
+  it('blocks a clear circular import between Controller and UI', () => {
+    const entries = [
+      file('ClaseCapas/presentation/ui.py', 'from business.controller import Controller\nclass UI:\n    pass'),
+      file('ClaseCapas/business/controller.py', 'class Controller:\n    pass'),
+    ]
+    const ui = analyzeLayerClasses(entries, 'ClaseCapas').find((item) => item.name === 'UI')!
+    expect(wouldCreateCircularImport(entries, 'ClaseCapas/business/controller.py', ui)).toBe(true)
+  })
+  it('connects UI to Controller as an instance member without duplicates', () => {
+    const target = analyzeLayerClasses([file('App/business/controller.py', 'class Controller:\n    pass')], 'App')[0]
+    const source = 'class UI:\n    def __init__(self):\n        pass\n'
+    const first = buildConnectionChange(source, 'App/presentation/ui.py', target, 'controller', '', [], { addImport: true, addObject: true, addCall: false, member: true })
+    const second = buildConnectionChange(first.content, 'App/presentation/ui.py', target, 'controller', '', [], { addImport: true, addObject: true, addCall: false, member: true })
+    expect(first.content).toContain('self.controller = Controller()')
+    expect(second.content.match(/from business\.controller import Controller/g)).toHaveLength(1)
+    expect(second.content.match(/self\.controller = Controller\(\)/g)).toHaveLength(1)
   })
 })

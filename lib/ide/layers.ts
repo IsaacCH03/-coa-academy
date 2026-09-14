@@ -5,32 +5,40 @@ export type CoaLayer = (typeof coaLayers)[number]
 export type LayerClass = {
   layer: CoaLayer | null
   path: string
+  module: string
+  projectRoot: string
   name: string
   constructor: string[]
   attributes: string[]
   methods: { name: string; parameters: string[] }[]
 }
-export type BuilderChange = { path: string; content: string; summary: string[] }
+export type BuilderChange = { path: string; content: string; summary: string[]; blocked?: boolean }
 
 const names = (value: string) => value.split(',').map((item) => item.trim().split(/[=:]/)[0].trim()).filter((item) => item && item !== 'self')
-export function layerOf(path: string): CoaLayer | null {
-  const first = path.replace(/\\/g, '/').split('/')[0].toLowerCase()
+const relativeTo = (path: string, root = '') => root ? path.slice(root.length + 1) : path
+const inside = (path: string, root = '') => !root || path === root || path.startsWith(root + '/')
+export function layerOf(path: string, root = ''): CoaLayer | null {
+  if (!inside(path, root)) return null
+  const first = relativeTo(path.replace(/\\/g, '/'), root).split('/')[0].toLowerCase()
   return coaLayers.includes(first as CoaLayer) ? first as CoaLayer : null
 }
-export function architectureStatus(entries: ProjectEntry[]) {
-  return Object.fromEntries(coaLayers.map((layer) => [layer, entries.some((entry) => entry.path === layer && entry.kind === 'folder' || entry.path.startsWith(layer + '/'))])) as Record<CoaLayer, boolean>
+export function architectureStatus(entries: ProjectEntry[], root = '') {
+  return Object.fromEntries(coaLayers.map((layer) => {
+    const path = root ? `${root}/${layer}` : layer
+    return [layer, entries.some((entry) => entry.path === path && entry.kind === 'folder' || entry.path.startsWith(path + '/'))]
+  })) as Record<CoaLayer, boolean>
 }
-export function analyzeLayerClasses(entries: ProjectEntry[]): LayerClass[] {
+export function analyzeLayerClasses(entries: ProjectEntry[], root = ''): LayerClass[] {
   const result: LayerClass[] = []
   for (const entry of entries) {
-    const layer = layerOf(entry.path)
-    if (entry.kind !== 'file' || !entry.path.endsWith('.py')) continue
+    const layer = layerOf(entry.path, root)
+    if (!inside(entry.path, root) || entry.kind !== 'file' || !entry.path.endsWith('.py')) continue
     const lines = entry.content.split('\n')
     for (let index = 0; index < lines.length; index++) {
       const match = lines[index].match(/^class\s+([A-Za-z_]\w*)\s*(?:\([^)]*\))?\s*:/)
       if (!match) continue
       const classIndent = lines[index].match(/^\s*/)?.[0].length ?? 0
-      const item: LayerClass = { layer, path: entry.path, name: match[1], constructor: [], attributes: [], methods: [] }
+      const item: LayerClass = { layer, path: entry.path, module: relativeTo(entry.path, root).replace(/\.py$/, '').replace(/\//g, '.'), projectRoot: root, name: match[1], constructor: [], attributes: [], methods: [] }
       for (let cursor = index + 1; cursor < lines.length; cursor++) {
         const line = lines[cursor]
         if (line.trim() && (line.match(/^\s*/)?.[0].length ?? 0) <= classIndent) break
@@ -50,10 +58,10 @@ export function analyzeLayerClasses(entries: ProjectEntry[]): LayerClass[] {
   }
   return result
 }
-export const moduleFor = (path: string) => path.replace(/\.py$/, '').replace(/\//g, '.')
+export const moduleFor = (target: LayerClass) => target.module
 export function ensureImport(source: string, target: LayerClass) {
-  const statement = `from ${moduleFor(target.path)} import ${target.name}`
-  if (new RegExp(`^\\s*from\\s+${moduleFor(target.path).replace(/\./g, '\\.')}\\s+import\\s+[^#\\n]*\\b${target.name}\\b`, 'm').test(source)) return { source, added: false }
+  const statement = `from ${moduleFor(target)} import ${target.name}`
+  if (new RegExp(`^\\s*from\\s+${moduleFor(target).replace(/\./g, '\\.')}\\s+import\\s+[^#\\n]*\\b${target.name}\\b`, 'm').test(source)) return { source, added: false }
   const lines = source.split('\n')
   let at = 0
   while (at < lines.length && (/^\s*(?:from|import)\s/.test(lines[at]) || !lines[at].trim())) at++
@@ -75,7 +83,7 @@ export function buildObjectChange(source: string, active: string, target: LayerC
   }
   return { path: active, content, summary: summary.length ? summary : ['No se encontraron cambios necesarios'] }
 }
-export function buildConnectionChange(source: string, active: string, target: LayerClass, objectName: string, methodName: string, values: string[], options = { addImport: true, addObject: true, addCall: true }): BuilderChange {
+export function buildConnectionChange(source: string, active: string, target: LayerClass, objectName: string, methodName: string, values: string[], options: { addImport: boolean; addObject: boolean; addCall: boolean; member?: boolean } = { addImport: true, addObject: true, addCall: true }): BuilderChange {
   let content = source
   const summary: string[] = []
   if (options.addImport) {
@@ -85,16 +93,17 @@ export function buildConnectionChange(source: string, active: string, target: La
   }
   const constructorValues = target.constructor.map((_, index) => values[index] || target.constructor[index]).join(', ')
   const creation = `${objectName} = ${target.name}(${constructorValues})`
-  const dependency = layerOf(active) === 'business' && target.layer === 'data'
+  const dependency = layerOf(active, target.projectRoot) === 'business' && target.layer === 'data'
+  const member = dependency || options.member === true
   if (options.addObject && !new RegExp(`(?:self\\.)?${objectName}\\s*=\\s*${target.name}\\s*\\(`).test(content)) {
-    if (dependency) content = injectConstructorDependency(content, objectName, target.name, constructorValues)
+    if (member) content = injectConstructorDependency(content, objectName, target.name, constructorValues)
     else content = content.replace(/\s*$/, '') + `\n\n${creation}\n`
     summary.push(`creación del objeto ${objectName}`)
   }
   if (options.addCall && methodName) {
     const method = target.methods.find((item) => item.name === methodName)
     const callValues = (method?.parameters ?? []).map((parameter, index) => values[index] || parameter)
-    const call = `${dependency ? 'self.' : ''}${objectName}.${methodName}(${callValues.join(', ')})`
+    const call = `${member ? 'self.' : ''}${objectName}.${methodName}(${callValues.join(', ')})`
     if (!content.includes(call)) {
       content = content.replace(/\s*$/, '') + `\n${call}\n`
       summary.push(`llamada a ${methodName}()`)
@@ -156,11 +165,12 @@ export function encapsulationChange(source: string, path: string, className: str
   }
   return { path, content, summary: summary.length ? summary : ['No se encontraron cambios necesarios'] }
 }
-export function reviewLayerConnections(entries: ProjectEntry[]) {
-  const classes = analyzeLayerClasses(entries)
+export function reviewLayerConnections(entries: ProjectEntry[], root = '') {
+  const classes = analyzeLayerClasses(entries, root)
   const findings: { severity: 'ok' | 'warning' | 'error'; message: string; path: string }[] = []
   for (const entry of entries.filter((item) => item.kind === 'file' && item.path.endsWith('.py'))) {
-    const sourceLayer = layerOf(entry.path)
+    if (!inside(entry.path, root)) continue
+    const sourceLayer = layerOf(entry.path, root)
     if (!sourceLayer) continue
     for (const match of entry.content.matchAll(/^\s*from\s+(presentation|business|domain|data)(?:\.[\w.]+)?\s+import\s+([A-Za-z_]\w*)/gm)) {
       const target = match[1] as CoaLayer
@@ -180,3 +190,21 @@ export function reviewLayerConnections(entries: ProjectEntry[]) {
   return findings
 }
 export const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
+
+export function projectRoots(entries: ProjectEntry[]) {
+  const roots = entries.filter((entry) => entry.kind === 'folder').map((entry) => entry.path)
+  return roots.filter((root) => coaLayers.some((layer) => entries.some((entry) => entry.path === `${root}/${layer}` || entry.path.startsWith(`${root}/${layer}/`))))
+}
+export function detectProjectRoot(active: string, entries: ProjectEntry[]) {
+  const parts = active.replace(/\\/g, '/').split('/')
+  const layerIndex = parts.findIndex((part) => coaLayers.includes(part.toLowerCase() as CoaLayer))
+  if (layerIndex >= 0) return parts.slice(0, layerIndex).join('/')
+  const roots = projectRoots(entries).filter((root) => active === root || active.startsWith(root + '/'))
+  if (roots.length === 1) return roots[0]
+  return coaLayers.some((layer) => entries.some((entry) => entry.path === layer || entry.path.startsWith(layer + '/'))) ? '' : null
+}
+export function wouldCreateCircularImport(entries: ProjectEntry[], active: string, target: LayerClass) {
+  const currentModule = relativeTo(active, target.projectRoot).replace(/\.py$/, '').replace(/\//g, '.')
+  const targetSource = entries.find((entry) => entry.path === target.path)?.content ?? ''
+  return new RegExp(`^\\s*(?:from\\s+${currentModule.replace(/\./g, '\\.')}\\s+import|import\\s+${currentModule.replace(/\./g, '\\.')}\\b)`, 'm').test(targetSource)
+}
