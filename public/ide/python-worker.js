@@ -228,8 +228,6 @@ __coa_json.dumps(__coa_gui._coa_invoke(__coa_widget_id, __coa_json.loads(__coa_v
       self.postMessage({ type: 'gui-update', gui: JSON.parse(guiJson) })
     } catch (error) {
       const message = String(error)
-      pending += '\n' + message + '\n'
-      flush()
       self.postMessage({ type: 'python-error', text: message })
       self.postMessage({ type: 'gui-error', text: message })
     }
@@ -462,6 +460,95 @@ __json.dumps(__coa_builder_result)
     }
     return
   }
+  if (data.type === 'analyze-diagnostics' && python) {
+    try {
+      python.globals.set('__coa_diagnostic_source', data.source)
+      const result = await python.runPythonAsync(`
+import ast as __ast, builtins as __builtins, json as __json
+
+def __coa_close_name(left, right):
+    if abs(len(left) - len(right)) > 1: return False
+    previous = list(range(len(right) + 1))
+    for index, first in enumerate(left, 1):
+        current = [index]
+        for other, second in enumerate(right, 1):
+            current.append(min(current[-1] + 1, previous[other] + 1, previous[other - 1] + (first != second)))
+        previous = current
+    return previous[-1] <= 1
+
+try:
+    __coa_tree = __ast.parse(__coa_diagnostic_source)
+except (SyntaxError, IndentationError, TabError) as error:
+    line = max(1, error.lineno or 1)
+    column = max(1, error.offset or 1)
+    lines = __coa_diagnostic_source.splitlines()
+    content = lines[line - 1] if line <= len(lines) else ''
+    technical = f'{error.__class__.__name__}: {error.msg}'
+    message = 'Hay un error de sintaxis en esta línea.'
+    explanation = 'Revisa la estructura y los signos utilizados.'
+    fix = None
+    stripped = content.strip()
+    block_words = ('if ', 'elif ', 'else', 'while ', 'for ', 'def ', 'class ', 'try', 'except', 'finally', 'match ', 'case ')
+    if stripped.startswith(block_words) and not stripped.endswith(':') and ('expected' in error.msg and ':' in error.msg):
+        kind = stripped.split()[0]
+        message = f'Falta ":" al final del {kind}.'
+        explanation = 'Python necesita ":" para indicar que a continuación comienza un bloque de código.'
+        end = len(content) + 1
+        fix = {'title': 'Agregar ":"', 'startLine': line, 'startColumn': end, 'endLine': line, 'endColumn': end, 'text': ':'}
+        column = max(1, len(content))
+    elif isinstance(error, (IndentationError, TabError)):
+        message = 'Esta línea debe estar indentada dentro del bloque anterior.'
+        explanation = 'Agrega un nivel de espacios o tabs al comienzo de la línea.'
+        if content and not content[0].isspace():
+            fix = {'title': 'Indentar esta línea', 'startLine': line, 'startColumn': 1, 'endLine': line, 'endColumn': 1, 'text': '    '}
+    elif 'was never closed' in error.msg or 'unterminated' in error.msg:
+        message = 'Hay un paréntesis, corchete, llave o texto sin cerrar.'
+        explanation = 'Revisa que cada signo de apertura tenga su cierre correspondiente.'
+    __coa_diagnostics = [{
+        'id': f'syntax-{line}-{column}', 'severity': 'error', 'line': line,
+        'column': column, 'endLine': line, 'endColumn': max(column + 1, len(content) + 1),
+        'message': message, 'explanation': explanation, 'technical': technical, 'fix': fix,
+    }]
+else:
+    definitions = {}
+    for node in __ast.walk(__coa_tree):
+        if isinstance(node, __ast.Name) and isinstance(node.ctx, (__ast.Store, __ast.Param)):
+            definitions[node.id] = min(definitions.get(node.id, node.lineno), node.lineno)
+        elif isinstance(node, (__ast.FunctionDef, __ast.AsyncFunctionDef, __ast.ClassDef)):
+            definitions[node.name] = node.lineno
+            for arg in (node.args.args if hasattr(node, 'args') else []):
+                definitions[arg.arg] = 0
+        elif isinstance(node, (__ast.Import, __ast.ImportFrom)):
+            for alias in node.names:
+                definitions[alias.asname or alias.name.split('.')[0]] = node.lineno
+    known = set(dir(__builtins)) | {'__name__', '__file__'}
+    __coa_diagnostics = []
+    reported = set()
+    for node in __ast.walk(__coa_tree):
+        if not isinstance(node, __ast.Name) or not isinstance(node.ctx, __ast.Load): continue
+        if node.id in known or definitions.get(node.id, node.lineno + 1) <= node.lineno or node.id in reported: continue
+        reported.add(node.id)
+        candidates = [name for name, defined_line in definitions.items() if defined_line <= node.lineno and __coa_close_name(node.id, name)]
+        suggestion = candidates[0] if len(candidates) == 1 else None
+        item = {
+            'id': f'name-{node.lineno}-{node.col_offset}-{node.id}', 'severity': 'warning',
+            'line': node.lineno, 'column': node.col_offset + 1, 'endLine': node.end_lineno,
+            'endColumn': node.end_col_offset + 1,
+            'message': f'La variable "{node.id}" no está definida.',
+            'explanation': 'Revisa si la creaste antes de utilizarla o si escribiste correctamente su nombre.',
+        }
+        if suggestion:
+            item['explanation'] += f' ¿Querías escribir "{suggestion}"?'
+            item['fix'] = {'title': f'Cambiar por "{suggestion}"', 'startLine': node.lineno, 'startColumn': node.col_offset + 1, 'endLine': node.end_lineno, 'endColumn': node.end_col_offset + 1, 'text': suggestion}
+        __coa_diagnostics.append(item)
+__json.dumps(__coa_diagnostics)
+`)
+      self.postMessage({ type: 'diagnostics-result', result: JSON.parse(result) })
+    } catch (error) {
+      self.postMessage({ type: 'diagnostics-error', text: String(error) })
+    }
+    return
+  }
   if (data.type !== 'run' || !python) return
   pending = ''
   output = ''
@@ -546,7 +633,6 @@ __coa_json.dumps(__coa_module._coa_snapshot()) if __coa_module else 'null'
   } catch (error) {
     ok = false
     const message = String(error)
-    pending += '\n' + message + '\n'
     self.postMessage({ type: 'python-error', text: message })
   }
   flush()

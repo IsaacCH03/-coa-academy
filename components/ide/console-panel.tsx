@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
+import type { RuntimeDiagnostic } from '@/lib/ide/diagnostics'
 export function ConsolePanel({
   output,
   waiting,
@@ -18,6 +19,7 @@ export function ConsolePanel({
   onExpand,
   collapsed,
   onCollapse,
+  diagnostic,
 }: {
   output: string
   waiting: boolean
@@ -27,6 +29,7 @@ export function ConsolePanel({
   onExpand: () => void
   collapsed: boolean
   onCollapse: () => void
+  diagnostic: RuntimeDiagnostic | null
 }) {
   const [value, setValue] = useState('')
   const scroll = useRef<HTMLPreElement>(null)
@@ -80,6 +83,17 @@ export function ConsolePanel({
           </span>
         )}
       </pre>
+      {diagnostic && !collapsed && (
+        <aside className="runtime-diagnostic" role="alert">
+          <strong>❌ {diagnostic.line ? `Error en la línea ${diagnostic.line}` : 'Error de Python'}</strong>
+          <p>{diagnostic.title}</p>
+          <small>{diagnostic.explanation}</small>
+          <details>
+            <summary>Ver detalle técnico</summary>
+            <pre>{diagnostic.technical}</pre>
+          </details>
+        </aside>
+      )}
       {waiting && (
         <form
           onSubmit={(e) => {

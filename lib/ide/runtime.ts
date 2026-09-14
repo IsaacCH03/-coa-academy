@@ -1,6 +1,7 @@
 import type { Project, ProjectEntry } from './project'
 import type { GuiImportResult } from './gui-designer'
 import type { BuilderAnalysis } from './builder'
+import type { CodeDiagnostic } from './diagnostics'
 export type RuntimeState =
   'loading' | 'ready' | 'running' | 'input' | 'stopped' | 'error'
 export type RunResult = {
@@ -41,6 +42,8 @@ export class PythonRuntime {
   private rejectAnalysis: ((error: Error) => void) | undefined
   private resolveBuilder: ((result: BuilderAnalysis) => void) | undefined
   private rejectBuilder: ((error: Error) => void) | undefined
+  private resolveDiagnostics: ((result: CodeDiagnostic[]) => void) | undefined
+  private rejectDiagnostics: ((error: Error) => void) | undefined
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
@@ -103,6 +106,16 @@ export class PythonRuntime {
         this.resolveBuilder = undefined
         this.rejectBuilder = undefined
       }
+      if (data.type === 'diagnostics-result') {
+        this.resolveDiagnostics?.(data.result)
+        this.resolveDiagnostics = undefined
+        this.rejectDiagnostics = undefined
+      }
+      if (data.type === 'diagnostics-error') {
+        this.rejectDiagnostics?.(new Error(data.text))
+        this.resolveDiagnostics = undefined
+        this.rejectDiagnostics = undefined
+      }
       if (data.type === 'fatal') this.fail(data.text)
       if (data.type === 'done') {
         clearTimeout(this.timeout)
@@ -123,9 +136,17 @@ export class PythonRuntime {
     this.events.output(message + '\n')
     this.events.state('error')
   }
-  run(project: Project, inputs?: string[]): Promise<RunResult> {
+  async run(project: Project, inputs?: string[]): Promise<RunResult> {
     if (!this.ready || this.resolve)
-      return Promise.reject(new Error('Espera a que Python esté listo.'))
+      throw new Error('Espera a que Python esté listo.')
+    // Pyodide cannot safely evaluate two snippets at the same time. If the
+    // debounced editor analysis is finishing, let it release the interpreter
+    // before starting the user's program.
+    while (this.resolveDiagnostics) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      if (!this.ready || this.resolve)
+        throw new Error('Espera a que Python esté listo.')
+    }
     this.events.state('running')
     return new Promise((resolve) => {
       this.resolve = resolve
@@ -188,6 +209,15 @@ export class PythonRuntime {
       this.worker!.postMessage({ type: 'analyze-builder', source, offset })
     })
   }
+  analyzeDiagnostics(source: string) {
+    if (!this.ready || this.resolve || this.resolveDiagnostics)
+      return Promise.reject(new Error('Espera a que Python esté listo.'))
+    return new Promise<CodeDiagnostic[]>((resolve, reject) => {
+      this.resolveDiagnostics = resolve
+      this.rejectDiagnostics = reject
+      this.worker!.postMessage({ type: 'analyze-diagnostics', source })
+    })
+  }
   stop() {
     this.dispose()
     this.events.state('stopped')
@@ -209,5 +239,8 @@ export class PythonRuntime {
     this.rejectBuilder?.(new Error('El análisis fue detenido.'))
     this.resolveBuilder = undefined
     this.rejectBuilder = undefined
+    this.rejectDiagnostics?.(new Error('El análisis fue detenido.'))
+    this.resolveDiagnostics = undefined
+    this.rejectDiagnostics = undefined
   }
 }

@@ -13,6 +13,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react'
 import type { editor } from 'monaco-editor'
+import type { Monaco } from '@monaco-editor/react'
 import { Toolbar } from './toolbar'
 import { LearnPanel } from './learn-panel'
 import { FileExplorer } from './file-explorer'
@@ -22,6 +23,7 @@ import { GithubPanel } from './github-panel'
 import { ConfirmDialog } from './confirm-dialog'
 import { GuiDesigner } from './gui-designer'
 import { CoaGuiPreview } from './coa-gui-preview'
+import { DiagnosticsPanel } from './diagnostics-panel'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -36,6 +38,12 @@ import type { CoaGuiPreview as CoaGuiPreviewModel } from '@/lib/ide/runtime'
 import { insertionAt } from '@/lib/ide/insertion'
 import { educationalHints, explainCode } from '@/lib/ide/education'
 import { matchesOutput, type Exercise } from '@/lib/ide/exercises'
+import {
+  explainRuntimeError,
+  type CodeDiagnostic,
+  type DiagnosticFix,
+  type RuntimeDiagnostic,
+} from '@/lib/ide/diagnostics'
 
 const CodeEditor = dynamic(
   () => import('./code-editor').then((m) => m.CodeEditor),
@@ -70,8 +78,14 @@ export function IdeApp() {
   const [replacement, setReplacement] = useState<Project | null>(null)
   const [guiPreview, setGuiPreview] = useState<CoaGuiPreviewModel | null>(null)
   const [cursor, setCursor] = useState({ source: '', offset: 0 })
+  const [diagnostics, setDiagnostics] = useState<CodeDiagnostic[]>([])
+  const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<RuntimeDiagnostic | null>(null)
+  const [problemsOpen, setProblemsOpen] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<Monaco | null>(null)
+  const diagnosticsRef = useRef<CodeDiagnostic[]>([])
+  const codeActions = useRef<{ dispose(): void } | null>(null)
   const area = useRef<HTMLDivElement>(null)
   const cancelTests = useRef(false)
   const busy = state === 'running' || state === 'input' || checking
@@ -93,7 +107,10 @@ export function IdeApp() {
     const runner = new PythonRuntime({
       state: setState,
       output: append,
-      error: setPythonError,
+      error: (technical) => {
+        setPythonError(technical)
+        setRuntimeDiagnostic(explainRuntimeError(technical))
+      },
     })
     runtime.current = runner
     runner.start()
@@ -113,8 +130,53 @@ export function IdeApp() {
       cancelAnimationFrame(frame)
       cancelTests.current = true
       runner.dispose()
+      codeActions.current?.dispose()
     }
   }, [append])
+  useEffect(() => {
+    if (!project?.active.endsWith('.py') || state !== 'ready') return
+    let active = true
+    let retry: ReturnType<typeof setTimeout>
+    const analyze = () => {
+      void runtime.current!.analyzeDiagnostics(source).then(
+        (result) => {
+          if (!active) return
+          diagnosticsRef.current = result
+          setDiagnostics(result)
+          const model = editorRef.current?.getModel()
+          const monaco = monacoRef.current
+          if (model && monaco)
+            monaco.editor.setModelMarkers(
+              model,
+              'coa-diagnostics',
+              result.map((item) => ({
+                startLineNumber: item.line,
+                startColumn: item.column,
+                endLineNumber: item.endLine,
+                endColumn: item.endColumn,
+                message: `${item.message}\n\n${item.explanation}`,
+                severity:
+                  item.severity === 'error'
+                    ? monaco.MarkerSeverity.Error
+                    : item.severity === 'warning'
+                      ? monaco.MarkerSeverity.Warning
+                      : monaco.MarkerSeverity.Info,
+                source: 'Diagnósticos COA',
+              })),
+            )
+        },
+        () => {
+          if (active) retry = setTimeout(analyze, 180)
+        },
+      )
+    }
+    const debounce = setTimeout(analyze, 600)
+    return () => {
+      active = false
+      clearTimeout(debounce)
+      clearTimeout(retry)
+    }
+  }, [source, project?.active, state])
   function dismissWelcome() {
     setWelcome(false)
     try {
@@ -130,6 +192,7 @@ export function IdeApp() {
       return
     }
     setPythonError('')
+    setRuntimeDiagnostic(null)
     setGuiPreview(null)
     setOutput(`❯ ${project.active}\n`)
     setNotice('')
@@ -203,6 +266,22 @@ export function IdeApp() {
     ed.pushUndoStop()
     ed.focus()
     if (window.innerWidth < 768) setPanel(null)
+  }
+  function applyDiagnosticFix(fix: DiagnosticFix) {
+    const ed = editorRef.current
+    if (!ed) return
+    ed.executeEdits('coa-diagnostics', [
+      {
+        range: {
+          startLineNumber: fix.startLine,
+          startColumn: fix.startColumn,
+          endLineNumber: fix.endLine,
+          endColumn: fix.endColumn,
+        },
+        text: fix.text,
+      },
+    ])
+    ed.focus()
   }
   function explain() {
     const ed = editorRef.current
@@ -519,8 +598,48 @@ export function IdeApp() {
                     ),
                   }))
                 }
-                onMount={(ed) => {
+                onMount={(ed, monaco) => {
                   editorRef.current = ed
+                  monacoRef.current = monaco
+                  codeActions.current?.dispose()
+                  codeActions.current = monaco.languages.registerCodeActionProvider(
+                    'python',
+                    {
+                      provideCodeActions(model, range) {
+                        const fixes = diagnosticsRef.current.filter(
+                          (item) =>
+                            item.fix &&
+                            item.line <= range.endLineNumber &&
+                            item.endLine >= range.startLineNumber,
+                        )
+                        return {
+                          actions: fixes.map((item) => ({
+                            title: `💡 ${item.fix!.title}`,
+                            kind: 'quickfix',
+                            isPreferred: true,
+                            edit: {
+                              edits: [
+                                {
+                                  resource: model.uri,
+                                  textEdit: {
+                                    range: {
+                                      startLineNumber: item.fix!.startLine,
+                                      startColumn: item.fix!.startColumn,
+                                      endLineNumber: item.fix!.endLine,
+                                      endColumn: item.fix!.endColumn,
+                                    },
+                                    text: item.fix!.text,
+                                  },
+                                  versionId: model.getVersionId(),
+                                },
+                              ],
+                            },
+                          })),
+                          dispose() {},
+                        }
+                      },
+                    },
+                  )
                   const position = ed.getPosition()
                   if (position)
                     setCursor({
@@ -613,6 +732,7 @@ export function IdeApp() {
           >
             <ConsolePanel
               output={output}
+              diagnostic={runtimeDiagnostic}
               waiting={state === 'input'}
               onInput={(text) => {
                 try {
@@ -621,7 +741,10 @@ export function IdeApp() {
                   report((e as Error).message)
                 }
               }}
-              onClear={() => setOutput('')}
+              onClear={() => {
+                setOutput('')
+                setRuntimeDiagnostic(null)
+              }}
               expanded={expanded}
               collapsed={collapsed}
               onCollapse={() => {
@@ -643,8 +766,28 @@ export function IdeApp() {
           {statusLabels[state]}
         </span>
         <span title="Ctrl+S para guardar">{saveStatus}</span>
+        <button
+          className="diagnostics-summary"
+          aria-expanded={problemsOpen}
+          onClick={() => setProblemsOpen((open) => !open)}
+        >
+          ❌ {diagnostics.filter((item) => item.severity === 'error').length}
+          {'  '}⚠️ {diagnostics.filter((item) => item.severity === 'warning').length}
+          {'  '}💡 {diagnostics.filter((item) => item.fix).length}
+        </button>
         <span className="ide-status-help">Python · UTF-8 · 4 espacios</span>
       </footer>
+      {problemsOpen && (
+        <DiagnosticsPanel
+          diagnostics={diagnostics}
+          onSelect={(item) => {
+            editorRef.current?.setPosition({ lineNumber: item.line, column: item.column })
+            editorRef.current?.revealLineInCenter(item.line)
+            editorRef.current?.focus()
+          }}
+          onFix={applyDiagnosticFix}
+        />
+      )}
       {replacement && (
         <ConfirmDialog
           title="Reemplazar proyecto actual"

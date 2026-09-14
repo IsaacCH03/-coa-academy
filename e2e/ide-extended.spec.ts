@@ -24,7 +24,9 @@ test('real Python errors and every demonstration exercise', async ({
   await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 45000 })
   await edit(page, 'int("no es un número")')
   await page.keyboard.press('Control+Enter')
-  await expect(page.getByTestId('python-output')).toContainText('ValueError:')
+  await expect(page.locator('.runtime-diagnostic')).toContainText('No se pudo convertir')
+  await page.getByText('Ver detalle técnico').click()
+  await expect(page.locator('.runtime-diagnostic')).toContainText('ValueError:')
   await expect(
     page.getByText('Revisa el dato recibido.', { exact: false }),
   ).toBeVisible()
