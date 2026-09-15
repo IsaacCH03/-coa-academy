@@ -1,6 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   BookOpen,
   Files,
@@ -24,6 +24,7 @@ import { ConfirmDialog } from './confirm-dialog'
 import { GuiDesigner } from './gui-designer'
 import { CoaGuiPreview } from './coa-gui-preview'
 import { DiagnosticsPanel } from './diagnostics-panel'
+import { SettingsPanel } from './settings-panel'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -45,6 +46,8 @@ import {
   type RuntimeDiagnostic,
 } from '@/lib/ide/diagnostics'
 import type { BuilderChange } from '@/lib/ide/layers'
+import { DEFAULT_SETTINGS, accentColor, derivedColors, quickInsertion, type AppearanceProfile, type QuickAction, type StudioSettings } from '@/lib/ide/personalization'
+import { deleteCustomBackground, loadCustomBackground, loadProfiles, loadSettings, saveCustomBackground, saveProfiles, saveSettings } from '@/lib/ide/personalization-storage'
 
 const CodeEditor = dynamic(
   () => import('./code-editor').then((m) => m.CodeEditor),
@@ -61,7 +64,7 @@ const statusLabels: Record<RuntimeState, string> = {
   stopped: 'Programa detenido',
   error: 'Python no disponible',
 }
-type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github'
+type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github' | 'settings'
 
 export function IdeApp() {
   const { project, update, save, saveStatus, storageError } = useProject()
@@ -83,6 +86,14 @@ export function IdeApp() {
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<RuntimeDiagnostic | null>(null)
   const [runtimeMarker, setRuntimeMarker] = useState<CodeDiagnostic | null>(null)
   const [problemsOpen, setProblemsOpen] = useState(false)
+  const [settings, setSettings] = useState<StudioSettings>(DEFAULT_SETTINGS)
+  const [profiles, setProfiles] = useState<AppearanceProfile[]>([])
+  const [backgroundUrl, setBackgroundUrl] = useState('')
+  const [mobileFocused, setMobileFocused] = useState(false)
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const [focusDismissed, setFocusDismissed] = useState(false)
+  const [pageVisible, setPageVisible] = useState(true)
+  const [personalizationReady, setPersonalizationReady] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
@@ -100,6 +111,36 @@ export function IdeApp() {
     project?.entries.find((e) => e.path === project.active)?.content ?? ''
   const allDiagnostics = useMemo(() => runtimeMarker ? [...diagnostics, runtimeMarker] : diagnostics, [diagnostics, runtimeMarker])
   useEffect(() => { projectRef.current = project }, [project])
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setSettings(loadSettings())
+      setProfiles(loadProfiles())
+      void loadCustomBackground().then((blob) => { if (blob) setBackgroundUrl(URL.createObjectURL(blob)) })
+      setPersonalizationReady(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  useEffect(() => { if (!personalizationReady) return; try { saveSettings(settings) } catch { /* Personalization stays optional. */ } }, [settings, personalizationReady])
+  useEffect(() => { if (!personalizationReady) return; try { saveProfiles(profiles) } catch { /* Profiles stay optional. */ } }, [profiles, personalizationReady])
+  useEffect(() => {
+    const visible = () => setPageVisible(!document.hidden)
+    document.addEventListener('visibilitychange', visible)
+    return () => document.removeEventListener('visibilitychange', visible)
+  }, [])
+  useEffect(() => {
+    const viewport = window.visualViewport
+    const check = () => {
+      const mobile = matchMedia('(max-width: 767px)').matches
+      const keyboard = viewport ? window.innerHeight - viewport.height > 140 : mobileFocused
+      setKeyboardVisible(mobile && keyboard)
+      if (!mobileFocused || !mobile || !keyboard) setFocusDismissed(false)
+      document.documentElement.style.setProperty('--coa-visible-height', `${viewport?.height ?? window.innerHeight}px`)
+    }
+    viewport?.addEventListener('resize', check)
+    window.addEventListener('resize', check)
+    check()
+    return () => { viewport?.removeEventListener('resize', check); window.removeEventListener('resize', check) }
+  }, [mobileFocused])
   const append = useCallback(
     (text: string) => setOutput((o) => (o + text).slice(-220000)),
     [],
@@ -317,6 +358,23 @@ export function IdeApp() {
     ed.focus()
     if (window.innerWidth < 768) setPanel(null)
   }
+  function quickAction(action: QuickAction) {
+    const ed = editorRef.current
+    if (!ed) return
+    if (action === '←' || action === '→') {
+      const position = ed.getPosition(); if (!position) return
+      const offset = ed.getModel()?.getOffsetAt(position) ?? 0
+      const next = ed.getModel()?.getPositionAt(Math.max(0, offset + (action === '←' ? -1 : 1)))
+      if (next) ed.setPosition(next)
+    } else if (action === 'Tab' || action === 'Desindentar') {
+      ed.trigger('coa-mobile', action === 'Tab' ? 'tab' : 'outdent', null)
+    } else {
+      const value = quickInsertion(action)
+      ed.trigger('coa-mobile', 'type', { text: value.text })
+      if (value.cursorBack) ed.trigger('coa-mobile', 'cursorLeft', null)
+    }
+    ed.focus()
+  }
   function applyBuilderChanges(changes: BuilderChange[]) {
     update((current) => ({
       ...current,
@@ -440,8 +498,12 @@ export function IdeApp() {
         <p className="ide-loading">Abriendo tu espacio de Python…</p>
       </main>
     )
+  const colors = derivedColors(accentColor(settings))
+  const focusMode = settings.mobileFocus && mobileFocused && keyboardVisible && !focusDismissed
+  const studioStyle = { '--accent': colors.accent, '--accent-hover': colors.hover, '--selection': colors.selection, '--accent-subtle': colors.subtle, '--background-opacity': settings.backgroundOpacity / 100, '--background-blur': `${settings.backgroundBlur}px`, '--background-darkness': settings.backgroundDarkness / 100, '--custom-background': backgroundUrl ? `url("${backgroundUrl}")` : 'none' } as CSSProperties
   return (
-    <main className="coa-ide">
+    <main className={`coa-ide theme-${settings.style} density-${settings.density}${settings.highContrast ? ' high-contrast' : ''}${settings.reduceMotion ? ' reduce-motion' : ''}${focusMode ? ' mobile-focus' : ''}${settings.pauseHidden && !pageVisible ? ' background-paused' : ''}`} data-accent={settings.accent} data-background={settings.background} data-animation={settings.animation} data-fit={settings.backgroundFit} style={studioStyle}>
+      {settings.background !== 'none' && <div className="ide-background" aria-hidden="true" />}
       <Toolbar
         active={project.active}
         canRun={state === 'ready' && project.active.endsWith('.py')}
@@ -453,6 +515,7 @@ export function IdeApp() {
         onGithub={() => setPanel((p) => (p === 'github' ? null : 'github'))}
         onRestart={() => runtime.current?.start()}
         needsRestart={state === 'stopped' || state === 'error'}
+        onSettings={() => setPanel((p) => p === 'settings' ? null : 'settings')}
       />
       {welcome && (
         <div className="ide-welcome">
@@ -548,8 +611,11 @@ export function IdeApp() {
                   onError={report}
                   onNew={() => setReplacement(newProject())}
                   disabled={busy}
+                  explorerLabel={settings.style === 'eclipse' ? 'PACKAGE EXPLORER' : settings.style === 'vscode' ? 'EXPLORER' : 'EXPLORADOR'}
+                  themedIcons={settings.style === 'eclipse'}
                 />
               )}
+              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={async(file) => { await saveCustomBackground(file); if(backgroundUrl) URL.revokeObjectURL(backgroundUrl); setBackgroundUrl(URL.createObjectURL(file)) }} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground() }} />}
               {panel === 'exercise' && (
                 <ExercisePanel
                   selected={exercise}
@@ -662,6 +728,8 @@ export function IdeApp() {
                 path={project.active}
                 content={source}
                 readOnly={busy}
+                settings={settings}
+                onFocus={() => setMobileFocused(true)}
                 onChange={(content) =>
                   {
                     setRuntimeMarker(null)
@@ -809,6 +877,8 @@ export function IdeApp() {
             <ConsolePanel
               output={output}
               diagnostic={runtimeDiagnostic}
+              title={settings.style === 'eclipse' ? 'Console' : settings.style === 'python' ? 'Python Shell' : settings.style === 'vscode' ? 'PROBLEMS  OUTPUT  CONSOLE' : 'CONSOLA'}
+              prompt={settings.style === 'cmd' ? settings.cmdPrompt : settings.style === 'python' ? '>>>' : undefined}
               waiting={state === 'input'}
               onInput={(text) => {
                 try {
@@ -832,6 +902,7 @@ export function IdeApp() {
           </div>
         </div>
       </div>
+      {mobileFocused && <div className="ide-quickbar" aria-label="Barra rápida de programación">{focusMode && <button className="focus-exit" onClick={() => setFocusDismissed(true)}>Salir de enfoque</button>}{settings.quickBar.map((action) => <button key={action} onPointerDown={(e) => e.preventDefault()} onClick={() => quickAction(action)}>{action}</button>)}</div>}
       <footer className="ide-status">
         <span>
           <Circle

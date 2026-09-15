@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Play, Square, Download, ArrowLeft, RotateCcw } from 'lucide-react'
+import { Play, Square, Download, ArrowLeft, RotateCcw, Settings } from 'lucide-react'
 import { GithubIcon as Github } from './github-icon'
 export function Toolbar({
   active,
@@ -14,6 +14,7 @@ export function Toolbar({
   onGithub,
   onRestart,
   needsRestart,
+  onSettings,
 }: {
   active: string
   canRun: boolean
@@ -25,6 +26,7 @@ export function Toolbar({
   onGithub: () => void
   onRestart: () => void
   needsRestart: boolean
+  onSettings: () => void
 }) {
   return (
     <header className="ide-toolbar">
@@ -38,6 +40,7 @@ export function Toolbar({
           </strong>
           <small>{active || 'Mi proyecto'}</small>
         </div>
+        <button className="ide-settings-button" aria-label="Configuración" title="Configuración" onClick={onSettings}><Settings size={18}/></button>
       </div>
       <div className="ide-toolbar-actions">
         <button

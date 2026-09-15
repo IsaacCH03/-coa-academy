@@ -20,6 +20,8 @@ export function ConsolePanel({
   collapsed,
   onCollapse,
   diagnostic,
+  title = 'CONSOLA',
+  prompt,
 }: {
   output: string
   waiting: boolean
@@ -30,6 +32,8 @@ export function ConsolePanel({
   collapsed: boolean
   onCollapse: () => void
   diagnostic: RuntimeDiagnostic | null
+  title?: string
+  prompt?: string
 }) {
   const [value, setValue] = useState('')
   const scroll = useRef<HTMLPreElement>(null)
@@ -44,7 +48,7 @@ export function ConsolePanel({
     <section className="ide-console" aria-label="Consola Python">
       <header>
         <span>
-          <Terminal size={15} /> CONSOLA
+          <Terminal size={15} /> {title}
         </span>
         <div>
           <button
@@ -77,7 +81,7 @@ export function ConsolePanel({
         tabIndex={0}
         hidden={collapsed}
       >
-        {output || (
+        {prompt && <span className="ide-console-prompt">{prompt}{' '}</span>}{output || (
           <span className="ide-muted">
             Aquí aparecerán los resultados de tu programa.
           </span>

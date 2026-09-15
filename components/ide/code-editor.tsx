@@ -3,6 +3,7 @@ import Editor, { loader, type OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useEffect, useState } from 'react'
 import { configurePython } from '@/lib/ide/completions'
+import type { StudioSettings } from '@/lib/ide/personalization'
 
 loader.config({
   paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
@@ -14,12 +15,16 @@ export function CodeEditor({
   onChange,
   onMount,
   readOnly,
+  settings,
+  onFocus,
 }: {
   path: string
   content: string
   onChange: (value: string) => void
   onMount: OnMount
   readOnly: boolean
+  settings: StudioSettings
+  onFocus: () => void
 }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => {
@@ -71,21 +76,29 @@ export function CodeEditor({
       }
       value={content}
       onChange={(value) => onChange(value ?? '')}
-      theme="vs-dark"
-      onMount={onMount}
+      theme={settings.style === 'python' || settings.style === 'eclipse' ? 'light' : 'vs-dark'}
+      onMount={(editor, monaco) => {
+        editor.onDidFocusEditorText(onFocus)
+        onMount(editor, monaco)
+      }}
       beforeMount={configurePython}
       loading={<p className="ide-loading">Cargando editor…</p>}
       options={{
         readOnly,
-        fontSize: 15,
-        fontFamily: 'Consolas, monospace',
-        minimap: { enabled: false },
+        fontSize: settings.fontSize,
+        fontFamily: `${settings.fontFamily}, monospace`,
+        lineHeight: Math.round(settings.fontSize * settings.lineHeight),
+        minimap: { enabled: settings.minimap },
         padding: { top: 20 },
         scrollBeyondLastLine: false,
         automaticLayout: true,
         tabSize: 4,
         insertSpaces: true,
-        wordWrap: 'on',
+        wordWrap: settings.wordWrap ? 'on' : 'off',
+        lineNumbers: settings.lineNumbers ? 'on' : 'off',
+        renderLineHighlight: settings.highlightLine ? 'line' : 'none',
+        autoClosingBrackets: settings.autoCloseBrackets ? 'always' : 'never',
+        autoClosingQuotes: settings.autoCloseQuotes ? 'always' : 'never',
         quickSuggestions: true,
         ariaLabel: 'Editor de código',
         fixedOverflowWidgets: true,

@@ -32,6 +32,8 @@ export function FileExplorer({
   onError,
   onNew,
   disabled,
+  explorerLabel = 'EXPLORADOR',
+  themedIcons = false,
 }: {
   project: Project
   onChange: (p: Project | ((current: Project) => Project)) => void
@@ -39,6 +41,8 @@ export function FileExplorer({
   onError: (text: string) => void
   onNew: () => void
   disabled: boolean
+  explorerLabel?: string
+  themedIcons?: boolean
 }) {
   const [form, setForm] = useState<{
     kind: 'file' | 'folder' | 'rename' | 'delete'
@@ -142,7 +146,7 @@ export function FileExplorer({
   } as InputHTMLAttributes<HTMLInputElement>
   return (
     <section className="ide-panel">
-      <p className="ide-eyebrow">EXPLORADOR</p>
+      <p className="ide-eyebrow">{explorerLabel}</p>
       <h2>Mi proyecto</h2>
       <p className="ide-muted">Tus archivos se guardan en este navegador.</p>
       <p className="ide-tip" data-testid="selected-folder">
@@ -305,7 +309,7 @@ export function FileExplorer({
                     ) : (
                       <ChevronRight size={13} />
                     )}
-                    <Folder size={16} />
+                    <Folder size={16} className={themedIcons ? 'theme-folder-icon' : ''} />
                   </>
                 ) : (
                   <FileCode2 size={16} />
