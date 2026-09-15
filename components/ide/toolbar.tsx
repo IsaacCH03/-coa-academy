@@ -32,7 +32,7 @@ export function Toolbar({
     <header className="ide-toolbar">
       <div className="ide-brand">
         <Link href="/" title="Volver a COA">
-          <Image src="/coa-icon.png" width={32} height={32} alt="COA" />
+          <Image src="/coa-icon.png" width={40} height={40} alt="COA" />
         </Link>
         <div>
           <strong>

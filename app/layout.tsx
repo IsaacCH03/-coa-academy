@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   description:
     'Academia de programación online (C.O.A). Aprende Python, desarrollo web, bases de datos e inteligencia artificial con cursos prácticos y proyectos reales.',
   icons: {
-    icon: '/logoCOA.png',
-    shortcut: '/logoCOA.png',
-    apple: '/logoCOA.png',
+    icon: '/coa-app-icon.png',
+    shortcut: '/coa-app-icon.png',
+    apple: '/coa-app-icon.png',
   },
   generator: 'v0.app',
 }

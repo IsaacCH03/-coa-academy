@@ -113,15 +113,26 @@ export function IdeApp() {
   useEffect(() => { projectRef.current = project }, [project])
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      setSettings(loadSettings())
+      const restoredSettings = loadSettings()
+      setSettings(restoredSettings)
       setProfiles(loadProfiles())
-      void loadCustomBackground().then((blob) => { if (blob) setBackgroundUrl(URL.createObjectURL(blob)) })
       setPersonalizationReady(true)
     })
     return () => cancelAnimationFrame(frame)
   }, [])
   useEffect(() => { if (!personalizationReady) return; try { saveSettings(settings) } catch { /* Personalization stays optional. */ } }, [settings, personalizationReady])
   useEffect(() => { if (!personalizationReady) return; try { saveProfiles(profiles) } catch { /* Profiles stay optional. */ } }, [profiles, personalizationReady])
+  useEffect(() => {
+    if (!personalizationReady || settings.background !== 'custom') return
+    let active = true
+    void loadCustomBackground(settings.customBackgroundId).then((blob) => {
+      if (!active) return
+      if (!blob) { setBackgroundUrl(''); setNotice('El fondo personalizado de este perfil ya no está disponible.'); return }
+      const next = URL.createObjectURL(blob)
+      setBackgroundUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return next })
+    })
+    return () => { active = false }
+  }, [personalizationReady, settings.background, settings.customBackgroundId])
   useEffect(() => {
     const visible = () => setPageVisible(!document.hidden)
     document.addEventListener('visibilitychange', visible)
@@ -616,7 +627,7 @@ export function IdeApp() {
                   themedIcons={settings.style === 'eclipse'}
                 />
               )}
-              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={async(file) => { await saveCustomBackground(file); if(backgroundUrl) URL.revokeObjectURL(backgroundUrl); setBackgroundUrl(URL.createObjectURL(file)) }} onRemoveImage={async()=>{if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);setBackgroundUrl('');await deleteCustomBackground()}} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground() }} />}
+              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={saveCustomBackground} onRemoveImage={async()=>{if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);setBackgroundUrl('');await deleteCustomBackground(settings.customBackgroundId)}} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground(settings.customBackgroundId) }} />}
               {panel === 'exercise' && (
                 <ExercisePanel
                   selected={exercise}

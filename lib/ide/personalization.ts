@@ -11,6 +11,7 @@ export interface StudioSettings {
   customColor: string
   style: SpecialStyle
   background: BackgroundKind
+  customBackgroundId: string | null
   backgroundOpacity: number
   wallpaperVisibility: number
   interfaceTransparency: number
@@ -40,7 +41,7 @@ export interface StudioSettings {
 export interface AppearanceProfile { id: string; name: string; settings: StudioSettings }
 
 export const DEFAULT_SETTINGS: StudioSettings = {
-  accent: 'coa', customColor: '#5f8ff5', style: 'none', background: 'none',
+  accent: 'coa', customColor: '#5f8ff5', style: 'none', background: 'none', customBackgroundId: null,
   backgroundOpacity: 70, wallpaperVisibility: 70, interfaceTransparency: 48, backgroundBlur: 2, backgroundDarkness: 38,
   backgroundFit: 'cover', animation: 'soft', reduceMobileAnimation: true,
   pauseHidden: true, fontSize: 15, fontFamily: 'Consolas', lineHeight: 1.55,

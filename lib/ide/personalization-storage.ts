@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, normalizeSettings, type AppearanceProfile, type Studi
 
 const SETTINGS_KEY = 'coa-studio-settings-v1'
 const PROFILES_KEY = 'coa-studio-profiles-v1'
-const IMAGE_KEY = 'custom-background'
+const LEGACY_IMAGE_KEY = 'custom-background'
 
 export function loadSettings(): StudioSettings {
   try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null')) }
@@ -26,13 +26,15 @@ async function database() {
 }
 export async function saveCustomBackground(file: File) {
   const db = await database()
-  await db.put('assets', file, IMAGE_KEY)
+  const id = `background-${crypto.randomUUID()}`
+  await db.put('assets', file, id)
+  return id
 }
-export async function loadCustomBackground(): Promise<Blob | undefined> {
+export async function loadCustomBackground(id?: string | null): Promise<Blob | undefined> {
   const db = await database()
-  return db.get('assets', IMAGE_KEY)
+  return db.get('assets', id || LEGACY_IMAGE_KEY)
 }
-export async function deleteCustomBackground() {
+export async function deleteCustomBackground(id?: string | null) {
   const db = await database()
-  await db.delete('assets', IMAGE_KEY)
+  await db.delete('assets', id || LEGACY_IMAGE_KEY)
 }
