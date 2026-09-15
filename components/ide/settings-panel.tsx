@@ -6,12 +6,14 @@ import { DEFAULT_QUICK_BAR, QUICK_ACTIONS, type AppearanceProfile, type StudioSe
 type Section = 'appearance' | 'background' | 'editor' | 'mobile' | 'accessibility' | 'profiles' | 'reset'
 const sectionNames: Record<Section, string> = { appearance: '🎨 Apariencia', background: '🖼 Fondos', editor: '✍ Editor', mobile: '📱 Móvil', accessibility: '♿ Accesibilidad', profiles: '💾 Perfiles', reset: '↻ Restablecer' }
 
-export function SettingsPanel({ settings, profiles, onChange, onProfiles, onImage, onReset, notice }: {
+export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChange, onProfiles, onImage, onRemoveImage, onReset, notice }: {
   settings: StudioSettings
   profiles: AppearanceProfile[]
   onChange: (settings: StudioSettings) => void
   onProfiles: (profiles: AppearanceProfile[]) => void
   onImage: (file: File) => Promise<void>
+  onRemoveImage: () => Promise<void>
+  customBackgroundUrl: string
   onReset: () => void
   notice: (text: string) => void
 }) {
@@ -37,13 +39,14 @@ export function SettingsPanel({ settings, profiles, onChange, onProfiles, onImag
     </div>}
     {section === 'background' && <div className="settings-section">
       <h3>Fondos</h3><div className="theme-grid">{(['none','city','forest','sunset','space','cyberpunk','stars','rain'] as const).map((id) => <button key={id} aria-pressed={settings.background === id} onClick={() => set('background', id)}>{({none:'Ninguno',city:'Ciudad nocturna',forest:'Bosque',sunset:'Atardecer',space:'Espacio',cyberpunk:'Cyberpunk',stars:'Estrellas animadas',rain:'Lluvia animada'})[id]}</button>)}</div>
-      <input ref={upload} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e) => { const file=e.target.files?.[0]; if (!file) return; if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 5_000_000) { notice('Usa una imagen PNG, JPG o WEBP de hasta 5 MB.'); return } await onImage(file); set('background','custom') }}/><button className="ide-secondary" onClick={() => upload.current?.click()}>Subir imagen</button><small>Tu fondo personalizado se guarda localmente en este navegador.</small>
+      <input ref={upload} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e) => { const file=e.target.files?.[0]; if (!file) return; if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 5_000_000) { notice('Usa una imagen PNG, JPG o WEBP de hasta 5 MB.'); return } await onImage(file); set('background','custom') }}/><button className="ide-secondary" onClick={() => upload.current?.click()}>Subir imagen</button>{customBackgroundUrl && <><div className="background-preview" role="img" aria-label="Vista previa del fondo personalizado" style={{backgroundImage:`url("${customBackgroundUrl}")`}}/><button onClick={async()=>{await onRemoveImage();set('background','none')}}>Quitar imagen</button></>}<small>Tu fondo personalizado se guarda localmente en este navegador.</small>
       <label>Opacidad: {settings.backgroundOpacity}%<input type="range" min="0" max="70" value={settings.backgroundOpacity} onChange={(e)=>set('backgroundOpacity',+e.target.value)}/></label>
       <label>Desenfoque: {settings.backgroundBlur}px<input type="range" min="0" max="12" value={settings.backgroundBlur} onChange={(e)=>set('backgroundBlur',+e.target.value)}/></label>
       <label>Oscurecimiento: {settings.backgroundDarkness}%<input type="range" min="0" max="90" value={settings.backgroundDarkness} onChange={(e)=>set('backgroundDarkness',+e.target.value)}/></label>
       <label className="ide-field">Ajuste<select value={settings.backgroundFit} onChange={(e)=>set('backgroundFit',e.target.value as StudioSettings['backgroundFit'])}><option value="cover">Cubrir</option><option value="contain">Contener</option><option value="center">Centrar</option><option value="repeat">Repetir</option></select></label>
       <label className="ide-field">Animación<select value={settings.animation} onChange={(e)=>set('animation',e.target.value as StudioSettings['animation'])}><option value="off">Desactivada</option><option value="soft">Suave</option><option value="normal">Normal</option></select></label>
       <label className="ide-check"><input type="checkbox" checked={settings.reduceMobileAnimation} onChange={(e)=>set('reduceMobileAnimation',e.target.checked)}/>Reducir animaciones en móvil</label><label className="ide-check"><input type="checkbox" checked={settings.pauseHidden} onChange={(e)=>set('pauseHidden',e.target.checked)}/>Pausar cuando la pestaña no esté visible</label>
+      <button className="ide-primary" onClick={()=>notice('Fondo aplicado correctamente')}>Aplicar fondo</button>
     </div>}
     {section === 'editor' && <div className="settings-section">
       <label className="ide-field">Tamaño de fuente<input type="number" min="11" max="24" value={settings.fontSize} onChange={(e)=>set('fontSize',+e.target.value)}/></label><label className="ide-field">Familia<select value={settings.fontFamily} onChange={(e)=>set('fontFamily',e.target.value as StudioSettings['fontFamily'])}><option>Consolas</option><option>Monaco</option><option>monospace</option></select></label><label className="ide-field">Altura de línea<input type="number" step="0.05" min="1.2" max="2.2" value={settings.lineHeight} onChange={(e)=>set('lineHeight',+e.target.value)}/></label>

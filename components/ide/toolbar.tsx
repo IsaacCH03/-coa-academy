@@ -49,10 +49,10 @@ export function Toolbar({
           onClick={onRun}
           title="Ejecutar (Ctrl+Enter)"
         >
-          <Play size={16} fill="currentColor" /> Ejecutar
+          <Play size={16} fill="currentColor" /> <span>Ejecutar</span>
         </button>
         <button className="ide-stop" disabled={!canStop} onClick={onStop}>
-          <Square size={14} fill="currentColor" /> Detener
+          <Square size={14} fill="currentColor" /> <span>Detener</span>
         </button>
         {needsRestart && (
           <button onClick={onRestart}>
@@ -78,7 +78,7 @@ export function Toolbar({
           <span>GitHub</span>
         </button>
         <Link className="ide-back" href="/">
-          <ArrowLeft size={15} /> Volver a COA
+          <ArrowLeft size={15} /> <span>Volver a COA</span>
         </Link>
       </div>
     </header>

@@ -1425,3 +1425,71 @@
 .layer-flow b { color: #ffad24; }
 .layer-plan { border-color: #577da9; }
 .layer-review p { margin: 0; font-size: 12px; line-height: 1.45; }
+
+/* Palette changes color; skins below change shape and layout. */
+.coa-ide:not(.theme-python):not(.theme-cmd) {
+  --ide-bg: var(--studio-bg);
+  --ide-panel: var(--surface);
+  --ide-border: var(--palette-border);
+  --ide-muted: var(--text-secondary);
+  color: var(--text-primary);
+}
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-toolbar { background: var(--header-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-activity { background: var(--studio-bg-secondary); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-sidebar,
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-panel { background: var(--sidebar-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-tabs { background: var(--tab-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-tab.active { background: var(--tab-active-bg); border-top-color: var(--accent); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-editor-area { background: var(--editor-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-console { background: var(--console-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-console header { background: var(--surface); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-status { background: var(--status-bg); }
+.coa-ide:not(.theme-python):not(.theme-cmd) :is(input,select,textarea,.ide-inline-form,.ide-preview,.ide-tip,.layer-status,.layer-flow,.layer-plan,.layer-review) { background-color: var(--surface-elevated); border-color: var(--palette-border); color: var(--text-primary); }
+.coa-ide:not(.theme-python):not(.theme-cmd) :is(.ide-secondary,.ide-file-actions button,.builder-levels button,.gui-design-actions button,.gui-palette>button) { background: var(--surface-elevated); border-color: var(--palette-border); color: var(--text-primary); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-primary { background: var(--accent); border-color: var(--accent-hover); }
+.coa-ide:not(.theme-python):not(.theme-cmd) .ide-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.coa-ide ::selection { background: var(--selection); color: var(--text-primary); }
+.coa-ide { scrollbar-color: var(--accent) var(--studio-bg-secondary); }
+
+/* Reveal the environment around protected, readable editor and console surfaces. */
+.coa-ide:not([data-background='none']) .ide-workspace { background: transparent; }
+.coa-ide:not([data-background='none']) :is(.ide-toolbar,.ide-activity,.ide-sidebar,.ide-tabs,.ide-status) { backdrop-filter: blur(8px); opacity: .94; }
+.coa-ide:not([data-background='none']) .ide-editor-area { margin: 8px; border: 1px solid var(--palette-border); box-shadow: 0 10px 35px #0008; }
+.background-preview { width:100%; aspect-ratio:16/7; border:1px solid var(--palette-border); border-radius:7px; background-size:cover; background-position:center; }
+
+/* Animated layers are independent from the static scene. */
+.ide-background::before,.ide-background::after { content:''; position:absolute; inset:-15%; pointer-events:none; }
+.coa-ide[data-background='stars'] .ide-background::before { background-image:radial-gradient(circle,#fff 0 1px,transparent 2px),radial-gradient(circle,#9fc8ff 0 1.5px,transparent 2.5px);background-size:43px 43px,79px 79px;animation:coa-stars 5s ease-in-out infinite alternate; }
+.coa-ide[data-background='rain'] .ide-background::before { background-image:repeating-linear-gradient(105deg,transparent 0 25px,#b7d7ff 26px 27px,transparent 28px 54px);animation:coa-rain 1.15s linear infinite; }
+.coa-ide[data-animation='off'] .ide-background::before,.coa-ide[data-animation='off'] .ide-background::after,.background-paused .ide-background::before,.background-paused .ide-background::after { animation-play-state:paused !important; }
+@keyframes coa-stars { 0%{opacity:.25;transform:translate(0,0)} 100%{opacity:1;transform:translate(14px,-10px)} }
+@keyframes coa-rain { from{transform:translateY(-80px)} to{transform:translateY(120px)} }
+
+/* VS Code inspired skin: compact icon controls, activity bar and workbench geometry. */
+.theme-vscode .ide-toolbar { min-height:36px;padding:3px 8px;border-radius:0; }
+.theme-vscode .ide-toolbar-actions { gap:1px; }.theme-vscode .ide-toolbar-actions>button,.theme-vscode .ide-download>summary,.theme-vscode .ide-back { width:30px;min-height:28px;padding:5px;border:0;border-radius:2px;margin:0; }
+.theme-vscode .ide-toolbar-actions span,.theme-vscode .ide-back span { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+.theme-vscode .ide-run { background:transparent !important;color:#8dcc75 !important; }.theme-vscode .ide-stop { background:transparent !important;color:#e98282 !important; }
+.theme-vscode .ide-activity { width:48px;padding:0; }.theme-vscode .ide-activity button { height:48px;border-radius:0; }.theme-vscode .ide-activity button small { display:none; }
+.theme-vscode .ide-sidebar { width:300px;border-radius:0; }.theme-vscode .ide-panel { padding:12px 14px; }.theme-vscode .ide-tree { margin-inline:-14px; }.theme-vscode .ide-tree li { min-height:24px;border-radius:0; }
+.theme-vscode .ide-tabs { height:35px;min-height:35px; }.theme-vscode .ide-tab { border-top:0; }.theme-vscode .ide-tab.active { border-bottom:1px solid var(--accent); }
+.theme-vscode .ide-console header { justify-content:flex-start; }.theme-vscode .ide-status { min-height:22px;padding-block:2px; }
+
+/* Eclipse inspired skin: dark traditional desktop workbench and view borders. */
+.theme-eclipse { color-scheme:dark !important; }
+.theme-eclipse .ide-toolbar { min-height:44px;padding:5px 9px;background:linear-gradient(var(--surface-elevated),var(--surface)) !important;border-bottom:2px solid var(--palette-border);color:var(--text-primary) !important; }
+.theme-eclipse .ide-toolbar-actions>button,.theme-eclipse .ide-download>summary,.theme-eclipse .ide-back { min-width:30px;min-height:29px;padding:5px 7px;border:1px solid transparent;border-radius:2px; }
+.theme-eclipse .ide-toolbar-actions span,.theme-eclipse .ide-back span { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+.theme-eclipse .ide-run { border-radius:50% !important;background:#39884d !important; }.theme-eclipse .ide-stop { background:#7b3438 !important;color:#fff !important; }
+.theme-eclipse .ide-activity { background:var(--surface) !important;color:var(--text-primary) !important;border-right:3px double var(--palette-border); }
+.theme-eclipse .ide-sidebar { color:var(--text-primary) !important;border:2px solid var(--palette-border); }.theme-eclipse .ide-panel { padding:12px; }
+.theme-eclipse .ide-tabs { background:linear-gradient(var(--surface-elevated),var(--surface)) !important;color:var(--text-primary) !important;height:38px;min-height:38px;padding-top:4px; }
+.theme-eclipse .ide-tab { margin-left:2px;border:1px solid var(--palette-border);border-bottom:0;border-radius:4px 4px 0 0; }.theme-eclipse .ide-tab.active { background:var(--tab-active-bg) !important;color:var(--text-primary) !important; }
+.theme-eclipse .ide-editor-area { border:3px ridge var(--palette-border); }.theme-eclipse .ide-console { border-top:3px double var(--palette-border); }
+
+/* Online IDE inspired skin: blue navigation, classic toolbar and white output. */
+.theme-onlinegdb .ide-toolbar { min-height:48px;padding:6px 10px;background:#4b5058 !important;border-bottom:3px solid #272b30; }
+.theme-onlinegdb .ide-settings-button { background:#f2b632 !important;color:#29220d !important;border-color:#ffd66f !important; }.theme-onlinegdb .ide-run { background:#35a853 !important;border-radius:3px; }.theme-onlinegdb .ide-stop { background:#d95366 !important;color:#fff; }.theme-onlinegdb .ide-download>summary { background:#278ec7;border-color:#5db9eb; }
+.theme-onlinegdb .ide-activity { width:128px;background:#168dc5 !important;padding:4px; }.theme-onlinegdb .ide-activity button { height:45px;flex-direction:row;justify-content:flex-start;padding:8px;border-radius:2px;color:#fff; }.theme-onlinegdb .ide-activity button small { display:block;font-size:10px; }
+.theme-onlinegdb .ide-sidebar { border-right:3px solid #5a6068; }.theme-onlinegdb .ide-tabs { background:#50545b !important;height:38px;min-height:38px; }.theme-onlinegdb .ide-tab.active { background:#34383e !important; }
+.theme-onlinegdb .ide-console { background:#fff !important;color:#151515; }.theme-onlinegdb .ide-console header { background:#e8e8e8 !important;color:#222; }.theme-onlinegdb .ide-console pre { color:#151515; }.theme-onlinegdb .ide-console .ide-muted { color:#555; }

@@ -3,7 +3,7 @@ import Editor, { loader, type OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useEffect, useState } from 'react'
 import { configurePython } from '@/lib/ide/completions'
-import type { StudioSettings } from '@/lib/ide/personalization'
+import { accentColor, derivedColors, type StudioSettings } from '@/lib/ide/personalization'
 
 loader.config({
   paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
@@ -27,6 +27,8 @@ export function CodeEditor({
   onFocus: () => void
 }) {
   const [failed, setFailed] = useState(false)
+  const palette = derivedColors(accentColor(settings))
+  const monacoTheme = `coa-${settings.accent}-${settings.style}`
   useEffect(() => {
     let active = true
     const timeout = setTimeout(() => {
@@ -76,12 +78,35 @@ export function CodeEditor({
       }
       value={content}
       onChange={(value) => onChange(value ?? '')}
-      theme={settings.style === 'python' || settings.style === 'eclipse' ? 'light' : 'vs-dark'}
+      theme={monacoTheme}
       onMount={(editor, monaco) => {
         editor.onDidFocusEditorText(onFocus)
         onMount(editor, monaco)
       }}
-      beforeMount={configurePython}
+      beforeMount={(monaco) => {
+        configurePython(monaco)
+        const light = settings.style === 'python'
+        monaco.editor.defineTheme(monacoTheme, {
+          base: light ? 'vs' : 'vs-dark', inherit: true,
+          rules: [
+            { token: 'keyword', foreground: light ? '0033B3' : palette.hover.slice(1), fontStyle: 'bold' },
+            { token: 'string', foreground: light ? '067D17' : 'A9DC76' },
+            { token: 'number', foreground: light ? '1750EB' : 'FFD866' },
+            { token: 'comment', foreground: light ? '708090' : '8294AA', fontStyle: 'italic' },
+          ],
+          colors: {
+            'editor.background': light ? '#ffffff' : palette.editor,
+            'editor.foreground': light ? '#202020' : palette.text,
+            'editorGutter.background': light ? '#f4f4f4' : palette.background,
+            'editor.lineHighlightBackground': light ? '#eef4ff' : palette.surface,
+            'editor.selectionBackground': `${palette.accent}66`,
+            'editorCursor.foreground': palette.hover,
+            'editorLineNumber.foreground': light ? '#777777' : palette.textSecondary,
+            'editorLineNumber.activeForeground': palette.hover,
+            'editorError.foreground': '#ff5f67', 'editorWarning.foreground': '#ffbf47',
+          },
+        })
+      }}
       loading={<p className="ide-loading">Cargando editor…</p>}
       options={{
         readOnly,

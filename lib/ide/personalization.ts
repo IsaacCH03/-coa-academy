@@ -72,7 +72,14 @@ export function derivedColors(hex: string) {
   const n = Number.parseInt(safe.slice(1), 16)
   const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
   const mix = (to: number, amount: number) => `#${rgb.map((v) => Math.round(v + (to - v) * amount).toString(16).padStart(2, '0')).join('')}`
-  return { accent: safe, hover: mix(255, .16), selection: mix(0, .52), subtle: mix(0, .7) }
+  return {
+    accent: safe, hover: mix(255, .16), selection: mix(0, .52), subtle: mix(0, .7),
+    background: mix(0, .88), backgroundSecondary: mix(0, .82), surface: mix(0, .76),
+    surfaceElevated: mix(0, .68), editor: mix(0, .91), console: mix(0, .86),
+    sidebar: mix(0, .8), header: mix(0, .84), status: mix(0, .58),
+    tab: mix(0, .83), tabActive: mix(0, .72), border: mix(0, .57),
+    text: mix(255, .88), textSecondary: mix(255, .62),
+  }
 }
 
 export function quickInsertion(action: QuickAction) {

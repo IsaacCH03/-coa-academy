@@ -10,9 +10,13 @@ async function openStudio(page: import('@playwright/test').Page) {
 
 test('themes, special styles and explorer presentation apply without changing files', async ({ page }) => {
   await openStudio(page)
+  const original = await page.locator('.ide-toolbar').evaluate((node) => getComputedStyle(node).backgroundColor)
   await page.getByRole('button', { name: 'Configuración' }).click()
   await page.getByRole('button', { name: 'Rosa', exact: true }).click()
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-accent', 'pink')
+  await expect.poll(() => page.locator('.ide-toolbar').evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe(original)
+  const pinkSurfaces = await page.locator('.coa-ide').evaluate(() => ['.ide-toolbar','.ide-activity','.ide-sidebar','.ide-tabs','.ide-console','.ide-status'].map((selector) => getComputedStyle(document.querySelector(selector)!).backgroundColor))
+  expect(new Set(pinkSurfaces).size).toBeGreaterThan(3)
   await page.getByLabel('Color personalizado').fill('#2255aa')
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-accent', 'custom')
   for (const style of ['vscode','eclipse','onlinegdb','python','cmd']) {
@@ -31,6 +35,7 @@ test('background controls, editor settings and profiles persist locally', async 
   await page.getByRole('button', { name: /Fondos/ }).click()
   await page.getByRole('button', { name: 'Ciudad nocturna' }).click()
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', 'city')
+  await expect.poll(() => page.locator('.ide-background').evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none')
   await page.getByRole('button', { name: /Editor/ }).click()
   await page.getByLabel('Tamaño de fuente').fill('16')
   await page.getByRole('button', { name: /Perfiles/ }).click()
@@ -69,6 +74,9 @@ test('custom background stays local, validates files and reset preserves the pro
   const upload = page.locator('input[type=file][accept*="image/png"]')
   await upload.setInputFiles({ name: 'fondo.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', 'custom')
+  await expect(page.getByRole('img', { name: 'Vista previa del fondo personalizado' })).toBeVisible()
+  await page.getByRole('button', { name: 'Aplicar fondo' }).click()
+  await expect(page.getByText('Fondo aplicado correctamente')).toBeVisible()
   await page.reload()
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', 'custom')
   await page.getByRole('button', { name: 'Configuración' }).click()
@@ -77,6 +85,43 @@ test('custom background stays local, validates files and reset preserves the pro
   await page.getByRole('button', { name: 'Restaurar configuración predeterminada' }).click()
   await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', 'none')
   await expect(page.getByRole('tab', { name: /main.py/ })).toBeVisible()
+})
+
+test('every visible scene renders and animated scenes have a real animation layer', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  for (const [label,id] of [['Bosque','forest'],['Atardecer','sunset'],['Espacio','space'],['Cyberpunk','cyberpunk'],['Ciudad nocturna','city']] as const) {
+    await page.getByRole('button', { name: label }).click()
+    await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', id)
+    await expect.poll(() => page.locator('.ide-background').evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none')
+  }
+  await page.getByRole('button', { name: 'Estrellas animadas' }).click()
+  await expect.poll(() => page.locator('.ide-background').evaluate((node) => getComputedStyle(node, '::before').animationName)).toBe('coa-stars')
+  await page.getByRole('button', { name: 'Lluvia animada' }).click()
+  await expect.poll(() => page.locator('.ide-background').evaluate((node) => getComputedStyle(node, '::before').animationName)).toBe('coa-rain')
+  await page.getByRole('button', { name: 'Ninguno' }).click()
+  await expect(page.locator('.ide-background')).toHaveCount(0)
+})
+
+test('VS Code, Eclipse and OnlineGDB skins change structure while execution remains real', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByLabel('Estilo especial').selectOption('vscode')
+  await expect.poll(() => page.locator('.ide-activity').evaluate((node) => getComputedStyle(node).width)).toBe('48px')
+  await page.getByRole('button', { name: 'Rosa' }).click()
+  await expect(page.locator('.coa-ide')).toHaveClass(/theme-vscode/)
+  await expect(page.locator('.coa-ide')).toHaveAttribute('data-accent', 'pink')
+  await page.getByLabel('Estilo especial').selectOption('eclipse')
+  await expect.poll(() => page.locator('.ide-toolbar').evaluate((node) => getComputedStyle(node).color)).not.toBe('rgb(34, 34, 34)')
+  await page.getByRole('button', { name: 'Archivos' }).click()
+  await expect(page.getByText('PACKAGE EXPLORER')).toBeVisible()
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByLabel('Estilo especial').selectOption('onlinegdb')
+  await expect.poll(() => page.locator('.ide-activity').evaluate((node) => getComputedStyle(node).width)).toBe('128px')
+  await expect.poll(() => page.locator('.ide-console').evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(255, 255, 255)')
+  await page.getByRole('button', { name: 'Ejecutar' }).click()
+  await expect(page.getByTestId('python-output')).toContainText('Hola mundo')
 })
 
 test('mobile keyboard reduction enters focus mode and can be dismissed', async ({ page }) => {
