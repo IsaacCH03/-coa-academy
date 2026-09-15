@@ -139,3 +139,55 @@ test('mobile keyboard reduction enters focus mode and can be dismissed', async (
   await expect(page.locator('.coa-ide')).not.toHaveClass(/mobile-focus/)
   await expect(page.getByRole('button', { name: 'Configuración' })).toBeVisible()
 })
+
+test('dark palettes and skins always register and apply a dark Monaco theme', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  const editorBackground = () => page.locator('.monaco-editor-background').first().evaluate((node) => getComputedStyle(node).backgroundColor)
+  for (const palette of ['Morado','Rosa','Verde','Rojo','Naranja','Azul','Monocromático']) {
+    await page.getByRole('button', { name: palette, exact: true }).click()
+    await expect.poll(editorBackground).not.toBe('rgb(255, 255, 255)')
+    await expect.poll(editorBackground).not.toBe('rgba(0, 0, 0, 0)')
+  }
+  for (const skin of ['cmd','vscode','eclipse','onlinegdb','pixel']) {
+    await page.getByLabel('Estilo especial').selectOption(skin)
+    await expect.poll(editorBackground).not.toBe('rgb(255, 255, 255)')
+    await expect(page.locator('.coa-ide')).toHaveClass(new RegExp(`theme-${skin}`))
+  }
+  await page.getByLabel('Estilo especial').selectOption('python')
+  await expect.poll(editorBackground).toBe('rgb(255, 255, 255)')
+})
+
+test('wallpaper mode makes the whole workbench and Monaco translucent', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  await page.getByRole('button', { name: 'Bosque' }).click()
+  await expect(page.locator('.coa-ide')).toHaveAttribute('data-wallpaper', 'true')
+  await expect(page.locator('.coa-ide')).toHaveClass(/coa-wallpaper-active/)
+  await page.getByLabel('Visibilidad del fondo').fill('85')
+  await page.getByLabel('Transparencia de la interfaz').fill('60')
+  await expect.poll(() => page.locator('.coa-ide').evaluate((node) => getComputedStyle(node).getPropertyValue('--background-opacity').trim())).toBe('0.85')
+  await expect.poll(() => page.locator('.coa-ide').evaluate((node) => getComputedStyle(node).getPropertyValue('--interface-solid').trim())).toBe('40%')
+  await expect.poll(() => page.locator('.monaco-editor-background').first().evaluate((node) => getComputedStyle(node).backgroundColor)).toContain('rgba')
+  await page.getByRole('button', { name: /Apariencia/ }).click()
+  await page.getByRole('button', { name: 'Morado' }).click()
+  await page.getByLabel('Estilo especial').selectOption('vscode')
+  await expect(page.locator('.coa-ide')).toHaveClass(/theme-vscode/)
+  await expect(page.locator('.coa-ide')).toHaveClass(/coa-wallpaper-active/)
+})
+
+test('Pixel Art is a complete retro skin and coexists with a forest wallpaper', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByLabel('Estilo especial').selectOption('pixel')
+  await expect(page.locator('.coa-ide')).toHaveClass(/theme-pixel/)
+  await expect.poll(() => page.locator('.ide-toolbar').evaluate((node) => getComputedStyle(node).borderBottomWidth)).toBe('3px')
+  await expect.poll(() => page.locator('.ide-console').evaluate((node) => getComputedStyle(node).borderTopWidth)).toBe('4px')
+  await expect.poll(() => page.locator('.ide-tab.active').evaluate((node) => getComputedStyle(node).borderRadius)).toBe('0px')
+  await expect.poll(() => page.locator('.coa-ide').evaluate((node) => getComputedStyle(node).fontFamily)).toContain('Courier New')
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  await page.getByRole('button', { name: 'Bosque' }).click()
+  await expect(page.locator('.coa-ide')).toHaveClass(/coa-wallpaper-active/)
+  await expect.poll(() => page.locator('.monaco-editor-background').first().evaluate((node) => getComputedStyle(node).backgroundColor)).toContain('rgba')
+})

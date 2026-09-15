@@ -1,7 +1,7 @@
 'use client'
-import Editor, { loader, type OnMount } from '@monaco-editor/react'
+import Editor, { loader, type Monaco, type OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { configurePython } from '@/lib/ide/completions'
 import { accentColor, derivedColors, type StudioSettings } from '@/lib/ide/personalization'
 
@@ -27,8 +27,47 @@ export function CodeEditor({
   onFocus: () => void
 }) {
   const [failed, setFailed] = useState(false)
-  const palette = derivedColors(accentColor(settings))
-  const monacoTheme = `coa-${settings.accent}-${settings.style}`
+  const monacoRef = useRef<Monaco | null>(null)
+  const palette = useMemo(() => derivedColors(accentColor(settings)), [settings])
+  const wallpaper = settings.background !== 'none'
+  const monacoTheme = `coa-${settings.accent}-${settings.style}-${wallpaper ? 'wallpaper' : 'solid'}`
+  const applyMonacoTheme = useCallback((monaco: Monaco) => {
+    const light = settings.style === 'python' && !wallpaper
+    const alpha = Math.round((1 - settings.interfaceTransparency / 100) * 255).toString(16).padStart(2, '0')
+    const background = light ? '#ffffff' : wallpaper ? `${palette.editor}${alpha}` : palette.editor
+    const gutter = light ? '#f4f4f4' : wallpaper ? `${palette.background}${alpha}` : palette.background
+    monaco.editor.defineTheme(monacoTheme, {
+      base: light ? 'vs' : 'vs-dark', inherit: true,
+      rules: [
+        { token: 'keyword', foreground: light ? '0033B3' : palette.hover.slice(1), fontStyle: 'bold' },
+        { token: 'string', foreground: light ? '067D17' : 'A9DC76' },
+        { token: 'number', foreground: light ? '1750EB' : 'FFD866' },
+        { token: 'comment', foreground: light ? '708090' : '8294AA', fontStyle: 'italic' },
+        { token: 'type.identifier', foreground: light ? '267F99' : '78DCE8' },
+        { token: 'identifier', foreground: light ? '202020' : palette.text.slice(1) },
+        { token: 'delimiter', foreground: light ? '333333' : 'D8DEE9' },
+      ],
+      colors: {
+        'editor.background': background,
+        'editor.foreground': light ? '#202020' : palette.text,
+        'editorGutter.background': gutter,
+        'editor.lineHighlightBackground': light ? '#eef4ff' : wallpaper ? `${palette.surface}99` : palette.surface,
+        'editor.selectionBackground': `${palette.accent}77`,
+        'editor.inactiveSelectionBackground': `${palette.selection}88`,
+        'editorCursor.foreground': palette.hover,
+        'editorLineNumber.foreground': light ? '#777777' : palette.textSecondary,
+        'editorLineNumber.activeForeground': palette.hover,
+        'editorIndentGuide.background1': wallpaper ? `${palette.border}88` : palette.border,
+        'editorIndentGuide.activeBackground1': palette.accent,
+        'editorError.foreground': '#ff5f67', 'editorWarning.foreground': '#ffbf47',
+      },
+    })
+    monaco.editor.setTheme(monacoTheme)
+  }, [monacoTheme, palette, settings.interfaceTransparency, settings.style, wallpaper])
+  useEffect(() => {
+    if (monacoRef.current) applyMonacoTheme(monacoRef.current)
+    // All visual dependencies are represented by this unique theme name and transparency values.
+  }, [applyMonacoTheme])
   useEffect(() => {
     let active = true
     const timeout = setTimeout(() => {
@@ -80,32 +119,14 @@ export function CodeEditor({
       onChange={(value) => onChange(value ?? '')}
       theme={monacoTheme}
       onMount={(editor, monaco) => {
+        monacoRef.current = monaco
+        applyMonacoTheme(monaco)
         editor.onDidFocusEditorText(onFocus)
         onMount(editor, monaco)
       }}
       beforeMount={(monaco) => {
         configurePython(monaco)
-        const light = settings.style === 'python'
-        monaco.editor.defineTheme(monacoTheme, {
-          base: light ? 'vs' : 'vs-dark', inherit: true,
-          rules: [
-            { token: 'keyword', foreground: light ? '0033B3' : palette.hover.slice(1), fontStyle: 'bold' },
-            { token: 'string', foreground: light ? '067D17' : 'A9DC76' },
-            { token: 'number', foreground: light ? '1750EB' : 'FFD866' },
-            { token: 'comment', foreground: light ? '708090' : '8294AA', fontStyle: 'italic' },
-          ],
-          colors: {
-            'editor.background': light ? '#ffffff' : palette.editor,
-            'editor.foreground': light ? '#202020' : palette.text,
-            'editorGutter.background': light ? '#f4f4f4' : palette.background,
-            'editor.lineHighlightBackground': light ? '#eef4ff' : palette.surface,
-            'editor.selectionBackground': `${palette.accent}66`,
-            'editorCursor.foreground': palette.hover,
-            'editorLineNumber.foreground': light ? '#777777' : palette.textSecondary,
-            'editorLineNumber.activeForeground': palette.hover,
-            'editorError.foreground': '#ff5f67', 'editorWarning.foreground': '#ffbf47',
-          },
-        })
+        applyMonacoTheme(monaco)
       }}
       loading={<p className="ide-loading">Cargando editor…</p>}
       options={{

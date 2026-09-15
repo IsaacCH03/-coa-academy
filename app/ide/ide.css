@@ -15,11 +15,12 @@
   font-size: 13px;
   position: relative;
 }
-.coa-ide > :not(.ide-background) { position: relative; }
+.coa-ide > :not(.ide-background):not(.ide-background-overlay) { position: relative; }
 .coa-ide button[aria-pressed='true'], .settings-nav button.active { border-color: var(--accent) !important; color: #fff; background: var(--selection) !important; }
 .coa-ide :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline-color: var(--accent); }
 .ide-settings-button { margin-left: 3px; border: 1px solid var(--ide-border); color: var(--ide-muted); }
-.ide-background { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: var(--background-opacity); filter: blur(var(--background-blur)) brightness(calc(1 - var(--background-darkness))); transform: scale(1.03); background-size: cover; background-position: center; }
+.ide-background { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: var(--background-opacity); filter: blur(var(--background-blur)); transform: scale(1.03); background-size: cover; background-position: center; }
+.ide-background-overlay { position:absolute;inset:0;z-index:0;pointer-events:none;background:rgb(0 0 0 / var(--background-darkness)); }
 .coa-ide[data-background='city'] .ide-background { background: linear-gradient(#0e1742aa,#07101e), repeating-linear-gradient(90deg,transparent 0 28px,#ec5fb733 29px 31px), linear-gradient(150deg,#2e3c8e,#10162e); }
 .coa-ide[data-background='forest'] .ide-background { background: radial-gradient(circle at 60% 15%,#b9e676 0 5%,transparent 6%), repeating-linear-gradient(75deg,#142d25 0 30px,#244d35 31px 45px,#0d211c 46px 70px); }
 .coa-ide[data-background='sunset'] .ide-background { background: linear-gradient(#a54980,#ed7657 47%,#22295a 48%,#101525); }
@@ -1493,3 +1494,32 @@
 .theme-onlinegdb .ide-activity { width:128px;background:#168dc5 !important;padding:4px; }.theme-onlinegdb .ide-activity button { height:45px;flex-direction:row;justify-content:flex-start;padding:8px;border-radius:2px;color:#fff; }.theme-onlinegdb .ide-activity button small { display:block;font-size:10px; }
 .theme-onlinegdb .ide-sidebar { border-right:3px solid #5a6068; }.theme-onlinegdb .ide-tabs { background:#50545b !important;height:38px;min-height:38px; }.theme-onlinegdb .ide-tab.active { background:#34383e !important; }
 .theme-onlinegdb .ide-console { background:#fff !important;color:#151515; }.theme-onlinegdb .ide-console header { background:#e8e8e8 !important;color:#222; }.theme-onlinegdb .ide-console pre { color:#151515; }.theme-onlinegdb .ide-console .ide-muted { color:#555; }
+
+/* Wallpaper mode uses real translucent colors; child text never inherits opacity. */
+.coa-wallpaper-active :is(.ide-toolbar,.ide-activity,.ide-sidebar,.ide-tabs,.ide-status,.ide-console,.ide-console header,.ide-panel) {
+  background-color:color-mix(in srgb,var(--surface) var(--interface-solid),transparent) !important;
+  background-image:none !important;
+  backdrop-filter:blur(6px);
+  opacity:1;
+}
+.coa-wallpaper-active .ide-toolbar { background-color:color-mix(in srgb,var(--header-bg) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-activity { background-color:color-mix(in srgb,var(--studio-bg-secondary) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-sidebar { background-color:color-mix(in srgb,var(--sidebar-bg) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-tabs { background-color:color-mix(in srgb,var(--tab-bg) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-console { background-color:color-mix(in srgb,var(--console-bg) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-status { background-color:color-mix(in srgb,var(--status-bg) var(--interface-solid),transparent) !important; }
+.coa-wallpaper-active .ide-editor-area { background:transparent !important;box-shadow:0 10px 35px #0009; }
+.coa-wallpaper-active :is(button,input,select,textarea,.ide-inline-form,.ide-tip,.ide-preview) { backdrop-filter:blur(5px); }
+.theme-onlinegdb.coa-wallpaper-active .ide-console { background-color:color-mix(in srgb,#fff var(--interface-solid),transparent) !important; }
+
+/* Original Pixel Art skin: hard edges, stepped shadows and retro workbench surfaces. */
+.theme-pixel { font-family:'Courier New',ui-monospace,monospace;letter-spacing:.2px; }
+.theme-pixel :is(button,input,select,textarea,.ide-dialog,.ide-tip,.ide-preview,.ide-inline-form) { border-radius:0 !important;border-width:2px;box-shadow:3px 3px 0 var(--selection); }
+.theme-pixel .ide-toolbar { min-height:58px;border-bottom:3px solid var(--accent);box-shadow:0 4px 0 #000;padding:8px 13px; }
+.theme-pixel .ide-toolbar-actions>button,.theme-pixel .ide-download>summary,.theme-pixel .ide-settings-button { border:2px solid var(--accent);border-radius:0;box-shadow:3px 3px 0 #000; }
+.theme-pixel .ide-activity { width:74px;border-right:3px solid var(--accent);gap:5px; }.theme-pixel .ide-activity button { height:62px;border:2px solid transparent;border-radius:0; }.theme-pixel .ide-activity button.active { border-color:var(--accent);box-shadow:3px 3px 0 #000; }
+.theme-pixel svg { shape-rendering:crispEdges;stroke-width:2.6; }.theme-pixel .ide-sidebar { border-right:4px solid var(--selection); }.theme-pixel .ide-tabs { height:42px;min-height:42px;border-bottom:3px solid var(--accent); }
+.theme-pixel .ide-tab { border:2px solid var(--palette-border);border-bottom:0;margin:3px 2px 0; }.theme-pixel .ide-tab.active { box-shadow:inset 0 3px 0 var(--accent); }
+.theme-pixel .ide-console { margin:5px;border:4px solid var(--accent);box-shadow:5px 5px 0 #000; }.theme-pixel .ide-console header { border-bottom:3px solid var(--accent);text-transform:uppercase;font-weight:bold; }
+.theme-pixel .ide-status { border-top:3px solid var(--accent);font-weight:bold;text-transform:uppercase; }.theme-pixel .diagnostics-summary { border:2px solid var(--palette-border);border-radius:0; }
+.theme-pixel .ide-tree li { border-radius:0;border-left:2px solid transparent; }.theme-pixel .ide-tree li.selected { border-left-color:var(--accent); }

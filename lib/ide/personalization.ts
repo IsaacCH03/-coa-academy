@@ -1,5 +1,5 @@
 export type AccentTheme = 'coa' | 'blue' | 'purple' | 'pink' | 'red' | 'green' | 'orange' | 'mono' | 'custom'
-export type SpecialStyle = 'none' | 'vscode' | 'eclipse' | 'onlinegdb' | 'python' | 'cmd'
+export type SpecialStyle = 'none' | 'vscode' | 'eclipse' | 'onlinegdb' | 'python' | 'cmd' | 'pixel'
 export type BackgroundKind = 'none' | 'city' | 'forest' | 'sunset' | 'space' | 'cyberpunk' | 'stars' | 'rain' | 'custom'
 export type QuickAction = typeof QUICK_ACTIONS[number]
 
@@ -12,6 +12,8 @@ export interface StudioSettings {
   style: SpecialStyle
   background: BackgroundKind
   backgroundOpacity: number
+  wallpaperVisibility: number
+  interfaceTransparency: number
   backgroundBlur: number
   backgroundDarkness: number
   backgroundFit: 'cover' | 'contain' | 'center' | 'repeat'
@@ -39,7 +41,7 @@ export interface AppearanceProfile { id: string; name: string; settings: StudioS
 
 export const DEFAULT_SETTINGS: StudioSettings = {
   accent: 'coa', customColor: '#5f8ff5', style: 'none', background: 'none',
-  backgroundOpacity: 24, backgroundBlur: 2, backgroundDarkness: 58,
+  backgroundOpacity: 70, wallpaperVisibility: 70, interfaceTransparency: 48, backgroundBlur: 2, backgroundDarkness: 38,
   backgroundFit: 'cover', animation: 'soft', reduceMobileAnimation: true,
   pauseHidden: true, fontSize: 15, fontFamily: 'Consolas', lineHeight: 1.55,
   minimap: false, wordWrap: true, lineNumbers: true, highlightLine: true,
@@ -58,6 +60,8 @@ export function normalizeSettings(value: unknown): StudioSettings {
   const next = { ...DEFAULT_SETTINGS, ...(value as Partial<StudioSettings>) }
   next.fontSize = Math.min(24, Math.max(11, Number(next.fontSize) || 15))
   next.lineHeight = Math.min(2.2, Math.max(1.2, Number(next.lineHeight) || 1.55))
+  next.wallpaperVisibility = Math.min(100, Math.max(20, Number(next.wallpaperVisibility) || 70))
+  next.interfaceTransparency = Math.min(72, Math.max(0, Number(next.interfaceTransparency) || 48))
   next.quickBar = Array.isArray(next.quickBar) ? next.quickBar.filter((item): item is QuickAction => QUICK_ACTIONS.includes(item as QuickAction)) : [...DEFAULT_QUICK_BAR]
   if (!next.quickBar.length) next.quickBar = [...DEFAULT_QUICK_BAR]
   return next

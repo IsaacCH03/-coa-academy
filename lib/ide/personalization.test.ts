@@ -17,4 +17,7 @@ describe('Studio personalization', () => {
   it('inserts Python calls with inner cursor', () => expect(quickInsertion('print()')).toEqual({ text: 'print()', cursorBack: 1 }))
   it('inserts Python keywords predictably', () => expect(quickInsertion('return')).toEqual({ text: 'return ', cursorBack: 0 }))
   it('inserts ordinary symbols literally', () => expect(quickInsertion('==')).toEqual({ text: '==', cursorBack: 0 }))
+  it('defaults wallpaper visibility to an evident level', () => expect(DEFAULT_SETTINGS.wallpaperVisibility).toBe(70))
+  it('keeps interface transparency within a readable limit', () => expect(normalizeSettings({ interfaceTransparency: 100 }).interfaceTransparency).toBe(72))
+  it('supports the Pixel Art skin', () => expect(normalizeSettings({ style: 'pixel' }).style).toBe('pixel'))
 })
