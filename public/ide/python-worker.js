@@ -10,8 +10,49 @@ let output = ''
 let testing = false
 const LIMIT = 200000
 const decoder = new TextDecoder()
+function requestDialog(kind, title, message) {
+  if (!inputBuffer)
+    throw new Error('Los diálogos COA GUI necesitan HTTPS o localhost.')
+  const control = new Int32Array(inputBuffer, 0, 2)
+  Atomics.store(control, 0, 0)
+  self.postMessage({ type: 'gui-dialog', dialog: { kind: String(kind), title: String(title), message: String(message) } })
+  Atomics.wait(control, 0, 0)
+  const length = Atomics.load(control, 1)
+  return decoder.decode(new Uint8Array(inputBuffer, 8, length).slice())
+}
+self.coaDialogRequest = requestDialog
 const COA_GUI_MODULE = `
+import json as _json
+from js import coaDialogRequest as _coa_dialog_request
+
 _window = None
+
+def _dialog(kind, title, message):
+    return _json.loads(str(_coa_dialog_request(kind, str(title), str(message))))
+
+def showinfo(title, message):
+    _dialog("showinfo", title, message)
+
+def showwarning(title, message):
+    _dialog("showwarning", title, message)
+
+def showerror(title, message):
+    _dialog("showerror", title, message)
+
+def askstring(title, message):
+    return _dialog("askstring", title, message)
+
+def askinteger(title, message):
+    return _dialog("askinteger", title, message)
+
+def askfloat(title, message):
+    return _dialog("askfloat", title, message)
+
+def askyesno(title, message):
+    return _dialog("askyesno", title, message)
+
+def askokcancel(title, message):
+    return _dialog("askokcancel", title, message)
 
 def _number(value, name):
     if not isinstance(value, (int, float)):

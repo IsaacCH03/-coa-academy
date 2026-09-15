@@ -55,7 +55,7 @@ test('Builder recognizes COA layers and connects Presentation to a real Business
   await expect(page.locator('.monaco-editor')).toContainText('logic = Logic()')
 })
 
-test('Presentation UI generates a valid COA GUI class without popup APIs', async ({ page }) => {
+test('Presentation UI generates a valid COA GUI class and offers popup APIs', async ({ page }) => {
   await start(page)
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
   await createFile(page, 'Aplicacion/presentation/ui.py')
@@ -71,5 +71,5 @@ test('Presentation UI generates a valid COA GUI class without popup APIs', async
   await page.getByRole('button', { name: 'Ejecutar', exact: true }).click()
   await expect(page.getByTestId('python-output')).toContainText('Programa finalizado.')
   await page.getByRole('button', { name: 'Volver' }).click()
-  await expect(page.getByRole('button', { name: /messagebox|simpledialog|showinfo|showerror|askstring/i })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Pedir texto/ })).toBeVisible()
 })

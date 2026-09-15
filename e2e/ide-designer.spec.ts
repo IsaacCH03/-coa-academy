@@ -71,6 +71,11 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   expect(tkinter.indexOf('frame1 = tk.Frame')).toBeLessThan(
     tkinter.indexOf('label1 = tk.Label'),
   )
+  await page.getByRole('button', { name: 'Cerrar código generado' }).click()
+  await expect(page.getByTestId('gui-code')).toHaveCount(0)
+  await expect(canvas.getByRole('button')).toHaveCount(4)
+  await page.getByRole('button', { name: 'Exportar a Tkinter' }).click()
+  await expect(page.getByTestId('gui-code')).toContainText('import tkinter as tk')
 
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
   await expect(page.locator('.monaco-editor')).toBeVisible()

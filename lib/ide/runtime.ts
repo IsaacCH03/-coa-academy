@@ -27,10 +27,16 @@ export type CoaGuiPreview = {
   height: number
   controls: CoaGuiControl[]
 }
+export type CoaGuiDialogRequest = {
+  kind: 'showinfo' | 'showwarning' | 'showerror' | 'askstring' | 'askinteger' | 'askfloat' | 'askyesno' | 'askokcancel'
+  title: string
+  message: string
+}
 type RuntimeEvents = {
   state: (state: RuntimeState) => void
   output: (text: string) => void
   error: (text: string) => void
+  dialog: (request: CoaGuiDialogRequest) => void
 }
 export class PythonRuntime {
   private worker: Worker | null = null
@@ -74,6 +80,7 @@ export class PythonRuntime {
       if (data.type === 'output') this.events.output(data.text)
       if (data.type === 'input') this.events.state('input')
       if (data.type === 'python-error') this.events.error(data.text)
+      if (data.type === 'gui-dialog') this.events.dialog(data.dialog)
       if (data.type === 'gui-update') {
         this.events.state('ready')
         this.resolveGui?.(data.gui)
@@ -180,6 +187,15 @@ export class PythonRuntime {
     Atomics.notify(control, 0)
     this.events.output(text + '\n')
     this.events.state('running')
+  }
+  answerDialog(value: string | number | boolean | null) {
+    if (!this.buffer) throw new Error('Los diálogos no están disponibles en este navegador.')
+    const bytes = new TextEncoder().encode(JSON.stringify(value))
+    const control = new Int32Array(this.buffer, 0, 2)
+    new Uint8Array(this.buffer, 8).set(bytes)
+    Atomics.store(control, 1, bytes.length)
+    Atomics.store(control, 0, 1)
+    Atomics.notify(control, 0)
   }
   invokeGui(controlId: number, values: Record<string, string>) {
     if (!this.ready || this.resolve || this.resolveGui)

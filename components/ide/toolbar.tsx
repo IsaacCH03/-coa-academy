@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Play, Square, Download, ArrowLeft, RotateCcw, Settings } from 'lucide-react'
+import { Play, Square, Download, ArrowLeft, RotateCcw, Settings, FileOutput } from 'lucide-react'
 import { GithubIcon as Github } from './github-icon'
 export function Toolbar({
   active,
@@ -15,6 +15,8 @@ export function Toolbar({
   onRestart,
   needsRestart,
   onSettings,
+  canExportTkinter,
+  onExportTkinter,
 }: {
   active: string
   canRun: boolean
@@ -27,6 +29,8 @@ export function Toolbar({
   onRestart: () => void
   needsRestart: boolean
   onSettings: () => void
+  canExportTkinter: boolean
+  onExportTkinter: () => void
 }) {
   return (
     <header className="ide-toolbar">
@@ -41,6 +45,7 @@ export function Toolbar({
           <small>{active || 'Mi proyecto'}</small>
         </div>
         <button className="ide-settings-button" aria-label="Configuración" title="Configuración" onClick={onSettings}><Settings size={18}/></button>
+        {canExportTkinter && <button className="ide-tkinter-export" aria-label="Exportar a Tkinter" title="Exportar a Tkinter" onClick={onExportTkinter}><FileOutput size={17}/><span>Exportar a Tkinter</span></button>}
       </div>
       <div className="ide-toolbar-actions">
         <button

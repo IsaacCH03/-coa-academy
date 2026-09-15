@@ -184,6 +184,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ide-tkinter-export {
+  min-height: 34px;
+  white-space: nowrap;
+}
 .ide-toolbar-actions {
   display: flex;
   align-items: center;
@@ -1218,6 +1222,14 @@
   color: #9db1cf;
   font-size: 11px;
 }
+.gui-generated > div > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gui-generated > div button {
+  padding: 6px 8px;
+}
 .gui-generated pre {
   flex: 1;
   overflow: auto;
@@ -1226,6 +1238,38 @@
   font: 12px/1.6 Consolas, monospace;
   white-space: pre;
 }
+.coa-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #020712b8;
+  backdrop-filter: blur(5px);
+}
+.coa-dialog {
+  width: min(460px, 100%);
+  max-height: min(680px, calc(var(--coa-visible-height, 100vh) - 36px));
+  overflow: auto;
+  padding: 22px;
+  color: var(--text-primary, #eef5ff);
+  background: color-mix(in srgb, var(--surface-elevated, #17253a) 94%, #08101e);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, #718096);
+  border-radius: 13px;
+  box-shadow: 0 24px 90px #000c;
+}
+.coa-dialog-heading { display:flex;align-items:center;gap:10px; }
+.coa-dialog-heading svg { color:var(--accent);flex-shrink:0; }
+.coa-dialog-showwarning .coa-dialog-heading svg { color:#f4b942; }
+.coa-dialog-showerror .coa-dialog-heading svg { color:#ff6677; }
+.coa-dialog h2 { margin:0;font-size:18px; }
+.coa-dialog > p { color:var(--text-secondary, #c3d0e4);white-space:pre-wrap;overflow-wrap:anywhere; }
+.coa-dialog label { display:grid;gap:7px;font-size:12px; }
+.coa-dialog input { width:100%;min-height:42px;padding:9px 11px;background:#091321e8;color:#f4f8ff;border:1px solid #506783;border-radius:7px; }
+.coa-dialog-error { color:#ffadb5 !important;margin-bottom:4px !important; }
+.coa-dialog-actions { display:flex;justify-content:flex-end;gap:9px;margin-top:18px; }
+.coa-dialog-actions button { min-width:88px;min-height:40px; }
 .gui-import-dialog {
   position: absolute;
   z-index: 20;
@@ -1276,6 +1320,7 @@
   }
 }
 @media (max-width: 1050px) {
+  .ide-tkinter-export span { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
   .gui-designer {
     grid-template-columns: 190px minmax(460px, 1fr) 210px;
   }

@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useState, type PointerEvent } from 'react'
-import { Copy, FileCode2, Save, Trash2 } from 'lucide-react'
+import { FileCode2, Save, Trash2 } from 'lucide-react'
 import {
   clampControl,
   generateGuiCode,
@@ -15,6 +15,7 @@ import {
   type GuiWindow,
 } from '@/lib/ide/gui-designer'
 import { ConfirmDialog } from './confirm-dialog'
+import { GeneratedCodePanel } from './generated-code-panel'
 
 const types: GuiControlType[] = ['Label', 'Entry', 'Button', 'Frame']
 
@@ -32,7 +33,6 @@ export function GuiDesigner({
   const { window: windowConfig, controls } = design
   const [selected, setSelected] = useState<string | null>(null)
   const [generated, setGenerated] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copiar código')
   const [saved, setSaved] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -115,7 +115,6 @@ export function GuiDesigner({
     setGenerated(
       generateGuiCode(windowConfig, controls, target, design.importedSource),
     )
-    setCopyLabel('Copiar código')
   }
 
   function applyImport(next: GuiDesign) {
@@ -216,12 +215,7 @@ export function GuiDesigner({
             ))}
           </div>
         </div>
-        {generated && (
-          <div className="gui-generated">
-            <div><strong>CÓDIGO GENERADO</strong><button onClick={async () => { await navigator.clipboard.writeText(generated); setCopyLabel('Copiado') }}><Copy size={15} /> {copyLabel}</button></div>
-            <pre data-testid="gui-code"><code>{generated}</code></pre>
-          </div>
-        )}
+        {generated && <GeneratedCodePanel code={generated} title="CÓDIGO GENERADO" onClose={() => setGenerated('')} />}
       </div>
 
       <aside className="gui-properties">

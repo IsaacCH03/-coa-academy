@@ -25,6 +25,8 @@ import { GuiDesigner } from './gui-designer'
 import { CoaGuiPreview } from './coa-gui-preview'
 import { DiagnosticsPanel } from './diagnostics-panel'
 import { SettingsPanel } from './settings-panel'
+import { CoaGuiDialog } from './coa-gui-dialog'
+import { GeneratedCodePanel } from './generated-code-panel'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -34,7 +36,7 @@ import {
   mergeRuntimeEntries,
   type Project,
 } from '@/lib/ide/project'
-import { PythonRuntime, type RuntimeState } from '@/lib/ide/runtime'
+import { PythonRuntime, type CoaGuiDialogRequest, type RuntimeState } from '@/lib/ide/runtime'
 import type { CoaGuiPreview as CoaGuiPreviewModel } from '@/lib/ide/runtime'
 import { insertionAt } from '@/lib/ide/insertion'
 import { educationalHints, explainCode } from '@/lib/ide/education'
@@ -48,6 +50,7 @@ import {
 import type { BuilderChange } from '@/lib/ide/layers'
 import { DEFAULT_SETTINGS, accentColor, derivedColors, quickInsertion, type AppearanceProfile, type QuickAction, type StudioSettings } from '@/lib/ide/personalization'
 import { deleteCustomBackground, loadCustomBackground, loadProfiles, loadSettings, saveCustomBackground, saveProfiles, saveSettings } from '@/lib/ide/personalization-storage'
+import { convertCoaGuiToTkinter, usesCoaGui } from '@/lib/ide/coa-gui-converter'
 
 const CodeEditor = dynamic(
   () => import('./code-editor').then((m) => m.CodeEditor),
@@ -81,6 +84,8 @@ export function IdeApp() {
   const [checking, setChecking] = useState(false)
   const [replacement, setReplacement] = useState<Project | null>(null)
   const [guiPreview, setGuiPreview] = useState<CoaGuiPreviewModel | null>(null)
+  const [guiDialog, setGuiDialog] = useState<CoaGuiDialogRequest | null>(null)
+  const [tkinterCode, setTkinterCode] = useState('')
   const [cursor, setCursor] = useState({ source: '', offset: 0 })
   const [diagnostics, setDiagnostics] = useState<CodeDiagnostic[]>([])
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<RuntimeDiagnostic | null>(null)
@@ -188,6 +193,7 @@ export function IdeApp() {
           })
         }
       },
+      dialog: setGuiDialog,
     })
     runtime.current = runner
     runner.start()
@@ -329,6 +335,7 @@ export function IdeApp() {
   function stop() {
     cancelTests.current = true
     runtime.current?.stop()
+    setGuiDialog(null)
     append(
       '\nPrograma detenido. Pulsa Recargar Python para volver a ejecutar.\n',
     )
@@ -528,6 +535,11 @@ export function IdeApp() {
         onRestart={() => runtime.current?.start()}
         needsRestart={state === 'stopped' || state === 'error'}
         onSettings={() => setPanel((p) => p === 'settings' ? null : 'settings')}
+        canExportTkinter={usesCoaGui(source)}
+        onExportTkinter={() => {
+          try { setTkinterCode(convertCoaGuiToTkinter(source)) }
+          catch (error) { report((error as Error).message) }
+        }}
       />
       {welcome && (
         <div className="ide-welcome">
@@ -840,6 +852,7 @@ export function IdeApp() {
               />
             )}
           </div>
+          {tkinterCode && <GeneratedCodePanel code={tkinterCode} title="CÓDIGO TKINTER GENERADO" testId="editor-tkinter-code" onClose={() => setTkinterCode('')} />}
           {!expanded && !collapsed && (
             <div
               className="ide-separator"
@@ -973,6 +986,7 @@ export function IdeApp() {
           </button>
         </ConfirmDialog>
       )}
+      {guiDialog && <CoaGuiDialog request={guiDialog} onAnswer={(value) => { setGuiDialog(null); try { runtime.current?.answerDialog(value) } catch (error) { report((error as Error).message) } }} />}
     </main>
   )
 }

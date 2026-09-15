@@ -1,3 +1,5 @@
+import { convertCoaGuiToTkinter } from './coa-gui-converter'
+
 export type GuiControlType = 'Label' | 'Entry' | 'Button' | 'Frame'
 
 export type GuiControl = {
@@ -268,7 +270,7 @@ function generateImportedCode(
     Entry: 2,
     Button: 3,
   }
-  const prefix = target === 'coa' ? 'gui' : 'tk'
+  const prefix = 'gui'
   const additions = controls
     .filter((item) => !item.sourceKey)
     .sort((left, right) => order[left.type] - order[right.type])
@@ -285,12 +287,8 @@ function generateImportedCode(
       range: [imported.mainloopStart, imported.mainloopStart],
       value: additions + '\n',
     })
-  if (target === 'tkinter') {
-    replacements.push({ range: imported.importRange, value: 'import tkinter as tk' })
-    for (const range of imported.guiRanges)
-      replacements.push({ range, value: 'tk' })
-  }
-  return applySourceChanges(imported.source, replacements)
+  const coaSource = applySourceChanges(imported.source, replacements)
+  return target === 'tkinter' ? convertCoaGuiToTkinter(coaSource) : coaSource
 }
 
 function applySourceChanges(

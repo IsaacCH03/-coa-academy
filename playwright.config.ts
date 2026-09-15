@@ -5,7 +5,7 @@ export default defineConfig({
   expect: { timeout: 15000 },
   workers: 1,
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     actionTimeout: 15000,
     headless: true,
     screenshot: 'only-on-failure',

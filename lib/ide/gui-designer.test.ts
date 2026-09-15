@@ -27,6 +27,18 @@ describe('GUI designer helpers', () => {
     const coa = generateGuiCode(window, controls, 'coa')
     expect(coa.indexOf('marco = gui.Frame')).toBeLessThan(coa.indexOf('guardar = gui.Button'))
   })
+  it('converts preserved dialog logic when an imported design is exported', () => {
+    const source = 'import coa_gui as gui\nwindow = gui.Tk()\ndef save():\n    gui.showinfo("Listo", "Guardado")\nwindow.mainloop()\n'
+    const imported = {
+      source, importRange: [0, 21] as [number, number], guiRanges: [[32, 35] as [number, number]],
+      mainloopStart: source.indexOf('window.mainloop'), windowName: 'window', windowCreateEnd: source.indexOf('gui.Tk()') + 8,
+      controls: {}, warning: true,
+    }
+    const result = generateGuiCode(window, [], 'tkinter', imported)
+    expect(result).toContain('from tkinter import messagebox')
+    expect(result).toContain('messagebox.showinfo("Listo", "Guardado")')
+    expect(result).toContain('def save():')
+  })
 
   it('creates sequential names and keeps controls inside the canvas', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1)
