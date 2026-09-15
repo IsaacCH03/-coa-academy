@@ -44,6 +44,30 @@ test('marks syntax, indentation and clear misspellings with safe fixes', async (
   await expect(page.getByRole('button', { name: /⚠️ 0/ })).toBeVisible({ timeout: 10000 })
 })
 
+test('understands COA GUI imports, APIs, required arguments and false positives', async ({ page }) => {
+  await start(page)
+  await edit(page, 'import os\n\ngui.showinfo("Información", "Hola")')
+  await expect(page.locator('.diagnostics-summary')).toContainText('⚠️ 2', { timeout: 10000 })
+  await page.locator('.diagnostics-summary').click()
+  await expect(page.getByText('COA GUI se está utilizando, pero no está importado.')).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: 'Importar COA GUI' }).click()
+  await expect(page.locator('.monaco-editor')).toContainText('import os')
+  await expect(page.locator('.monaco-editor')).toContainText('import coa_gui as gui')
+  await expect(page.getByText('COA GUI se está utilizando, pero no está importado.')).toHaveCount(0, { timeout: 10000 })
+
+  await edit(page, 'import coa_gui as gui\n\ngui.showinf("Información", "Hola")')
+  await expect(page.getByText('"showinf" no existe en COA GUI.')).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: 'Cambiar a "showinfo"' }).click()
+  await expect(page.locator('.monaco-editor')).toContainText('gui.showinfo')
+  await expect(page.getByText('"showinf" no existe en COA GUI.')).toHaveCount(0, { timeout: 10000 })
+
+  await edit(page, 'import coa_gui as gui\n\ngui.showinfo("Información")')
+  await expect(page.getByText('Falta el mensaje de la ventana emergente.')).toBeVisible({ timeout: 10000 })
+  await edit(page, 'gui = "Hola"\nprint(gui)')
+  await expect(page.getByText(/COA GUI se está utilizando/)).toHaveCount(0, { timeout: 10000 })
+  await expect(page.getByRole('button', { name: 'Importar COA GUI' })).toHaveCount(0)
+})
+
 test('explains unhandled runtime errors without translating prints or caught errors', async ({ page }) => {
   await start(page)
   const cases = [

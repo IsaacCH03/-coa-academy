@@ -20,4 +20,9 @@ describe('Studio personalization', () => {
   it('defaults wallpaper visibility to an evident level', () => expect(DEFAULT_SETTINGS.wallpaperVisibility).toBe(70))
   it('keeps interface transparency within a readable limit', () => expect(normalizeSettings({ interfaceTransparency: 100 }).interfaceTransparency).toBe(72))
   it('supports the Pixel Art skin', () => expect(normalizeSettings({ style: 'pixel' }).style).toBe('pixel'))
+  it('defaults COA GUI dialogs to themed and centered', () => {
+    expect(DEFAULT_SETTINGS.coaGuiDialogUseTheme).toBe(true)
+    expect(DEFAULT_SETTINGS.coaGuiDialogPosition).toBe('center')
+  })
+  it('rejects an unknown COA GUI dialog position', () => expect(normalizeSettings({ coaGuiDialogPosition: 'outside' }).coaGuiDialogPosition).toBe('center'))
 })

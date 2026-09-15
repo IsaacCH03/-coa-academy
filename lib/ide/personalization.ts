@@ -2,6 +2,7 @@ export type AccentTheme = 'coa' | 'blue' | 'purple' | 'pink' | 'red' | 'green' |
 export type SpecialStyle = 'none' | 'vscode' | 'eclipse' | 'onlinegdb' | 'python' | 'cmd' | 'pixel'
 export type BackgroundKind = 'none' | 'city' | 'forest' | 'sunset' | 'space' | 'cyberpunk' | 'stars' | 'rain' | 'custom'
 export type QuickAction = typeof QUICK_ACTIONS[number]
+export type CoaGuiDialogPosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 export const QUICK_ACTIONS = ['Tab', 'Desindentar', ':', ';', '()', '[]', '{}', '""', "''", '=', '==', '!=', '>', '<', '>=', '<=', '+', '-', '*', '/', '%', '#', '_', '.', '←', '→', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'print()', 'input()', 'range()', 'if', 'elif', 'else', 'for', 'while', 'def', 'return'] as const
 export const DEFAULT_QUICK_BAR: QuickAction[] = ['Tab', ':', '()', '[]', '{}', '""', "''", '=', '+', '-', '*', '/', '#', '←', '→']
@@ -36,6 +37,8 @@ export interface StudioSettings {
   reduceMotion: boolean
   highContrast: boolean
   cmdPrompt: string
+  coaGuiDialogUseTheme: boolean
+  coaGuiDialogPosition: CoaGuiDialogPosition
 }
 
 export interface AppearanceProfile { id: string; name: string; settings: StudioSettings }
@@ -49,6 +52,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   autoCloseBrackets: true, autoCloseQuotes: true, density: 'normal',
   mobileFocus: true, quickBar: DEFAULT_QUICK_BAR, reduceMotion: false,
   highContrast: false, cmdPrompt: 'C:\\COA\\Proyecto>',
+  coaGuiDialogUseTheme: true, coaGuiDialogPosition: 'center',
 }
 
 const ACCENTS: Record<AccentTheme, string> = {
@@ -64,6 +68,7 @@ export function normalizeSettings(value: unknown): StudioSettings {
   next.wallpaperVisibility = Math.min(100, Math.max(20, Number(next.wallpaperVisibility) || 70))
   next.interfaceTransparency = Math.min(72, Math.max(0, Number(next.interfaceTransparency) || 48))
   next.quickBar = Array.isArray(next.quickBar) ? next.quickBar.filter((item): item is QuickAction => QUICK_ACTIONS.includes(item as QuickAction)) : [...DEFAULT_QUICK_BAR]
+  if (!['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'].includes(next.coaGuiDialogPosition)) next.coaGuiDialogPosition = 'center'
   if (!next.quickBar.length) next.quickBar = [...DEFAULT_QUICK_BAR]
   return next
 }

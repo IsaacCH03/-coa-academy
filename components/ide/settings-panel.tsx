@@ -3,10 +3,10 @@ import { useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { DEFAULT_QUICK_BAR, QUICK_ACTIONS, type AppearanceProfile, type StudioSettings } from '@/lib/ide/personalization'
 
-type Section = 'appearance' | 'background' | 'editor' | 'mobile' | 'accessibility' | 'profiles' | 'reset'
-const sectionNames: Record<Section, string> = { appearance: '🎨 Apariencia', background: '🖼 Fondos', editor: '✍ Editor', mobile: '📱 Móvil', accessibility: '♿ Accesibilidad', profiles: '💾 Perfiles', reset: '↻ Restablecer' }
+type Section = 'appearance' | 'background' | 'dialogs' | 'editor' | 'mobile' | 'accessibility' | 'profiles' | 'reset'
+const sectionNames: Record<Section, string> = { appearance: '🎨 Apariencia', background: '🖼 Fondos', dialogs: '▣ Ventanas', editor: '✍ Editor', mobile: '📱 Móvil', accessibility: '♿ Accesibilidad', profiles: '💾 Perfiles', reset: '↻ Restablecer' }
 
-export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChange, onProfiles, onImage, onRemoveImage, onReset, notice }: {
+export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChange, onProfiles, onImage, onRemoveImage, onReset, onPreviewDialog, notice }: {
   settings: StudioSettings
   profiles: AppearanceProfile[]
   onChange: (settings: StudioSettings) => void
@@ -15,6 +15,7 @@ export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChang
   onRemoveImage: () => Promise<void>
   customBackgroundUrl: string
   onReset: () => void
+  onPreviewDialog: () => void
   notice: (text: string) => void
 }) {
   const [section, setSection] = useState<Section>('appearance')
@@ -48,6 +49,13 @@ export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChang
       <label className="ide-field">Animación<select value={settings.animation} onChange={(e)=>set('animation',e.target.value as StudioSettings['animation'])}><option value="off">Desactivada</option><option value="soft">Suave</option><option value="normal">Normal</option></select></label>
       <label className="ide-check"><input type="checkbox" checked={settings.reduceMobileAnimation} onChange={(e)=>set('reduceMobileAnimation',e.target.checked)}/>Reducir animaciones en móvil</label><label className="ide-check"><input type="checkbox" checked={settings.pauseHidden} onChange={(e)=>set('pauseHidden',e.target.checked)}/>Pausar cuando la pestaña no esté visible</label>
       <button className="ide-primary" onClick={()=>notice('Fondo aplicado correctamente')}>Aplicar fondo</button>
+    </div>}
+    {section === 'dialogs' && <div className="settings-section">
+      <h3>Ventanas emergentes</h3>
+      <label className="ide-check"><input type="checkbox" checked={settings.coaGuiDialogUseTheme} onChange={(e)=>set('coaGuiDialogUseTheme',e.target.checked)}/>Color según el tema</label>
+      <label className="ide-field">Posición de ventanas emergentes<select value={settings.coaGuiDialogPosition} onChange={(e)=>set('coaGuiDialogPosition',e.target.value as StudioSettings['coaGuiDialogPosition'])}><option value="center">Centro</option><option value="top">Arriba</option><option value="bottom">Abajo</option><option value="left">Izquierda</option><option value="right">Derecha</option><option value="top-left">Arriba izquierda</option><option value="top-right">Arriba derecha</option><option value="bottom-left">Abajo izquierda</option><option value="bottom-right">Abajo derecha</option></select></label>
+      <button className="ide-primary" onClick={onPreviewDialog}>Probar ventana</button>
+      <small>Esta preferencia se aplica a todas las ventanas de COA GUI y se guarda en este navegador.</small>
     </div>}
     {section === 'editor' && <div className="settings-section">
       <label className="ide-field">Tamaño de fuente<input type="number" min="11" max="24" value={settings.fontSize} onChange={(e)=>set('fontSize',+e.target.value)}/></label><label className="ide-field">Familia<select value={settings.fontFamily} onChange={(e)=>set('fontFamily',e.target.value as StudioSettings['fontFamily'])}><option>Consolas</option><option>Monaco</option><option>monospace</option></select></label><label className="ide-field">Altura de línea<input type="number" step="0.05" min="1.2" max="2.2" value={settings.lineHeight} onChange={(e)=>set('lineHeight',+e.target.value)}/></label>

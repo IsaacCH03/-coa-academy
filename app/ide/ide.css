@@ -1238,16 +1238,24 @@
   font: 12px/1.6 Consolas, monospace;
   white-space: pre;
 }
-.coa-dialog-overlay {
-  position: fixed;
+.coa-ide > .coa-dialog-overlay {
+  position: fixed !important;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: clamp(18px, 3vw, 36px);
   background: #020712b8;
   backdrop-filter: blur(5px);
 }
+.coa-dialog-position-top { align-items:start;justify-items:center; }
+.coa-dialog-position-bottom { align-items:end;justify-items:center; }
+.coa-dialog-position-left { align-items:center;justify-items:start; }
+.coa-dialog-position-right { align-items:center;justify-items:end; }
+.coa-dialog-position-top-left { align-items:start;justify-items:start; }
+.coa-dialog-position-top-right { align-items:start;justify-items:end; }
+.coa-dialog-position-bottom-left { align-items:end;justify-items:start; }
+.coa-dialog-position-bottom-right { align-items:end;justify-items:end; }
 .coa-dialog {
   width: min(460px, 100%);
   max-height: min(680px, calc(var(--coa-visible-height, 100vh) - 36px));
@@ -1270,6 +1278,16 @@
 .coa-dialog-error { color:#ffadb5 !important;margin-bottom:4px !important; }
 .coa-dialog-actions { display:flex;justify-content:flex-end;gap:9px;margin-top:18px; }
 .coa-dialog-actions button { min-width:88px;min-height:40px; }
+.coa-dialog-neutral {
+  color:#20242a;
+  background:#f4f4f2;
+  border-color:#a9adb3;
+  box-shadow:0 20px 70px #0009;
+}
+.coa-dialog-neutral > p { color:#353b44; }
+.coa-dialog-neutral input { color:#16191d;background:#fff;border-color:#8d939b; }
+.coa-dialog-neutral button:not(.ide-primary) { color:#20242a;background:#e7e8e9;border-color:#9ea3aa; }
+.coa-dialog-neutral .ide-primary { color:#fff;background:#355f91;border-color:#284e7a; }
 .gui-import-dialog {
   position: absolute;
   z-index: 20;

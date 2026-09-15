@@ -666,11 +666,50 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                 if isinstance(value, __ast.List): literal_lists[target.id] = len(value.elts)
                 if isinstance(value, __ast.Dict) and all(isinstance(key, __ast.Constant) for key in value.keys): literal_dicts[target.id] = {key.value for key in value.keys}
                 if isinstance(value, __ast.Call) and isinstance(value.func, __ast.Name) and value.func.id in classes: instances[target.id] = value.func.id
+    coa_api = {'Tk', 'Label', 'Entry', 'Button', 'Frame', 'showinfo', 'showwarning', 'showerror', 'askstring', 'askinteger', 'askfloat', 'askyesno', 'askokcancel'}
+    coa_dialogs = {'showinfo', 'showwarning', 'showerror', 'askstring', 'askinteger', 'askfloat', 'askyesno', 'askokcancel'}
+    coa_imported = any(isinstance(node, __ast.Import) and any(alias.name == 'coa_gui' and (alias.asname or alias.name) == 'gui' for alias in node.names) for node in __coa_tree.body)
+    coa_calls = [node for node in __ast.walk(__coa_tree) if isinstance(node, __ast.Call) and isinstance(node.func, __ast.Attribute) and isinstance(node.func.value, __ast.Name) and node.func.value.id == 'gui']
+    clear_coa_calls = [node for node in coa_calls if node.func.attr in coa_api or __coa_best(node.func.attr, coa_api)]
+    coa_missing = bool(clear_coa_calls and not coa_imported and 'gui' not in definitions)
+    if coa_missing:
+        target = clear_coa_calls[0].func.value
+        source_lines = __coa_diagnostic_source.splitlines()
+        insert_line = 1
+        while insert_line <= len(source_lines) and (not source_lines[insert_line - 1].strip() or source_lines[insert_line - 1].lstrip().startswith('#')):
+            insert_line += 1
+        body_index = 0
+        if (__coa_tree.body and isinstance(__coa_tree.body[0], __ast.Expr) and isinstance(__coa_tree.body[0].value, __ast.Constant) and isinstance(__coa_tree.body[0].value.value, str)):
+            insert_line = max(insert_line, __coa_tree.body[0].end_lineno + 1)
+            body_index = 1
+        for statement in __coa_tree.body[body_index:]:
+            if isinstance(statement, (__ast.Import, __ast.ImportFrom)):
+                insert_line = max(insert_line, statement.end_lineno + 1)
+            else:
+                break
+        item = __coa_item(__coa_path, 'coa-import', target, 'COA GUI se está utilizando, pero no está importado.', 'Agrega el import oficial antes de utilizar gui.', 'warning')
+        item['fix'] = {'title': 'Importar COA GUI', 'startLine': insert_line, 'startColumn': 1, 'endLine': insert_line, 'endColumn': 1, 'text': 'import coa_gui as gui\\n'}
+        __coa_diagnostics.append(item)
+    if coa_imported:
+        for call in coa_calls:
+            member = call.func.attr
+            if member not in coa_api:
+                suggestion = __coa_best(member, coa_api)
+                item = __coa_item(__coa_path, 'coa-api', call.func, f'"{member}" no existe en COA GUI.', 'Revisa el nombre de la función o componente de COA GUI.')
+                if suggestion:
+                    item['explanation'] += f' ¿Querías escribir "{suggestion}"?'
+                    item['fix'] = {'title': f'Cambiar a "{suggestion}"', 'startLine': call.func.lineno, 'startColumn': call.func.end_col_offset - len(member) + 1, 'endLine': call.func.end_lineno, 'endColumn': call.func.end_col_offset + 1, 'text': suggestion}
+                __coa_diagnostics.append(item)
+            elif member in coa_dialogs:
+                received = len(call.args) + len(call.keywords)
+                if received < 2:
+                    message = f'{member} necesita un título y un mensaje.' if received == 0 else 'Falta el mensaje de la ventana emergente.'
+                    __coa_diagnostics.append(__coa_item(__coa_path, 'coa-dialog-args', call, message, 'Agrega el título y el mensaje como los dos primeros argumentos.'))
     known = set(dir(__builtins)) | {'__name__', '__file__'}
     reported = set()
     for node in __ast.walk(__coa_tree):
         if not isinstance(node, __ast.Name) or not isinstance(node.ctx, __ast.Load): continue
-        if node.id in known or definitions.get(node.id, node.lineno + 1) <= node.lineno or node.id in reported: continue
+        if node.id in known or definitions.get(node.id, node.lineno + 1) <= node.lineno or node.id in reported or (node.id == 'gui' and coa_missing): continue
         reported.add(node.id)
         later = node.id in definitions
         suggestion = __coa_best(node.id, [name for name, defined_line in definitions.items() if defined_line <= node.lineno])
@@ -691,7 +730,8 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                     if isinstance(target, __ast.Name) and not target.id.startswith('_') and loads.get(target.id, 0) == 0 and (module_name, target.id) not in __coa_external_uses:
                         __coa_diagnostics.append(__coa_item(__coa_path, 'unused', target, f'La variable "{target.id}" se creó pero no se utiliza.', 'Puedes eliminarla si no forma parte del resultado que estás construyendo.', 'warning'))
     for local, node in imported_names.items():
-        if loads.get(local, 0) == 0:
+        is_unused_coa_gui = local == 'gui' and isinstance(node, __ast.Import) and any(alias.name == 'coa_gui' for alias in node.names)
+        if loads.get(local, 0) == 0 and not is_unused_coa_gui:
             __coa_diagnostics.append(__coa_item(__coa_path, 'unused-import', node, f'El import "{local}" no se utiliza.', 'Elimina este import si no es necesario para el programa.', 'warning'))
     # Simple literal operations whose result is certain without executing code.
     for node in __ast.walk(__coa_tree):

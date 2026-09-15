@@ -85,6 +85,7 @@ export function IdeApp() {
   const [replacement, setReplacement] = useState<Project | null>(null)
   const [guiPreview, setGuiPreview] = useState<CoaGuiPreviewModel | null>(null)
   const [guiDialog, setGuiDialog] = useState<CoaGuiDialogRequest | null>(null)
+  const [previewDialog, setPreviewDialog] = useState<CoaGuiDialogRequest | null>(null)
   const [tkinterCode, setTkinterCode] = useState('')
   const [cursor, setCursor] = useState({ source: '', offset: 0 })
   const [diagnostics, setDiagnostics] = useState<CodeDiagnostic[]>([])
@@ -639,7 +640,7 @@ export function IdeApp() {
                   themedIcons={settings.style === 'eclipse'}
                 />
               )}
-              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={saveCustomBackground} onRemoveImage={async()=>{if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);setBackgroundUrl('');await deleteCustomBackground(settings.customBackgroundId)}} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground(settings.customBackgroundId) }} />}
+              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={saveCustomBackground} onRemoveImage={async()=>{if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);setBackgroundUrl('');await deleteCustomBackground(settings.customBackgroundId)}} onPreviewDialog={() => setPreviewDialog({kind:'showinfo',title:'Información',message:'Así se verán las ventanas emergentes de COA GUI.'})} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground(settings.customBackgroundId) }} />}
               {panel === 'exercise' && (
                 <ExercisePanel
                   selected={exercise}
@@ -986,7 +987,7 @@ export function IdeApp() {
           </button>
         </ConfirmDialog>
       )}
-      {guiDialog && <CoaGuiDialog request={guiDialog} onAnswer={(value) => { setGuiDialog(null); try { runtime.current?.answerDialog(value) } catch (error) { report((error as Error).message) } }} />}
+      {(guiDialog || previewDialog) && <CoaGuiDialog request={(guiDialog || previewDialog)!} useTheme={settings.coaGuiDialogUseTheme} position={settings.coaGuiDialogPosition} onAnswer={(value) => { if (guiDialog) { setGuiDialog(null); try { runtime.current?.answerDialog(value) } catch (error) { report((error as Error).message) } } else setPreviewDialog(null) }} />}
     </main>
   )
 }

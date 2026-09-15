@@ -2,12 +2,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CircleAlert, CircleHelp, Info, Keyboard } from 'lucide-react'
 import type { CoaGuiDialogRequest } from '@/lib/ide/runtime'
+import type { CoaGuiDialogPosition } from '@/lib/ide/personalization'
 
 const inputKinds = new Set(['askstring', 'askinteger', 'askfloat'])
 
-export function CoaGuiDialog({ request, onAnswer }: {
+export function CoaGuiDialog({ request, onAnswer, useTheme, position }: {
   request: CoaGuiDialogRequest
   onAnswer: (value: string | number | boolean | null) => void
+  useTheme: boolean
+  position: CoaGuiDialogPosition
 }) {
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
@@ -39,8 +42,8 @@ export function CoaGuiDialog({ request, onAnswer }: {
   const information = request.kind.startsWith('show')
   const yesNo = request.kind === 'askyesno'
   return (
-    <div className="coa-dialog-overlay">
-      <section ref={dialog} className={`coa-dialog coa-dialog-${request.kind}`} role="dialog" aria-modal="true" aria-labelledby="coa-dialog-title" aria-describedby="coa-dialog-message" onKeyDown={(event) => {
+    <div className={`coa-dialog-overlay coa-dialog-position-${position}`}>
+      <section ref={dialog} className={`coa-dialog coa-dialog-${request.kind}${useTheme ? '' : ' coa-dialog-neutral'}`} role="dialog" aria-modal="true" aria-labelledby="coa-dialog-title" aria-describedby="coa-dialog-message" onKeyDown={(event) => {
         if (event.key !== 'Tab') return
         const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('input, button:not(:disabled)') ?? [])]
         if (!focusable.length) return
