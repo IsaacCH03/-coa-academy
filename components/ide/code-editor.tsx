@@ -34,8 +34,10 @@ export function CodeEditor({
   const applyMonacoTheme = useCallback((monaco: Monaco) => {
     const light = settings.style === 'python' && !wallpaper
     const alpha = Math.round((1 - settings.interfaceTransparency / 100) * 255).toString(16).padStart(2, '0')
-    const background = light ? '#ffffff' : wallpaper ? `${palette.editor}${alpha}` : palette.editor
-    const gutter = light ? '#f4f4f4' : wallpaper ? `${palette.background}${alpha}` : palette.background
+    const solidBackground = settings.style === 'cmd' ? '#000000' : settings.style === 'onlinegdb' ? '#2b2d31' : palette.editor
+    const solidGutter = settings.style === 'cmd' ? '#000000' : settings.style === 'onlinegdb' ? '#25272b' : palette.background
+    const background = light ? '#ffffff' : wallpaper ? `${solidBackground}${alpha}` : solidBackground
+    const gutter = light ? '#f4f4f4' : wallpaper ? `${solidGutter}${alpha}` : solidGutter
     monaco.editor.defineTheme(monacoTheme, {
       base: light ? 'vs' : 'vs-dark', inherit: true,
       rules: [

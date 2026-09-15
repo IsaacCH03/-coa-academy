@@ -191,3 +191,30 @@ test('Pixel Art is a complete retro skin and coexists with a forest wallpaper', 
   await expect(page.locator('.coa-ide')).toHaveClass(/coa-wallpaper-active/)
   await expect.poll(() => page.locator('.monaco-editor-background').first().evaluate((node) => getComputedStyle(node).backgroundColor)).toContain('rgba')
 })
+
+test('settings close button remains usable after changes and GIF is accepted locally', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByRole('button', { name: 'Rosa' }).click()
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  const upload = page.locator('input[type=file][accept*="image/gif"]')
+  await upload.setInputFiles({ name: 'animado.gif', mimeType: 'image/gif', buffer: Buffer.from('474946383961', 'hex') })
+  await expect(page.locator('.coa-ide')).toHaveAttribute('data-background', 'custom')
+  await expect(page.getByRole('img', { name: 'Vista previa del fondo personalizado' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cerrar panel' }).click()
+  await expect(page.getByRole('heading', { name: 'Personaliza tu Studio' })).toBeHidden()
+  await expect(page.locator('.monaco-editor')).toBeVisible()
+})
+
+test('CMD is black while OnlineGDB keeps cyan navigation, gray Monaco and white console', async ({ page }) => {
+  await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByLabel('Estilo especial').selectOption('cmd')
+  for (const selector of ['.ide-toolbar','.ide-activity','.ide-sidebar','.ide-tabs','.ide-console','.ide-status','.monaco-editor-background']) {
+    await expect.poll(() => page.locator(selector).first().evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(0, 0, 0)')
+  }
+  await page.getByLabel('Estilo especial').selectOption('onlinegdb')
+  await expect.poll(() => page.locator('.ide-activity').evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(37, 169, 224)')
+  await expect.poll(() => page.locator('.monaco-editor-background').first().evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(43, 45, 49)')
+  await expect.poll(() => page.locator('.ide-console').evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(255, 255, 255)')
+})

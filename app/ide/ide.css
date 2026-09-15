@@ -353,6 +353,10 @@
   top: 4px;
   color: #a7b9d4;
   padding: 4px !important;
+  z-index: 40;
+  pointer-events: auto;
+  background: var(--ide-panel);
+  border: 1px solid var(--ide-border);
 }
 .ide-eyebrow {
   font-size: 10px !important;
@@ -1523,3 +1527,16 @@
 .theme-pixel .ide-console { margin:5px;border:4px solid var(--accent);box-shadow:5px 5px 0 #000; }.theme-pixel .ide-console header { border-bottom:3px solid var(--accent);text-transform:uppercase;font-weight:bold; }
 .theme-pixel .ide-status { border-top:3px solid var(--accent);font-weight:bold;text-transform:uppercase; }.theme-pixel .diagnostics-summary { border:2px solid var(--palette-border);border-radius:0; }
 .theme-pixel .ide-tree li { border-radius:0;border-left:2px solid transparent; }.theme-pixel .ide-tree li.selected { border-left-color:var(--accent); }
+
+/* CMD is deliberately black; color is reserved for text and state indicators. */
+.theme-cmd { --ide-bg:#000;--ide-panel:#000;--ide-border:#252525;--ide-muted:#b8b8b8;background:#000 !important;color:#e8e8e8; }
+.theme-cmd:not(.coa-wallpaper-active) :is(.ide-toolbar,.ide-workspace,.ide-activity,.ide-sidebar,.ide-panel,.ide-tabs,.ide-tab,.ide-editor-area,.ide-console,.ide-console header,.ide-status,.settings-section,.settings-nav button,.theme-grid button,.ide-inline-form,.ide-tip,.ide-preview,input,select,textarea,button,.ide-download>summary) { background:#000 !important;background-image:none !important;border-color:#252525;color:inherit;box-shadow:none; }
+.theme-cmd :is(.ide-primary,.ide-run) { color:#57d98c !important; }.theme-cmd :is(.ide-danger,.ide-stop) { color:#e87882 !important; }
+.theme-cmd :is(button[aria-pressed='true'],.settings-nav button.active,.ide-tab.active,.ide-activity button.active) { background:#000 !important;color:var(--accent) !important;border-color:var(--accent) !important; }
+.theme-cmd .ide-status { border-top:1px solid #333; }.theme-cmd .ide-console { border-top:1px solid #333; }
+
+/* Fixed OnlineGDB identity: cyan navigation, charcoal Monaco, white console. */
+.theme-onlinegdb .ide-activity { background:#25a9e0 !important;border-right-color:#74d3fa; }
+.theme-onlinegdb .ide-activity button { color:#f4fcff; }.theme-onlinegdb .ide-activity button.active { background:#087daf !important;color:#fff; }
+.theme-onlinegdb .ide-editor-area { background:#2b2d31 !important; }
+.theme-onlinegdb .ide-console { background:#fff !important;color:#151515 !important; }.theme-onlinegdb .ide-console header { background:#ededed !important;color:#222 !important; }.theme-onlinegdb .ide-console pre { color:#151515 !important; }
