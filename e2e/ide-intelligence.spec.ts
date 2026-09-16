@@ -64,6 +64,8 @@ class Controller:
     def showInfo(self, mensaje): pass
     def showError(self, mensaje): pass
     def limpiarCampos(self): pass`)
+  await expect(page.locator('.monaco-editor')).toContainText('limpiarCampos')
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'py controller.py' }).click()
   await edit(page, `from business.logic import Logic
 from presentation.ui import UI
@@ -76,6 +78,27 @@ class Controller:
   await page.waitForTimeout(500)
   await page.keyboard.press('Control+Space')
   await expect(suggestions).toContainText('limpiarCampos')
+  await page.keyboard.press('Escape')
+
+  await edit(page, `from business.logic import Logic
+logic = Logic()
+logic.`)
+  await page.waitForTimeout(350)
+  await page.keyboard.press('Control+Space')
+  await expect(suggestions).toContainText('saludar(nombre)')
+  await expect(suggestions).toContainText('sumar(a, b)')
+  await page.keyboard.press('Escape')
+
+  await edit(page, 'from presentation.')
+  await page.waitForTimeout(350)
+  await page.keyboard.press('Control+Space')
+  await expect(suggestions).toContainText('ui')
+  await page.keyboard.press('Escape')
+
+  await edit(page, 'from presentation.ui import ')
+  await page.waitForTimeout(350)
+  await page.keyboard.press('Control+Space')
+  await expect(suggestions).toContainText('UI')
   await page.keyboard.press('Escape')
 
   await edit(page, `from business.logic import Logic
