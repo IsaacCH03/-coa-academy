@@ -10,10 +10,13 @@ test('writing shortcuts, class creation, layers and split editor work in Monaco'
   await page.getByRole('button',{name:'Ya sé cómo funciona',exact:true}).click()
   await expect(page.locator('.monaco-editor')).toBeVisible({timeout:45000})
   await expect(page.getByLabel('Atajos de escritura')).toHaveCount(0)
+  await expect(page.locator('.ide-split-toolbar')).toHaveCount(0)
 
   await page.getByRole('button',{name:'Configuración'}).click()
   await page.getByRole('button',{name:/Atajos/}).click()
   await page.getByLabel('Atajos de escritura').check()
+  await page.getByRole('button',{name:/Editor/}).click()
+  await page.getByLabel('Barra de división de código').check()
   await page.getByRole('button',{name:'Cerrar panel'}).click()
   const shortcuts=page.locator('.ide-writing-shortcuts.desktop')
   await expect(shortcuts).toBeVisible()
@@ -45,6 +48,8 @@ test('writing shortcuts, class creation, layers and split editor work in Monaco'
   await expect(page.locator('.ide-editor-split')).toHaveClass(/right/)
   await page.getByRole('button',{name:'Cerrar división'}).click()
   await expect(page.locator('.ide-editor-group')).toHaveCount(1)
+  await page.getByRole('button',{name:'Desactivar barra de división'}).click()
+  await expect(page.locator('.ide-split-toolbar')).toHaveCount(0)
 
   await page.getByRole('button',{name:'Archivos',exact:true}).click()
   await page.locator('summary[aria-label="Crear elemento"]').click()

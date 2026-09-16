@@ -18,6 +18,7 @@ describe('Studio personalization', () => {
   it('inserts Python keywords predictably', () => expect(quickInsertion('return')).toEqual({ text: 'return ', cursorBack: 0 }))
   it('inserts ordinary symbols literally', () => expect(quickInsertion('==')).toEqual({ text: '==', cursorBack: 0 }))
   it('defaults wallpaper visibility to an evident level', () => expect(DEFAULT_SETTINGS.wallpaperVisibility).toBe(70))
+  it('keeps the split toolbar disabled by default', () => expect(DEFAULT_SETTINGS.splitToolbar).toBe(false))
   it('keeps interface transparency within a readable limit', () => expect(normalizeSettings({ interfaceTransparency: 100 }).interfaceTransparency).toBe(72))
   it('supports the Pixel Art skin', () => expect(normalizeSettings({ style: 'pixel' }).style).toBe('pixel'))
   it('defaults COA GUI dialogs to themed and centered', () => {

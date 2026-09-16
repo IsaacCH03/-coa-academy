@@ -31,6 +31,7 @@ export interface StudioSettings {
   highlightLine: boolean
   autoCloseBrackets: boolean
   autoCloseQuotes: boolean
+  splitToolbar: boolean
   density: 'compact' | 'normal' | 'large'
   mobileFocus: boolean
   quickBar: QuickAction[]
@@ -52,7 +53,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   backgroundFit: 'cover', animation: 'soft', reduceMobileAnimation: true,
   pauseHidden: true, fontSize: 15, fontFamily: 'Consolas', lineHeight: 1.55,
   minimap: false, wordWrap: true, lineNumbers: true, highlightLine: true,
-  autoCloseBrackets: true, autoCloseQuotes: true, density: 'normal',
+  autoCloseBrackets: true, autoCloseQuotes: true, splitToolbar: false, density: 'normal',
   mobileFocus: true, quickBar: DEFAULT_QUICK_BAR, writingShortcuts: false, shortcutCount: 14, shortcutVisibility: 'all', reduceMotion: false,
   highContrast: false, cmdPrompt: 'C:\\COA\\Proyecto>',
   coaGuiDialogUseTheme: true, coaGuiDialogPosition: 'center',

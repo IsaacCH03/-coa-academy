@@ -609,6 +609,8 @@
 }
 .ide-split-toolbar{display:flex;gap:6px;align-items:center;min-height:34px;padding:3px 8px;background:var(--tab-bg);border-bottom:1px solid var(--palette-border);overflow-x:auto}
 .ide-split-toolbar button{font-size:11px;white-space:nowrap;padding:5px 8px}
+.ide-split-toolbar .ide-split-toolbar-close{margin-left:auto;color:#ff4d5e;border-color:#ff4d5e;background:#ff4d5e18}
+.ide-split-toolbar .ide-split-toolbar-close:hover{color:#fff;background:#d92f42}
 .ide-editor-split{flex:1;min-height:100px;min-width:0;display:flex;overflow:hidden}
 .ide-editor-split:not(.active)>.ide-editor-group{flex:1}
 .ide-editor-split.active.right{flex-direction:row}.ide-editor-split.active.down{flex-direction:column}
