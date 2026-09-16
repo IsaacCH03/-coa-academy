@@ -207,6 +207,30 @@ export class PythonProjectIndex {
     return this
   }
 
+  updateFile(path: string, source: string) {
+    const previous = this.files.get(path)
+    if (previous?.source === source) return this
+    if (previous && likelyIncomplete(source)) {
+      const partial = parseFile(path, source)
+      const merged = parseFile(path, previous.source)
+      for (const [name, cls] of partial.classes) {
+        const valid = merged.classes.get(name)
+        if (valid) {
+          for (const [method, symbol] of cls.methods) valid.methods.set(method, symbol)
+          for (const [attribute, symbol] of cls.attributes) valid.attributes.set(attribute, symbol)
+          valid.symbol = cls.symbol
+        } else merged.classes.set(name, cls)
+      }
+      for (const [name, variable] of partial.variables) merged.variables.set(name, variable)
+      merged.source = source
+      merged.imports = partial.imports.length ? partial.imports : merged.imports
+      merged.symbols = [...new Map([...merged.symbols, ...partial.symbols].map((symbol) => [`${symbol.kind}:${symbol.className ?? ''}:${symbol.name}`, symbol])).values()]
+      this.files.set(path, merged)
+    } else this.files.set(path, parseFile(path, source))
+    this.modules.set(moduleFromPath(path), this.files.get(path)!)
+    return this
+  }
+
   getFile(path: string) { return this.files.get(path) }
   moduleNames() { return [...this.modules.keys()] }
 
@@ -254,7 +278,15 @@ export class PythonProjectIndex {
     if (!parts.length) return undefined
     let value: PythonClass | PythonFile | 'coa_gui' | undefined
     const first = parts.shift()!
-    if (first === 'self') value = this.enclosingClass(file, line)
+    if (first === 'self') {
+      value = this.enclosingClass(file, line)
+      if ((!value || !value.attributes.has(parts[0])) && parts.length) {
+        const attributeName = parts[0]
+        const owners = [...file.classes.values()].filter((item) => item.attributes.has(attributeName))
+        const attribute = owners.length === 1 ? owners[0].attributes.get(attributeName) : undefined
+        if (attribute?.typeName) { value = this.resolveClass(file, attribute.typeName); parts.shift() }
+      }
+    }
     else {
       const variable = file.variables.get(first)
       if (variable?.typeName) value = this.resolveClass(file, variable.typeName)

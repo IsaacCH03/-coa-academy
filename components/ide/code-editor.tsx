@@ -146,7 +146,8 @@ export function CodeEditor({
         applyMonacoTheme(monaco)
         editor.onDidFocusEditorText(onFocus)
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
-          const model = editor.getModel(), position = editor.getPosition()
+          const focused = monaco.editor.getEditors().find((candidate) => candidate.hasTextFocus()) ?? editor
+          const model = focused.getModel(), position = focused.getPosition()
           if (model && position) goToPythonDefinition(model, position)
         })
         onMount(editor, monaco)

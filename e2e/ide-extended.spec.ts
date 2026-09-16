@@ -95,9 +95,11 @@ test('help modes, indentation, files, preferences and console controls', async (
     page.getByText('int(...) convierte un valor a un número entero.'),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: 'Nueva carpeta', exact: true }).click()
   await page.getByLabel('Nombre o ruta').fill('datos')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: 'Nuevo archivo', exact: true }).click()
   await page.getByLabel('Nombre o ruta').fill('datos/nota.txt')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()

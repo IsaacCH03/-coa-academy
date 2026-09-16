@@ -638,6 +638,7 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
             for alias in imported.names:
                 if alias.name in target_classes: classes[alias.asname or alias.name] = target_classes[alias.name]
     instances = {}
+    self_instances = {}
     literal_lists, literal_dicts = {}, {}
     imported_names = {}
     for node in __ast.walk(__coa_tree):
@@ -662,6 +663,8 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
             targets = node.targets if isinstance(node, __ast.Assign) else [node.target]
             value = node.value
             for target in targets:
+                if isinstance(target, __ast.Attribute) and isinstance(target.value, __ast.Name) and target.value.id == 'self' and isinstance(value, __ast.Call) and isinstance(value.func, __ast.Name) and value.func.id in classes:
+                    self_instances[target.attr] = value.func.id
                 if not isinstance(target, __ast.Name): continue
                 if isinstance(value, __ast.List): literal_lists[target.id] = len(value.elts)
                 if isinstance(value, __ast.Dict) and all(isinstance(key, __ast.Constant) for key in value.keys): literal_dicts[target.id] = {key.value for key in value.keys}
@@ -780,6 +783,22 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                 expected = max(0, len(method.args.args) - 1)
                 if not method.args.vararg and len(node.args) != expected:
                     __coa_diagnostics.append(__coa_item(__coa_path, 'method-args', node, f'El método "{node.func.attr}" necesita {expected} argumentos y recibió {len(node.args)}.', 'self se envía automáticamente; revisa los demás parámetros.'))
+        if isinstance(node, __ast.Call) and isinstance(node.func, __ast.Attribute) and isinstance(node.func.value, __ast.Attribute) and isinstance(node.func.value.value, __ast.Name) and node.func.value.value.id == 'self' and node.func.value.attr in self_instances:
+            class_name = self_instances[node.func.value.attr]
+            cls = classes[class_name]
+            methods = {item.name: item for item in cls.body if isinstance(item, (__ast.FunctionDef, __ast.AsyncFunctionDef))}
+            if node.func.attr not in methods:
+                suggestion = __coa_best(node.func.attr, methods)
+                item = __coa_item(__coa_path, 'self-method', node.func, f'El método "{node.func.attr}" no existe en {class_name}.', 'Revisa los métodos definidos en la clase conocida.', 'warning')
+                if suggestion:
+                    item['explanation'] += f' ¿Quisiste decir "{suggestion}"?'
+                    item['fix'] = {'title': f'Cambiar a "{suggestion}"', 'startLine': node.func.lineno, 'startColumn': node.func.end_col_offset - len(node.func.attr) + 1, 'endLine': node.func.end_lineno, 'endColumn': node.func.end_col_offset + 1, 'text': suggestion}
+                __coa_diagnostics.append(item)
+            else:
+                method = methods[node.func.attr]
+                expected = max(0, len(method.args.args) - 1)
+                if not method.args.vararg and len(node.args) != expected:
+                    __coa_diagnostics.append(__coa_item(__coa_path, 'self-method-args', node, f'El método "{node.func.attr}" necesita {expected} argumentos y recibió {len(node.args)}.', 'self se envía automáticamente; revisa los valores enviados.'))
     for class_name, cls in classes.items():
         if cls not in __coa_tree.body: continue
         for base in cls.bases:

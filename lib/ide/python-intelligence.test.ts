@@ -97,4 +97,11 @@ e.
     const index = new PythonProjectIndex().update([{ path: 'main.py', kind: 'file', content: 'import coa_gui as gui\ngui.' }])
     expect(index.members('main.py', 'gui', 2).map((item) => item.name)).toEqual(expect.arrayContaining(['Tk', 'Label', 'showinfo', 'askstring', 'askyesno']))
   })
+  it('resolves members even when Monaco has added deep temporary indentation', () => {
+    const index=new PythonProjectIndex().update([
+      {path:'business/logic.py',kind:'file',content:'class Logic:\n        def saludar(self, nombre):\n                return nombre'},
+      {path:'business/controller.py',kind:'file',content:'from business.logic import Logic\n\nclass Controller:\n    def __init__(self):\n            self.logic = Logic()\n\n                        def probar(self):\n                                self.logic.saludar'},
+    ])
+    expect(index.definition('business/controller.py',8,'                                self.logic.saludar',51)).toMatchObject({path:'business/logic.py',name:'saludar',line:2})
+  })
 })

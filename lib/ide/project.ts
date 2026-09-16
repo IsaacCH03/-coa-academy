@@ -21,6 +21,12 @@ export type Project = {
   guiDesign: GuiDesign
   explorerExpanded: string[]
   selectedFolder: string
+  splitEnabled?: boolean
+  splitOrientation?: 'right' | 'down'
+  splitRatio?: number
+  activeEditorGroup?: 1 | 2
+  secondaryActive?: string
+  secondaryTabs?: string[]
 }
 export const extensions = ['py', 'txt', 'csv', 'json', 'md']
 export const MAX_FILE_SIZE = 1024 * 1024
@@ -43,6 +49,12 @@ export function newProject(): Project {
     guiDesign: newGuiDesign(),
     explorerExpanded: [],
     selectedFolder: '',
+    splitEnabled: false,
+    splitOrientation: 'right',
+    splitRatio: 50,
+    activeEditorGroup: 1,
+    secondaryActive: '',
+    secondaryTabs: [],
   }
 }
 export function validPath(path: string, kind: ProjectEntry['kind'] = 'file') {
@@ -153,6 +165,8 @@ export function renameEntry(
     entries: normalized.entries,
     active: rename(project.active),
     tabs: project.tabs.map(rename),
+    secondaryActive: project.secondaryActive ? rename(project.secondaryActive) : '',
+    secondaryTabs: project.secondaryTabs?.map(rename) ?? [],
     explorerExpanded: project.explorerExpanded.map(rename),
     selectedFolder: rename(project.selectedFolder),
   }
@@ -164,6 +178,7 @@ export function deleteEntry(project: Project, path: string): Project {
   const tabs = project.tabs.filter((p) =>
     entries.some((e) => e.path === p && e.kind === 'file'),
   )
+  const secondaryTabs = (project.secondaryTabs ?? []).filter((p) => entries.some((e) => e.path === p && e.kind === 'file'))
   const active = entries.some((e) => e.path === project.active)
     ? project.active
     : (tabs[0] ?? entries.find((e) => e.kind === 'file')?.path ?? '')
@@ -172,6 +187,9 @@ export function deleteEntry(project: Project, path: string): Project {
     entries,
     active,
     tabs: active ? [...new Set([...tabs, active])] : [],
+    secondaryTabs,
+    secondaryActive: secondaryTabs.includes(project.secondaryActive ?? '') ? project.secondaryActive : (secondaryTabs[0] ?? ''),
+    splitEnabled: project.splitEnabled && secondaryTabs.length > 0,
     explorerExpanded: project.explorerExpanded.filter(
       (folder) => folder !== path && !folder.startsWith(path + '/'),
     ),
@@ -229,6 +247,12 @@ export function restoreProject(value: unknown): Project {
       )
         ? p.selectedFolder
         : '',
+    splitEnabled: p.splitEnabled === true,
+    splitOrientation: p.splitOrientation === 'down' ? 'down' : 'right',
+    splitRatio: Math.min(75, Math.max(25, Number(p.splitRatio) || 50)),
+    activeEditorGroup: p.activeEditorGroup === 2 ? 2 : 1,
+    secondaryActive: files.includes(p.secondaryActive ?? '') ? p.secondaryActive : '',
+    secondaryTabs: Array.isArray(p.secondaryTabs) ? [...new Set(p.secondaryTabs.filter((path) => files.includes(path)))] : [],
   }
 }
 

@@ -4,8 +4,8 @@ export type BackgroundKind = 'none' | 'city' | 'forest' | 'sunset' | 'space' | '
 export type QuickAction = typeof QUICK_ACTIONS[number]
 export type CoaGuiDialogPosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
-export const QUICK_ACTIONS = ['Tab', 'Desindentar', ':', ';', '()', '[]', '{}', '""', "''", '=', '==', '!=', '>', '<', '>=', '<=', '+', '-', '*', '/', '%', '#', '_', '.', '←', '→', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'print()', 'input()', 'range()', 'if', 'elif', 'else', 'for', 'while', 'def', 'return'] as const
-export const DEFAULT_QUICK_BAR: QuickAction[] = ['Tab', ':', '()', '[]', '{}', '""', "''", '=', '+', '-', '*', '/', '#', '←', '→']
+export const QUICK_ACTIONS = ['Tab', 'Enter', 'Backspace', 'Desindentar', '"', "'", '""', "''", '(', ')', '()', '[', ']', '[]', '{', '}', '{}', ':', ';', '=', '==', '!=', '>', '<', '>=', '<=', '+', '-', '*', '/', '//', '**', '%', '+=', '-=', ',', '.', '_', '#', '!', '\\', '←', '→', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'print()', 'input()', 'range()', 'if', 'elif', 'else', 'for', 'while', 'def', 'return'] as const
+export const DEFAULT_QUICK_BAR: QuickAction[] = ['Tab', 'Enter', 'Backspace', ':', '()', '[]', '{}', '""', "''", '=', '==', '!=', '+', '-', '*', '/', '#', '←', '→']
 
 export interface StudioSettings {
   accent: AccentTheme
@@ -34,6 +34,9 @@ export interface StudioSettings {
   density: 'compact' | 'normal' | 'large'
   mobileFocus: boolean
   quickBar: QuickAction[]
+  writingShortcuts: boolean
+  shortcutCount: number
+  shortcutVisibility: 'all' | 'desktop' | 'mobile'
   reduceMotion: boolean
   highContrast: boolean
   cmdPrompt: string
@@ -50,7 +53,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   pauseHidden: true, fontSize: 15, fontFamily: 'Consolas', lineHeight: 1.55,
   minimap: false, wordWrap: true, lineNumbers: true, highlightLine: true,
   autoCloseBrackets: true, autoCloseQuotes: true, density: 'normal',
-  mobileFocus: true, quickBar: DEFAULT_QUICK_BAR, reduceMotion: false,
+  mobileFocus: true, quickBar: DEFAULT_QUICK_BAR, writingShortcuts: false, shortcutCount: 14, shortcutVisibility: 'all', reduceMotion: false,
   highContrast: false, cmdPrompt: 'C:\\COA\\Proyecto>',
   coaGuiDialogUseTheme: true, coaGuiDialogPosition: 'center',
 }
@@ -68,6 +71,8 @@ export function normalizeSettings(value: unknown): StudioSettings {
   next.wallpaperVisibility = Math.min(100, Math.max(20, Number(next.wallpaperVisibility) || 70))
   next.interfaceTransparency = Math.min(72, Math.max(0, Number(next.interfaceTransparency) || 48))
   next.quickBar = Array.isArray(next.quickBar) ? next.quickBar.filter((item): item is QuickAction => QUICK_ACTIONS.includes(item as QuickAction)) : [...DEFAULT_QUICK_BAR]
+  next.shortcutCount = Math.min(QUICK_ACTIONS.length, Math.max(4, Number(next.shortcutCount) || 14))
+  if (!['all', 'desktop', 'mobile'].includes(next.shortcutVisibility)) next.shortcutVisibility = 'all'
   if (!['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'].includes(next.coaGuiDialogPosition)) next.coaGuiDialogPosition = 'center'
   if (!next.quickBar.length) next.quickBar = [...DEFAULT_QUICK_BAR]
   return next

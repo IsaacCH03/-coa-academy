@@ -48,6 +48,8 @@
 .quick-order span { flex:1; font-family:monospace; }.quick-order button { padding:5px; }
 .profile-row input { flex:1; }
 .ide-quickbar { display:none; }
+.ide-writing-shortcuts{display:flex;gap:6px;overflow-x:auto;flex:0 0 auto;padding:6px 10px;background:color-mix(in srgb,var(--surface) 88%,transparent);border-top:1px solid var(--palette-border);border-bottom:1px solid var(--palette-border);scrollbar-width:thin}
+.ide-writing-shortcuts button{min-width:36px;height:32px;padding:0 10px;border:1px solid var(--palette-border);border-radius:7px;background:var(--surface-elevated);color:var(--text-primary);font:inherit;white-space:nowrap}
 
 .theme-vscode { --ide-bg:#181818; --ide-panel:#181818; --ide-border:#2b2b2b; --ide-muted:#aaa; }
 .theme-vscode .ide-toolbar { min-height:35px; padding-block:4px; background:#181818; }
@@ -564,6 +566,7 @@
   margin: 18px -10px;
 }
 .ide-tree li {
+  position: relative;
   display: flex;
   align-items: center;
   border-radius: 5px;
@@ -592,6 +595,9 @@
   color: #7fa8e7;
   flex-shrink: 0;
 }
+.explorer-compact-header{display:flex;align-items:center;gap:5px}.explorer-compact-header>div:first-child{flex:1;min-width:0}.explorer-compact-header h2,.explorer-compact-header p{margin-block:2px}.explorer-compact-header summary,.entry-actions summary{list-style:none;display:grid;place-items:center;padding:6px;cursor:pointer}.explorer-compact-header summary::-webkit-details-marker,.entry-actions summary::-webkit-details-marker{display:none}
+.explorer-compact-header details,.entry-actions{position:relative}.explorer-menu{position:absolute;right:0;top:100%;z-index:30;display:flex;flex-direction:column;min-width:190px;padding:5px;background:var(--surface-elevated);border:1px solid var(--palette-border);border-radius:8px;box-shadow:0 10px 30px #0008}.explorer-menu button{display:flex;gap:7px;justify-content:flex-start;width:100%;padding:7px 9px;white-space:nowrap}
+.entry-actions{margin-left:auto}.ide-tree li:not(:hover):not(.selected) .entry-actions{opacity:.35}.explorer-context{position:absolute;right:8px;z-index:40;display:flex;flex-direction:column;min-width:170px;padding:5px;background:var(--surface-elevated);border:1px solid var(--palette-border);border-radius:7px;box-shadow:0 8px 25px #0009}.explorer-context button{text-align:left;justify-content:flex-start}
 .ide-editor-area {
   flex: 1;
   min-width: 0;
@@ -599,7 +605,23 @@
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
+  position: relative;
 }
+.ide-split-toolbar{display:flex;gap:6px;align-items:center;min-height:34px;padding:3px 8px;background:var(--tab-bg);border-bottom:1px solid var(--palette-border);overflow-x:auto}
+.ide-split-toolbar button{font-size:11px;white-space:nowrap;padding:5px 8px}
+.ide-editor-split{flex:1;min-height:100px;min-width:0;display:flex;overflow:hidden}
+.ide-editor-split:not(.active)>.ide-editor-group{flex:1}
+.ide-editor-split.active.right{flex-direction:row}.ide-editor-split.active.down{flex-direction:column}
+.ide-editor-split.active.right>.ide-editor-group:first-child{flex:0 0 var(--split-ratio)}
+.ide-editor-split.active.right>.ide-editor-group:last-child{flex:1}
+.ide-editor-split.active.down>.ide-editor-group:first-child{flex:0 0 var(--split-ratio)}
+.ide-editor-split.active.down>.ide-editor-group:last-child{flex:1}
+.ide-editor-group{display:flex;flex-direction:column;min-width:0;min-height:0;border-color:var(--palette-border)}
+.ide-editor-group[data-group='2']{border-left:1px solid var(--palette-border)}
+.ide-editor-group>.ide-editor{flex:1;min-height:0}
+.ide-split-divider{z-index:4;flex:0 0 5px;background:var(--palette-border);touch-action:none}
+.ide-editor-split.right>.ide-split-divider{cursor:col-resize}.ide-editor-split.down>.ide-split-divider{cursor:row-resize}
+.ide-editor-overlay .coa-gui-preview{inset:76px 0 var(--console-height,240px)}
 .ide-tabs {
   display: flex;
   align-items: stretch;
@@ -1369,6 +1391,9 @@
   }
 }
 @media (max-width: 767px) {
+  .ide-writing-shortcuts.desktop{display:none}
+  .ide-editor-split.active>.ide-split-divider,.ide-editor-split.active>.ide-editor-group[data-group='2']{display:none}
+  .ide-editor-split.active>.ide-editor-group:first-child{flex:1!important}
   .coa-ide { padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
   .ide-toolbar {
     flex-wrap: wrap;

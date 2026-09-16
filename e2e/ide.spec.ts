@@ -46,6 +46,7 @@ test('Python, input, imports, persistence, builder, exercises and downloads', as
   await page.getByRole('button', { name: 'Recargar Python' }).click()
   await ready(page)
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: 'Nuevo archivo', exact: true }).click()
   await page
     .getByRole('textbox', { name: 'Nombre o ruta' })

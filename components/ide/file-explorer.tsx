@@ -11,6 +11,10 @@ import {
   ChevronRight,
   ChevronDown,
   Download,
+  MoreHorizontal,
+  Plus,
+  Braces,
+  Copy,
 } from 'lucide-react'
 import {
   addEntries,
@@ -29,6 +33,7 @@ export function FileExplorer({
   project,
   onChange,
   onOpen,
+  onOpenAside,
   onError,
   onNew,
   disabled,
@@ -38,6 +43,7 @@ export function FileExplorer({
   project: Project
   onChange: (p: Project | ((current: Project) => Project)) => void
   onOpen: (path: string) => void
+  onOpenAside: (path: string, orientation?: 'right' | 'down') => void
   onError: (text: string) => void
   onNew: () => void
   disabled: boolean
@@ -50,9 +56,19 @@ export function FileExplorer({
   } | null>(null)
   const [name, setName] = useState('')
   const [importing, setImporting] = useState(false)
+  const [classForm, setClassForm] = useState(false)
+  const [className, setClassName] = useState('Persona')
+  const [classFile, setClassFile] = useState('persona.py')
+  const [classDestination, setClassDestination] = useState(project.selectedFolder)
+  const [classTemplate, setClassTemplate] = useState('empty')
+  const [classConstructor, setClassConstructor] = useState(false)
+  const [layersForm, setLayersForm] = useState(false)
+  const [layers, setLayers] = useState({ business:true, presentation:true, domain:false, data:false, main:true })
+  const [contextPath, setContextPath] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
   const destination = project.selectedFolder
+  const smartDestination = destination || (project.active.includes('/') ? project.active.slice(0, project.active.lastIndexOf('/')) : '')
   const destinationPath = (value: string) =>
     destination ? `${destination}/${value}` : value
   function submit() {
@@ -92,6 +108,38 @@ export function FileExplorer({
       onError(
         `Proyecto importado. Se omitieron ${skipped} archivos o carpetas incompatibles o de entorno.`,
       )
+  }
+  function createClass() {
+    try {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(className)) throw new Error('Usa un nombre de clase Python válido.')
+      const path = classDestination ? `${classDestination}/${classFile.trim()}` : classFile.trim()
+      const imported = classTemplate === 'ui' ? 'import coa_gui as gui\n\n' : ''
+      const constructor = classConstructor || classTemplate !== 'empty'
+      const content = `${imported}class ${className}:\n${constructor ? '    def __init__(self):\n        pass' : '    pass'}\n`
+      onChange(addEntries(project,[{path,kind:'file',content}]))
+      setClassForm(false)
+    } catch (error) { onError((error as Error).message) }
+  }
+  function createLayers() {
+    try {
+      const incoming: ProjectEntry[] = []
+      for (const folder of ['business','presentation','domain','data'] as const) if (layers[folder] && !project.entries.some((entry)=>entry.path===folder)) incoming.push({path:folder,kind:'folder',content:''})
+      if (layers.main && !project.entries.some((entry)=>entry.path.toLowerCase()==='main.py')) incoming.push({path:'Main.py',kind:'file',content:'# Punto de entrada del proyecto\n'})
+      if (!incoming.length) { onError('La estructura seleccionada ya existe; no se sobrescribió nada.'); return }
+      onChange(addEntries(project,incoming)); setLayersForm(false)
+    } catch (error) { onError((error as Error).message) }
+  }
+  async function downloadEntry(entry: ProjectEntry) {
+    const service = await import('@/lib/ide/downloads')
+    if (entry.kind === 'folder') service.downloadBlob(await service.folderZip(project,entry.path),`${entry.path.split('/').pop()}.zip`)
+    else service.downloadBlob(new Blob([entry.content],{type:'text/plain;charset=utf-8'}),entry.path.split('/').pop()!)
+  }
+  function duplicate(entry: ProjectEntry) {
+    if (entry.kind !== 'file') return
+    const dot=entry.path.lastIndexOf('.'), base=dot<0?entry.path:entry.path.slice(0,dot), ext=dot<0?'':entry.path.slice(dot)
+    let path=`${base}-copia${ext}`, number=2
+    while(project.entries.some((item)=>item.path===path)) path=`${base}-copia-${number++}${ext}`
+    onChange(addEntries(project,[{...entry,path}]))
   }
   async function importFiles(files: FileList | null) {
     if (!files) return
@@ -146,9 +194,7 @@ export function FileExplorer({
   } as InputHTMLAttributes<HTMLInputElement>
   return (
     <section className="ide-panel">
-      <p className="ide-eyebrow">{explorerLabel}</p>
-      <h2>Mi proyecto</h2>
-      <p className="ide-muted">Tus archivos se guardan en este navegador.</p>
+      <div className="explorer-compact-header"><div><p className="ide-eyebrow">{explorerLabel}</p><h2>Mi proyecto</h2></div><details onClick={(e)=>{if((e.target as Element).closest('button'))e.currentTarget.open=false}}><summary aria-label="Crear elemento" title="Crear elemento"><Plus size={17}/></summary><div className="explorer-menu"><button onClick={()=>{setForm({kind:'file'});setName('ejercicio.py')}}><FilePlus2 size={15}/>Nuevo archivo</button><button onClick={()=>{setClassDestination(smartDestination);setClassForm(true)}}><Braces size={15}/>Nueva clase Python</button><button onClick={()=>{setForm({kind:'folder'});setName('datos')}}><FolderPlus size={15}/>Nueva carpeta</button><button onClick={()=>setLayersForm(true)}>Crear estructura por capas…</button></div></details><button aria-label="Abrir archivos" title="Abrir archivos" onClick={()=>void pick(false)}><Upload size={17}/></button><button aria-label="Abrir carpeta" title="Abrir carpeta" onClick={()=>void pick(true)}><Folder size={17}/></button></div>
       <p className="ide-tip" data-testid="selected-folder">
         Destino: {destination || 'raíz del proyecto'}
         {destination && (
@@ -160,38 +206,6 @@ export function FileExplorer({
           </button>
         )}
       </p>
-      <div className="ide-file-actions">
-        <button
-          disabled={disabled}
-          onClick={() => {
-            setForm({ kind: 'file' })
-            setName('ejercicio.py')
-          }}
-        >
-          <FilePlus2 size={16} /> Nuevo archivo
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() => {
-            setForm({ kind: 'folder' })
-            setName('datos')
-          }}
-        >
-          <FolderPlus size={16} /> Nueva carpeta
-        </button>
-        <button
-          disabled={disabled || importing}
-          onClick={() => void pick(false)}
-        >
-          <Upload size={16} /> Abrir archivo
-        </button>
-        <button
-          disabled={disabled || importing}
-          onClick={() => void pick(true)}
-        >
-          <Folder size={16} /> Abrir carpeta
-        </button>
-      </div>
       {importing && <p role="status">Importando archivos…</p>}
       <input
         ref={fileInput}
@@ -260,6 +274,8 @@ export function FileExplorer({
           </div>
         </form>
       )}
+      {classForm&&<form className="ide-inline-form" onSubmit={(e)=>{e.preventDefault();createClass()}}><h3>Nueva clase Python</h3><label className="ide-field">Nombre de la clase<input aria-label="Nombre de la clase" value={className} onChange={(e)=>setClassName(e.target.value)}/></label><label className="ide-field">Nombre del archivo<input aria-label="Nombre del archivo" value={classFile} onChange={(e)=>setClassFile(e.target.value)}/></label><label className="ide-field">Destino<select aria-label="Destino" value={classDestination} onChange={(e)=>setClassDestination(e.target.value)}><option value="">Raíz del proyecto</option>{project.entries.filter(e=>e.kind==='folder').map(e=><option key={e.path}>{e.path}</option>)}</select></label><label className="ide-field">Plantilla<select aria-label="Plantilla" value={classTemplate} onChange={(e)=>setClassTemplate(e.target.value)}><option value="empty">Clase vacía</option><option value="controller">Controller</option><option value="logic">Logic</option><option value="ui">UI / Presentation</option><option value="domain">Entidad / Domain</option><option value="data">Acceso a datos</option></select></label><label className="ide-check"><input type="checkbox" checked={classConstructor} onChange={(e)=>setClassConstructor(e.target.checked)}/>Crear constructor</label><div className="ide-row"><button type="button" onClick={()=>setClassForm(false)}>Cancelar</button><button className="ide-primary" type="submit">Crear clase</button></div></form>}
+      {layersForm&&<form className="ide-inline-form" onSubmit={(e)=>{e.preventDefault();createLayers()}}><h3>Estructura por capas COA</h3>{(['business','presentation','domain','data'] as const).map(layer=><label className="ide-check" key={layer}><input type="checkbox" checked={layers[layer]} onChange={(e)=>setLayers({...layers,[layer]:e.target.checked})}/>{layer}</label>)}<label className="ide-check"><input type="checkbox" checked={layers.main} onChange={(e)=>setLayers({...layers,main:e.target.checked})}/>Main.py</label><div className="ide-row"><button type="button" onClick={()=>setLayersForm(false)}>Cancelar</button><button className="ide-primary" type="submit">Crear estructura</button></div></form>}
       <ul className="ide-tree">
         {[...project.entries]
           .sort((a, b) => a.path.localeCompare(b.path))
@@ -277,10 +293,13 @@ export function FileExplorer({
                 paddingLeft: Math.min(entry.path.split('/').length - 1, 5) * 12,
               }}
               className={
-                entry.path === project.active || entry.path === project.selectedFolder
+                entry.path === project.active ||
+                entry.path === project.secondaryActive ||
+                entry.path === project.selectedFolder
                   ? 'selected'
                   : ''
               }
+              onContextMenu={(event)=>{event.preventDefault();setContextPath(entry.path)}}
             >
               <button
                 title={entry.path}
@@ -316,41 +335,8 @@ export function FileExplorer({
                 )}
                 <span>{entry.path.split('/').pop()}</span>
               </button>
-              {entry.kind === 'folder' && (
-                <button
-                  disabled={disabled}
-                  title={`Descargar ${entry.path}`}
-                  aria-label={`Descargar ${entry.path}`}
-                  onClick={async () => {
-                    const service = await import('@/lib/ide/downloads')
-                    service.downloadBlob(
-                      await service.folderZip(project, entry.path),
-                      `${entry.path.split('/').pop()}.zip`,
-                    )
-                  }}
-                >
-                  <Download size={13} />
-                </button>
-              )}
-              <button
-                disabled={disabled}
-                title={`Renombrar ${entry.path}`}
-                aria-label={`Renombrar ${entry.path}`}
-                onClick={() => {
-                  setForm({ kind: 'rename', path: entry.path })
-                  setName(entry.path)
-                }}
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                disabled={disabled}
-                title={`Eliminar ${entry.path}`}
-                aria-label={`Eliminar ${entry.path}`}
-                onClick={() => setForm({ kind: 'delete', path: entry.path })}
-              >
-                <Trash2 size={13} />
-              </button>
+              <details className="entry-actions" onClick={(e)=>{if((e.target as Element).closest('button'))e.currentTarget.open=false}}><summary aria-label={`Acciones de ${entry.path}`} title="Más acciones"><MoreHorizontal size={15}/></summary><div className="explorer-menu">{entry.kind==='file'&&<><button onClick={()=>onOpen(entry.path)}>Abrir</button><button onClick={()=>onOpenAside(entry.path,'right')}>Abrir a la derecha</button><button onClick={()=>onOpenAside(entry.path,'down')}>Abrir abajo</button><button onClick={()=>duplicate(entry)}><Copy size={13}/>Duplicar</button></>}{entry.kind==='folder'&&<><button onClick={()=>{onChange(p=>({...p,selectedFolder:entry.path}));setClassDestination(entry.path);setClassForm(true)}}>Nueva clase Python</button><button onClick={()=>{onChange(p=>({...p,selectedFolder:entry.path}));setForm({kind:'file'});setName('nuevo.py')}}>Nuevo archivo</button><button onClick={()=>{onChange(p=>({...p,selectedFolder:entry.path}));setForm({kind:'folder'});setName('carpeta')}}>Nueva carpeta</button></>}<button onClick={()=>{setForm({kind:'rename',path:entry.path});setName(entry.path)}}><Pencil size={13}/>Renombrar / mover</button><button onClick={()=>void downloadEntry(entry)}><Download size={13}/>Descargar{entry.kind==='folder'?' ZIP':''}</button><button onClick={()=>setForm({kind:'delete',path:entry.path})}><Trash2 size={13}/>Eliminar</button></div></details>
+              {contextPath===entry.path&&<div className="explorer-context" role="menu"><button onClick={()=>{if(entry.kind==='file')onOpen(entry.path);else onChange(p=>({...p,selectedFolder:entry.path}));setContextPath(null)}}>Abrir</button>{entry.kind==='file'&&<><button onClick={()=>{onOpenAside(entry.path,'right');setContextPath(null)}}>Abrir a la derecha</button><button onClick={()=>{onOpenAside(entry.path,'down');setContextPath(null)}}>Abrir abajo</button></>}<button onClick={()=>{setForm({kind:'rename',path:entry.path});setName(entry.path);setContextPath(null)}}>Renombrar / mover</button><button onClick={()=>{setForm({kind:'delete',path:entry.path});setContextPath(null)}}>Eliminar</button></div>}
             </li>
           ))}
       </ul>

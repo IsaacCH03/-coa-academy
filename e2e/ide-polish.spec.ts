@@ -1,0 +1,58 @@
+import path from 'node:path'
+import { expect, test } from '@playwright/test'
+
+test('writing shortcuts, class creation, layers and split editor work in Monaco', async ({ page }) => {
+  await page.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', async (route) => {
+    const relative = new URL(route.request().url()).pathname.split('/min/')[1]
+    await route.fulfill({ path: path.join(process.cwd(),'node_modules/monaco-editor/min',relative) })
+  })
+  await page.goto('/ide')
+  await page.getByRole('button',{name:'Ya sé cómo funciona',exact:true}).click()
+  await expect(page.locator('.monaco-editor')).toBeVisible({timeout:45000})
+  await expect(page.getByLabel('Atajos de escritura')).toHaveCount(0)
+
+  await page.getByRole('button',{name:'Configuración'}).click()
+  await page.getByRole('button',{name:/Atajos/}).click()
+  await page.getByLabel('Atajos de escritura').check()
+  await page.getByRole('button',{name:'Cerrar panel'}).click()
+  const shortcuts=page.locator('.ide-writing-shortcuts.desktop')
+  await expect(shortcuts).toBeVisible()
+  await page.locator('.monaco-editor textarea').first().focus()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.insertText('nombre')
+  await page.keyboard.press('Control+A')
+  await shortcuts.getByRole('button',{name:'""',exact:true}).click()
+  await expect(page.locator('.monaco-editor').first()).toContainText('"nombre"')
+
+  await page.getByRole('button',{name:'Archivos',exact:true}).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
+  await page.getByRole('button',{name:'Nueva carpeta',exact:true}).click()
+  await page.getByLabel('Nombre o ruta').fill('business')
+  await page.getByRole('button',{name:'Crear',exact:true}).click()
+  await page.getByRole('button',{name:'business',exact:true}).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
+  await page.getByRole('button',{name:'Nueva clase Python',exact:true}).click()
+  await page.getByLabel('Nombre de la clase').fill('Logic')
+  await page.getByLabel('Nombre del archivo').fill('logic.py')
+  await page.getByLabel('Crear constructor').check()
+  await page.getByRole('button',{name:'Crear clase'}).click()
+  await expect(page.getByRole('tab',{name:'py logic.py'})).toBeVisible()
+  await expect(page.locator('.monaco-editor').first()).toContainText('class Logic:')
+  await expect(page.locator('.monaco-editor').first()).toContainText('def __init__(self):')
+
+  await page.getByRole('button',{name:'Dividir a la derecha'}).click()
+  await expect(page.locator('.ide-editor-group')).toHaveCount(2)
+  await expect(page.locator('.ide-editor-split')).toHaveClass(/right/)
+  await page.getByRole('button',{name:'Cerrar división'}).click()
+  await expect(page.locator('.ide-editor-group')).toHaveCount(1)
+
+  await page.getByRole('button',{name:'Archivos',exact:true}).click()
+  await page.locator('summary[aria-label="Crear elemento"]').click()
+  await page.getByRole('button',{name:'Crear estructura por capas…'}).click()
+  await page.getByLabel('domain').check()
+  await page.getByLabel('data').check()
+  await page.getByRole('button',{name:'Crear estructura'}).click()
+  await expect(page.getByRole('button',{name:'presentation',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'domain',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'data',exact:true})).toBeVisible()
+})

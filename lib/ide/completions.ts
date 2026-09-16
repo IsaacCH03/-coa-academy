@@ -5,6 +5,7 @@ import { PythonProjectIndex, type PythonSymbol, type PythonSymbolKind } from './
 
 const configured = new WeakMap<object, IDisposable[]>()
 const intelligence = new PythonProjectIndex()
+let monacoInstance: Monaco | undefined
 let navigate: ((path: string, line: number, column: number) => void) | undefined
 let notify: ((message: string) => void) | undefined
 
@@ -35,7 +36,14 @@ export function setPythonNavigation(nextNavigate?: typeof navigate, nextNotify?:
 }
 
 export function goToPythonDefinition(model: editor.ITextModel, position: Position) {
-  const symbol = intelligence.definition(modelPath(model), position.lineNumber, model.getLineContent(position.lineNumber), position.column)
+  for (const openModel of monacoInstance?.editor.getModels() ?? []) if (openModel.getLanguageId() === 'python') intelligence.updateFile(modelPath(openModel),openModel.getValue())
+  let symbol = intelligence.definition(modelPath(model), position.lineNumber, model.getLineContent(position.lineNumber), position.column)
+  if (!symbol) {
+    const text=model.getLineContent(position.lineNumber)
+    const member=text.match(/self\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)/)
+    const className=member&&model.getValue().match(new RegExp(`self\\.${member[1]}\\s*=\\s*([A-Za-z_]\\w*)\\s*\\(`))?.[1]
+    if(member&&className) for(const candidate of monacoInstance?.editor.getModels()??[]){const lines=candidate.getValue().split(/\r?\n/),classLine=lines.findIndex(line=>new RegExp(`^\\s*class\\s+${className}\\b`).test(line));if(classLine<0)continue;const methodLine=lines.findIndex((line,index)=>index>classLine&&new RegExp(`^\\s*def\\s+${member[2]}\\s*\\(`).test(line));if(methodLine>=0){symbol={name:member[2],kind:'method',path:modelPath(candidate),line:methodLine+1,column:lines[methodLine].indexOf(member[2])+1,className};break}}
+  }
   if (!symbol || symbol.path === 'python' || symbol.path === 'coa_gui') {
     notify?.('No se encontró la definición.'); return false
   }
@@ -44,6 +52,7 @@ export function goToPythonDefinition(model: editor.ITextModel, position: Positio
 }
 
 export function configurePython(monaco: Monaco) {
+  monacoInstance = monaco
   if (configured.has(monaco)) return
   const disposables: IDisposable[] = []
   disposables.push(monaco.languages.registerCompletionItemProvider('python', {

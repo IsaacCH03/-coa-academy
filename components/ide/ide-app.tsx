@@ -1,5 +1,4 @@
 'use client'
-import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   BookOpen,
@@ -27,6 +26,7 @@ import { DiagnosticsPanel } from './diagnostics-panel'
 import { SettingsPanel } from './settings-panel'
 import { CoaGuiDialog } from './coa-gui-dialog'
 import { GeneratedCodePanel } from './generated-code-panel'
+import { EditorGroup } from './editor-group'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -52,13 +52,6 @@ import { DEFAULT_SETTINGS, accentColor, derivedColors, quickInsertion, type Appe
 import { deleteCustomBackground, loadCustomBackground, loadProfiles, loadSettings, saveCustomBackground, saveProfiles, saveSettings } from '@/lib/ide/personalization-storage'
 import { convertCoaGuiToTkinter, usesCoaGui } from '@/lib/ide/coa-gui-converter'
 
-const CodeEditor = dynamic(
-  () => import('./code-editor').then((m) => m.CodeEditor),
-  {
-    ssr: false,
-    loading: () => <p className="ide-loading">Cargando editor…</p>,
-  },
-)
 const statusLabels: Record<RuntimeState, string> = {
   loading: 'Cargando Python…',
   ready: 'Python listo',
@@ -102,6 +95,7 @@ export function IdeApp() {
   const [personalizationReady, setPersonalizationReady] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const editorRefs = useRef<Partial<Record<1 | 2, editor.IStandaloneCodeEditor>>>({})
   const monacoRef = useRef<Monaco | null>(null)
   const diagnosticsRef = useRef<CodeDiagnostic[]>([])
   const projectRef = useRef(project)
@@ -113,8 +107,9 @@ export function IdeApp() {
   const busy = state === 'running' || state === 'input' || checking
   const collapsed =
     !!project?.consoleCollapsed && state !== 'input' && !expanded
-  const source =
-    project?.entries.find((e) => e.path === project.active)?.content ?? ''
+  const activeGroup = project?.activeEditorGroup === 2 && project.splitEnabled ? 2 : 1
+  const activePath = activeGroup === 2 ? (project?.secondaryActive || project?.active || '') : (project?.active || '')
+  const source = project?.entries.find((e) => e.path === activePath)?.content ?? ''
   const allDiagnostics = useMemo(() => runtimeMarker ? [...diagnostics, runtimeMarker] : diagnostics, [diagnostics, runtimeMarker])
   useEffect(() => { projectRef.current = project }, [project])
   useEffect(() => {
@@ -245,7 +240,7 @@ export function IdeApp() {
     }
   }, [append])
   useEffect(() => {
-    if (!project?.active.endsWith('.py') || state !== 'ready') return
+    if (!project || !activePath.endsWith('.py') || state !== 'ready') return
     let active = true
     let retry: ReturnType<typeof setTimeout>
     const analyze = () => {
@@ -269,12 +264,12 @@ export function IdeApp() {
       clearTimeout(debounce)
       clearTimeout(retry)
     }
-  }, [source, project?.active, project?.entries, state])
+  }, [source, activePath, project, state])
   useEffect(() => {
     const model = editorRef.current?.getModel()
     const monaco = monacoRef.current
     if (!model || !monaco || !project) return
-    const visible = allDiagnostics.filter((item) => item.path === project.active)
+    const visible = allDiagnostics.filter((item) => item.path === activePath)
     diagnosticsRef.current = visible
     monaco.editor.setModelMarkers(model, 'coa-diagnostics', visible.map((item) => ({
       startLineNumber: item.line,
@@ -285,18 +280,21 @@ export function IdeApp() {
       severity: item.severity === 'error' ? monaco.MarkerSeverity.Error : item.severity === 'warning' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
       source: item.origin === 'runtime' ? 'Ejecución COA' : 'Diagnósticos COA',
     })))
-  }, [allDiagnostics, project])
+  }, [allDiagnostics, project, activePath])
   useEffect(() => {
     const target = pendingLocation.current
-    if (!target || target.path !== project?.active) return
+    if (!target || target.path !== activePath) return
     const frame = requestAnimationFrame(() => {
-      editorRef.current?.setPosition({ lineNumber: target.line, column: target.column })
-      editorRef.current?.revealLineInCenter(target.line)
-      editorRef.current?.focus()
+      const targetEditor = editorRefs.current[activeGroup] ?? editorRef.current
+      editorRef.current = targetEditor ?? null
+      targetEditor?.setPosition({ lineNumber: target.line, column: target.column })
+      targetEditor?.revealLineInCenter(target.line)
+      targetEditor?.focus()
+      setTimeout(()=>targetEditor?.focus(),0)
       pendingLocation.current = null
     })
     return () => cancelAnimationFrame(frame)
-  }, [project?.active])
+  }, [activePath, activeGroup])
   useEffect(() => {
     const fix = pendingFix.current
     if (!fix) return
@@ -311,7 +309,7 @@ export function IdeApp() {
       ed.focus()
     })
     return () => cancelAnimationFrame(frame)
-  }, [project?.active])
+  }, [activePath])
   function dismissWelcome() {
     setWelcome(false)
     try {
@@ -322,7 +320,7 @@ export function IdeApp() {
   }
   const run = useCallback(async () => {
     if (!project || busy || state !== 'ready') return
-    if (!project.active.endsWith('.py')) {
+    if (!activePath.endsWith('.py')) {
       report('Selecciona un archivo .py para ejecutar.')
       return
     }
@@ -330,11 +328,11 @@ export function IdeApp() {
     setRuntimeDiagnostic(null)
     setRuntimeMarker(null)
     setGuiPreview(null)
-    setOutput(`❯ ${project.active}\n`)
+    setOutput(`❯ ${activePath}\n`)
     setNotice('')
     try {
       await save()
-      const result = await runtime.current!.run(project)
+      const result = await runtime.current!.run({ ...project, active: activePath })
       setGuiPreview(result.gui ?? null)
       if (result.entries) {
         validateEntries(result.entries)
@@ -346,7 +344,7 @@ export function IdeApp() {
     } catch (e) {
       report((e as Error).message)
     }
-  }, [project, busy, state, report, save, update, append])
+  }, [project, activePath, busy, state, report, save, update, append])
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return
@@ -369,16 +367,18 @@ export function IdeApp() {
     )
   }
   function open(path: string) {
-    update((p) => ({
-      ...p,
-      active: path,
-      tabs: [...new Set([...p.tabs, path])],
-    }))
+    update((p) => p.activeEditorGroup === 2 && p.splitEnabled ? { ...p, secondaryActive: path, secondaryTabs: [...new Set([...(p.secondaryTabs ?? []), path])] } : { ...p, active: path, tabs: [...new Set([...p.tabs, path])] })
     if (window.innerWidth < 768) setPanel(null)
   }
-  function closeTab(path: string) {
+  function openAside(path: string, orientation: 'right' | 'down' = 'right') {
+    if (window.innerWidth < 768) { report('Split Editor está disponible en pantallas más grandes.'); open(path); return }
+    update((p) => ({ ...p, splitEnabled: true, splitOrientation: orientation, activeEditorGroup: 2, secondaryActive: path, secondaryTabs: [...new Set([...(p.secondaryTabs ?? []), path])] }))
+    setPanel(null)
+  }
+  function closeTab(path: string, group: 1 | 2 = activeGroup) {
     update((p) => {
-      const tabs = p.tabs.filter((t) => t !== path)
+      const tabs = (group === 1 ? p.tabs : (p.secondaryTabs ?? [])).filter((t) => t !== path)
+      if (group === 2) return { ...p, secondaryTabs: tabs, secondaryActive: p.secondaryActive === path ? (tabs[0] ?? '') : p.secondaryActive, splitEnabled: tabs.length > 0, activeEditorGroup: tabs.length ? p.activeEditorGroup : 1 }
       return {
         ...p,
         tabs,
@@ -386,9 +386,12 @@ export function IdeApp() {
       }
     })
   }
+  function closeSplit() {
+    update((p) => ({ ...p, tabs: [...new Set([...p.tabs, ...(p.secondaryTabs ?? [])])], splitEnabled: false, activeEditorGroup: 1, secondaryActive: '', secondaryTabs: [] }))
+  }
   function insert(code: string) {
     const ed = editorRef.current
-    if (busy || !project?.active.endsWith('.py')) {
+    if (busy || !activePath.endsWith('.py')) {
       report('Abre un archivo .py para agregar código.')
       return
     }
@@ -414,10 +417,23 @@ export function IdeApp() {
       if (next) ed.setPosition(next)
     } else if (action === 'Tab' || action === 'Desindentar') {
       ed.trigger('coa-mobile', action === 'Tab' ? 'tab' : 'outdent', null)
+    } else if (action === 'Enter') {
+      ed.trigger('coa-shortcuts', 'type', { text: '\n' })
+    } else if (action === 'Backspace') {
+      ed.trigger('coa-shortcuts', 'deleteLeft', null)
     } else {
-      const value = quickInsertion(action)
-      ed.trigger('coa-mobile', 'type', { text: value.text })
-      if (value.cursorBack) ed.trigger('coa-mobile', 'cursorLeft', null)
+      const pairs: Partial<Record<QuickAction, [string, string]>> = { '()':['(',')'], '[]':['[',']'], '{}':['{','}'], '""':['"','"'], "''":["'","'"] }
+      const selection = ed.getSelection()
+      const pair = pairs[action]
+      if (pair && selection) {
+        const selected = ed.getModel()?.getValueInRange(selection) ?? ''
+        ed.executeEdits('coa-shortcuts', [{ range: selection, text: `${pair[0]}${selected}${pair[1]}` }])
+        if (!selected) ed.trigger('coa-shortcuts', 'cursorLeft', null)
+      } else {
+        const value = quickInsertion(action)
+        ed.trigger('coa-shortcuts', 'type', { text: value.text })
+        if (value.cursorBack) ed.trigger('coa-shortcuts', 'cursorLeft', null)
+      }
     }
     ed.focus()
   }
@@ -430,10 +446,10 @@ export function IdeApp() {
       }),
     }))
     const first = changes[0]?.path
-    if (first && first !== project?.active) open(first)
+    if (first && first !== activePath) open(first)
   }
   function applyDiagnosticFix(item: CodeDiagnostic, fix: DiagnosticFix) {
-    if (item.path && item.path !== project?.active) {
+    if (item.path && item.path !== activePath) {
       pendingFix.current = fix
       open(item.path)
       return
@@ -480,7 +496,7 @@ export function IdeApp() {
       else
         service.downloadBlob(
           new Blob([source], { type: 'text/plain;charset=utf-8' }),
-          project.active.split('/').pop() || 'main.py',
+          activePath.split('/').pop() || 'main.py',
         )
     } catch {
       report('No se pudo descargar. Inténtalo de nuevo.')
@@ -500,7 +516,7 @@ export function IdeApp() {
   }
   async function check(e: Exercise) {
     if (!project || state !== 'ready' || busy) return
-    if (!project.active.endsWith('.py')) {
+    if (!activePath.endsWith('.py')) {
       report('Selecciona el archivo Python de tu ejercicio.')
       return
     }
@@ -508,12 +524,12 @@ export function IdeApp() {
     setResults([])
     setPythonError('')
     cancelTests.current = false
-    setOutput(`Comprobando ${project.active} · ${e.title}\n`)
+    setOutput(`Comprobando ${activePath} · ${e.title}\n`)
     try {
       for (const [index, test] of e.tests.entries()) {
         if (cancelTests.current) break
         append(`\nCaso ${index + 1}\n`)
-        const result = await runtime.current!.run(project, test.inputs)
+        const result = await runtime.current!.run({ ...project, active: activePath }, test.inputs)
         setResults((r) => [
           ...r,
           result.ok && matchesOutput(result.output, test.expected),
@@ -524,6 +540,33 @@ export function IdeApp() {
     } finally {
       setChecking(false)
     }
+  }
+  function activateEditor(group: 1 | 2) {
+    editorRef.current = editorRefs.current[group] ?? null
+    update((p) => ({ ...p, activeEditorGroup: group }))
+    setMobileFocused(true)
+  }
+  function mountEditor(group: 1 | 2, ed: editor.IStandaloneCodeEditor, monaco: Monaco) {
+    editorRefs.current[group] = ed
+    if (group === activeGroup) editorRef.current = ed
+    monacoRef.current = monaco
+    if (!codeActions.current) codeActions.current = monaco.languages.registerCodeActionProvider('python', {
+      provideCodeActions(model, range) {
+        const fixes = diagnosticsRef.current.filter((item) => item.fix && item.line <= range.endLineNumber && item.endLine >= range.startLineNumber)
+        return { actions: fixes.map((item) => ({ title: `💡 ${item.fix!.title}`, kind: 'quickfix', isPreferred: true, edit: { edits: [{ resource: model.uri, textEdit: { range: { startLineNumber: item.fix!.startLine, startColumn: item.fix!.startColumn, endLineNumber: item.fix!.endLine, endColumn: item.fix!.endColumn }, text: item.fix!.text }, versionId: model.getVersionId() }] } })), dispose() {} }
+      },
+    })
+    ed.onDidChangeCursorPosition(({ position }) => { if (editorRef.current === ed) setCursor({ source: ed.getValue(), offset: ed.getModel()?.getOffsetAt(position) ?? 0 }) })
+  }
+  function navigateDefinition(path: string, line: number, column: number) {
+    const secondHasFile = project?.splitEnabled && (project.secondaryTabs ?? []).includes(path)
+    const group: 1 | 2 = secondHasFile ? 2 : 1
+    pendingLocation.current = { path, line, column }
+    if (group === activeGroup && activePath === path) {
+      requestAnimationFrame(()=>{const ed=editorRefs.current[group];editorRef.current=ed??null;ed?.setPosition({lineNumber:line,column});ed?.revealLineInCenter(line);ed?.focus();pendingLocation.current=null})
+      return
+    }
+    update((p) => group === 2 ? { ...p, activeEditorGroup: 2, secondaryActive: path } : { ...p, activeEditorGroup: 1, active: path, tabs: [...new Set([...p.tabs, path])] })
   }
   function resize(clientY: number) {
     const bounds = area.current?.getBoundingClientRect()
@@ -552,8 +595,8 @@ export function IdeApp() {
       {settings.background !== 'none' && <div className="ide-background" aria-hidden="true" />}
       {settings.background !== 'none' && <div className="ide-background-overlay" aria-hidden="true" />}
       <Toolbar
-        active={project.active}
-        canRun={state === 'ready' && project.active.endsWith('.py')}
+        active={activePath}
+        canRun={state === 'ready' && activePath.endsWith('.py')}
         busy={busy}
         canStop={['loading', 'running', 'input'].includes(state)}
         onRun={() => void run()}
@@ -640,7 +683,7 @@ export function IdeApp() {
                   cursorOffset={cursor.source === source ? cursor.offset : source.length}
                   onAnalyze={analyzeBuilder}
                   entries={project.entries}
-                  activePath={project.active}
+                  activePath={activePath}
                   onApplyChanges={applyBuilderChanges}
                   mode={project.helpMode}
                   onMode={(helpMode) => update((p) => ({ ...p, helpMode }))}
@@ -652,7 +695,7 @@ export function IdeApp() {
                       ? []
                       : educationalHints(source, pythonError)
                   }
-                  disabled={busy || !project.active.endsWith('.py')}
+                  disabled={busy || !activePath.endsWith('.py')}
                 />
               )}
               {panel === 'files' && (
@@ -660,6 +703,7 @@ export function IdeApp() {
                   project={project}
                   onChange={update}
                   onOpen={open}
+                  onOpenAside={openAside}
                   onError={report}
                   onNew={() => setReplacement(newProject())}
                   disabled={busy}
@@ -728,154 +772,17 @@ export function IdeApp() {
         <div
           className="ide-editor-area"
           ref={area}
-          style={{ display: panel === 'designer' ? 'none' : undefined }}
+          style={{
+            display: panel === 'designer' ? 'none' : undefined,
+            '--console-height': `${collapsed || expanded ? 0 : project.consoleHeight}px`,
+          } as CSSProperties}
         >
-          <div
-            className="ide-tabs"
-            role="tablist"
-            aria-label="Archivos abiertos"
-          >
-            {!panel && (
-              <button
-                title="Abrir explorador"
-                aria-label="Abrir explorador"
-                onClick={() => setPanel('files')}
-              >
-                <PanelLeftOpen size={17} />
-              </button>
-            )}
-            {project.tabs.map((path) => (
-              <div
-                className={
-                  'ide-tab ' + (path === project.active ? 'active' : '')
-                }
-                key={path}
-              >
-                <button
-                  role="tab"
-                  aria-selected={path === project.active}
-                  onClick={() => open(path)}
-                >
-                  <span className="ide-py">
-                    {path.endsWith('.py') ? 'py' : '·'}
-                  </span>
-                  {path.split('/').pop()}
-                </button>
-                <button
-                  aria-label={`Cerrar ${path}`}
-                  title={`Cerrar ${path}`}
-                  onClick={() => closeTab(path)}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
+          <div className="ide-split-toolbar"><button aria-label="Abrir explorador" title="Abrir explorador" onClick={()=>setPanel('files')}><PanelLeftOpen size={16}/></button><button onClick={()=>openAside(activePath,'right')}>Dividir a la derecha</button><button onClick={()=>openAside(activePath,'down')}>Dividir abajo</button>{project.splitEnabled&&<button onClick={closeSplit}>Cerrar división</button>}</div>
+          <div className={`ide-editor-split ${project.splitEnabled ? `active ${project.splitOrientation}` : ''}`} style={{ display: expanded ? 'none' : undefined, '--split-ratio': `${project.splitRatio ?? 50}%` } as CSSProperties}>
+            <EditorGroup group={1} path={project.active} tabs={project.tabs} entries={project.entries} readOnly={busy} settings={settings} onActivate={()=>activateEditor(1)} onOpen={(path)=>{update(p=>({...p,active:path,activeEditorGroup:1}));}} onClose={(path)=>closeTab(path,1)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(1,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/>
+            {project.splitEnabled&&<><div className="ide-split-divider" role="separator" aria-label="Redimensionar editores" tabIndex={0} onPointerDown={(e)=>e.currentTarget.setPointerCapture(e.pointerId)} onPointerMove={(e)=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const box=e.currentTarget.parentElement?.getBoundingClientRect();if(!box)return;const ratio=project.splitOrientation==='down'?(e.clientY-box.top)/box.height*100:(e.clientX-box.left)/box.width*100;update(p=>({...p,splitRatio:Math.min(75,Math.max(25,Math.round(ratio)))}));editorRefs.current[1]?.layout();editorRefs.current[2]?.layout()}}/><EditorGroup group={2} path={project.secondaryActive ?? ''} tabs={project.secondaryTabs ?? []} entries={project.entries} readOnly={busy} settings={settings} onActivate={()=>activateEditor(2)} onOpen={(path)=>update(p=>({...p,secondaryActive:path,activeEditorGroup:2}))} onClose={(path)=>closeTab(path,2)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(2,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/></>}
           </div>
-          <div
-            className="ide-editor"
-            style={{ display: expanded ? 'none' : undefined }}
-          >
-            {project.active ? (
-              <CodeEditor
-                path={project.active}
-                content={source}
-                readOnly={busy}
-                settings={settings}
-                entries={project.entries}
-                onNotice={report}
-                onNavigate={(path, line, column) => {
-                  pendingLocation.current = { path, line, column }
-                  if (path !== project.active) open(path)
-                  else {
-                    const ed = editorRef.current
-                    ed?.setPosition({ lineNumber: line, column })
-                    ed?.revealLineInCenter(line)
-                    ed?.focus()
-                    pendingLocation.current = null
-                  }
-                }}
-                onFocus={() => setMobileFocused(true)}
-                onChange={(content) =>
-                  {
-                    setRuntimeMarker(null)
-                    setRuntimeDiagnostic(null)
-                    update((p) => ({
-                      ...p,
-                      entries: p.entries.map((e) =>
-                        e.path === p.active ? { ...e, content } : e,
-                      ),
-                    }))
-                  }
-                }
-                onMount={(ed, monaco) => {
-                  editorRef.current = ed
-                  monacoRef.current = monaco
-                  codeActions.current?.dispose()
-                  codeActions.current = monaco.languages.registerCodeActionProvider(
-                    'python',
-                    {
-                      provideCodeActions(model, range) {
-                        const fixes = diagnosticsRef.current.filter(
-                          (item) =>
-                            item.fix &&
-                            item.line <= range.endLineNumber &&
-                            item.endLine >= range.startLineNumber,
-                        )
-                        return {
-                          actions: fixes.map((item) => ({
-                            title: `💡 ${item.fix!.title}`,
-                            kind: 'quickfix',
-                            isPreferred: true,
-                            edit: {
-                              edits: [
-                                {
-                                  resource: model.uri,
-                                  textEdit: {
-                                    range: {
-                                      startLineNumber: item.fix!.startLine,
-                                      startColumn: item.fix!.startColumn,
-                                      endLineNumber: item.fix!.endLine,
-                                      endColumn: item.fix!.endColumn,
-                                    },
-                                    text: item.fix!.text,
-                                  },
-                                  versionId: model.getVersionId(),
-                                },
-                              ],
-                            },
-                          })),
-                          dispose() {},
-                        }
-                      },
-                    },
-                  )
-                  const position = ed.getPosition()
-                  if (position)
-                    setCursor({
-                      source: ed.getValue(),
-                      offset: ed.getModel()?.getOffsetAt(position) ?? 0,
-                    })
-                  ed.onDidChangeCursorPosition(({ position: next }) =>
-                    setCursor({
-                      source: ed.getValue(),
-                      offset: ed.getModel()?.getOffsetAt(next) ?? 0,
-                    }),
-                  )
-                }}
-              />
-            ) : (
-              <div className="ide-empty">
-                <Files size={32} />
-                <h2>Tu próxima idea empieza aquí</h2>
-                <p>Crea un archivo o abre uno desde el explorador.</p>
-                <button
-                  className="ide-primary"
-                  onClick={() => setPanel('files')}
-                >
-                  Abrir archivos
-                </button>
-              </div>
-            )}
+          <div className="ide-editor-overlay">
             {guiPreview && (
               <CoaGuiPreview
                 preview={guiPreview}
@@ -894,6 +801,7 @@ export function IdeApp() {
             )}
           </div>
           {tkinterCode && <GeneratedCodePanel code={tkinterCode} title="CÓDIGO TKINTER GENERADO" testId="editor-tkinter-code" onClose={() => setTkinterCode('')} />}
+          {settings.writingShortcuts && settings.shortcutVisibility !== 'mobile' && !expanded && <div className="ide-writing-shortcuts desktop" aria-label="Atajos de escritura">{settings.quickBar.slice(0,settings.shortcutCount).map((action)=><button key={action} onPointerDown={(e)=>e.preventDefault()} onClick={()=>quickAction(action)}>{action}</button>)}</div>}
           {!expanded && !collapsed && (
             <div
               className="ide-separator"
@@ -968,7 +876,7 @@ export function IdeApp() {
           </div>
         </div>
       </div>
-      {mobileFocused && <div className="ide-quickbar" aria-label="Barra rápida de programación">{focusMode && <button className="focus-exit" onClick={() => setFocusDismissed(true)}>Salir de enfoque</button>}{settings.quickBar.map((action) => <button key={action} onPointerDown={(e) => e.preventDefault()} onClick={() => quickAction(action)}>{action}</button>)}</div>}
+      {mobileFocused && settings.writingShortcuts && settings.shortcutVisibility !== 'desktop' && <div className="ide-quickbar" aria-label="Barra rápida de programación">{focusMode && <button className="focus-exit" onClick={() => setFocusDismissed(true)}>Salir de enfoque</button>}{settings.quickBar.slice(0,settings.shortcutCount).map((action) => <button key={action} onPointerDown={(e) => e.preventDefault()} onClick={() => quickAction(action)}>{action}</button>)}</div>}
       <footer className="ide-status">
         <span>
           <Circle

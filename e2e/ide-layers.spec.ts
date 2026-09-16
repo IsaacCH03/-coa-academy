@@ -12,6 +12,7 @@ async function start(page: Page) {
   await expect(page.getByText('Python listo', { exact: true })).toBeVisible({ timeout: 100000 })
 }
 async function createFile(page: Page, path: string) {
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: 'Nuevo archivo' }).click()
   await page.getByLabel('Nombre o ruta', { exact: true }).fill(path)
   await page.getByRole('button', { name: 'Crear', exact: true }).click()

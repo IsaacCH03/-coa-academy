@@ -7,6 +7,7 @@ async function edit(page: Page, code: string) {
 }
 
 async function create(page: Page, kind: 'archivo' | 'carpeta', name: string) {
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: kind === 'archivo' ? 'Nuevo archivo' : 'Nueva carpeta' }).click()
   await page.getByLabel('Nombre o ruta', { exact: true }).fill(name)
   await page.getByRole('button', { name: 'Crear', exact: true }).click()

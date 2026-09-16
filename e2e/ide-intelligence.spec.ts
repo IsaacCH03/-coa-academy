@@ -2,12 +2,13 @@ import { expect, test, type Page } from '@playwright/test'
 import path from 'node:path'
 
 async function edit(page: Page, code: string) {
-  await page.locator('.monaco-editor textarea').focus()
+  await page.locator('.monaco-editor textarea').first().focus()
   await page.keyboard.press('Control+A')
   await page.keyboard.insertText(code)
 }
 
 async function createFile(page: Page, path: string, code: string) {
+  await page.locator('summary[aria-label="Crear elemento"]').click()
   await page.getByRole('button', { name: 'Nuevo archivo', exact: true }).click()
   await page.getByLabel('Nombre o ruta', { exact: true }).fill(path)
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
@@ -80,6 +81,12 @@ class Controller:
   await expect(suggestions).toContainText('limpiarCampos')
   await page.keyboard.press('Escape')
 
+  const businessFolder = page.getByRole('button', { name: 'business', exact: true })
+  if (!await businessFolder.isVisible()) await page.getByRole('button', { name: 'Archivos', exact: true }).click()
+  if (await businessFolder.getAttribute('aria-expanded') === 'false') await businessFolder.click()
+  await page.locator('summary[aria-label="Acciones de business/logic.py"]').click()
+  await page.getByRole('button', { name: 'Abrir a la derecha', exact: true }).click()
+  await page.locator('.ide-editor-group[data-group="1"]').getByRole('tab', { name: 'py controller.py' }).click()
   await edit(page, `from business.logic import Logic
 logic = Logic()
 logic.`)
@@ -113,6 +120,6 @@ class Controller:
         self.logic.saludar`)
   await page.waitForTimeout(500)
   await page.keyboard.press('Control+B')
-  await expect(page.getByRole('tab', { name: 'py logic.py' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('.monaco-editor')).toContainText('def saludar(self, nombre):')
+  await expect(page.locator('.ide-editor-group[data-group="2"]')).toContainText('def saludar(self, nombre):')
+  await expect(page.locator('.ide-editor-group[data-group="2"] .line-numbers.active-line-number')).toContainText('2')
 })
