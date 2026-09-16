@@ -754,6 +754,19 @@ export function IdeApp() {
                 content={source}
                 readOnly={busy}
                 settings={settings}
+                entries={project.entries}
+                onNotice={report}
+                onNavigate={(path, line, column) => {
+                  pendingLocation.current = { path, line, column }
+                  if (path !== project.active) open(path)
+                  else {
+                    const ed = editorRef.current
+                    ed?.setPosition({ lineNumber: line, column })
+                    ed?.revealLineInCenter(line)
+                    ed?.focus()
+                    pendingLocation.current = null
+                  }
+                }}
                 onFocus={() => setMobileFocused(true)}
                 onChange={(content) =>
                   {

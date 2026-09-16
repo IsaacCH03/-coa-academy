@@ -2,8 +2,9 @@
 import Editor, { loader, type Monaco, type OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { configurePython } from '@/lib/ide/completions'
+import { configurePython, goToPythonDefinition, setPythonNavigation, updatePythonProject } from '@/lib/ide/completions'
 import { accentColor, derivedColors, type StudioSettings } from '@/lib/ide/personalization'
+import type { ProjectEntry } from '@/lib/ide/project'
 
 loader.config({
   paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
@@ -17,6 +18,9 @@ export function CodeEditor({
   readOnly,
   settings,
   onFocus,
+  entries,
+  onNavigate,
+  onNotice,
 }: {
   path: string
   content: string
@@ -25,6 +29,9 @@ export function CodeEditor({
   readOnly: boolean
   settings: StudioSettings
   onFocus: () => void
+  entries: ProjectEntry[]
+  onNavigate: (path: string, line: number, column: number) => void
+  onNotice: (message: string) => void
 }) {
   const [failed, setFailed] = useState(false)
   const monacoRef = useRef<Monaco | null>(null)
@@ -47,6 +54,12 @@ export function CodeEditor({
         { token: 'comment', foreground: light ? '708090' : '8294AA', fontStyle: 'italic' },
         { token: 'type.identifier', foreground: light ? '267F99' : '78DCE8' },
         { token: 'identifier', foreground: light ? '202020' : palette.text.slice(1) },
+        { token: 'class', foreground: light ? '267F99' : '78DCE8', fontStyle: 'bold' },
+        { token: 'function', foreground: light ? '795E26' : 'A9DC76' },
+        { token: 'method', foreground: light ? '795E26' : settings.style === 'cmd' ? '55FF55' : 'FFD866' },
+        { token: 'property', foreground: light ? '001080' : 'FC9867' },
+        { token: 'parameter', foreground: light ? '9C6500' : 'FFB86C' },
+        { token: 'module', foreground: light ? '267F99' : '66D9EF' },
         { token: 'delimiter', foreground: light ? '333333' : 'D8DEE9' },
       ],
       colors: {
@@ -70,6 +83,14 @@ export function CodeEditor({
     if (monacoRef.current) applyMonacoTheme(monacoRef.current)
     // All visual dependencies are represented by this unique theme name and transparency values.
   }, [applyMonacoTheme])
+  useEffect(() => {
+    const timeout = setTimeout(() => updatePythonProject(entries), 280)
+    return () => clearTimeout(timeout)
+  }, [entries])
+  useEffect(() => {
+    setPythonNavigation(onNavigate, onNotice)
+    return () => setPythonNavigation()
+  }, [onNavigate, onNotice])
   useEffect(() => {
     let active = true
     const timeout = setTimeout(() => {
@@ -124,6 +145,10 @@ export function CodeEditor({
         monacoRef.current = monaco
         applyMonacoTheme(monaco)
         editor.onDidFocusEditorText(onFocus)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+          const model = editor.getModel(), position = editor.getPosition()
+          if (model && position) goToPythonDefinition(model, position)
+        })
         onMount(editor, monaco)
       }}
       beforeMount={(monaco) => {
