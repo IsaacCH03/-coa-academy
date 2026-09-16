@@ -24,7 +24,7 @@ export function saveProfiles(profiles: AppearanceProfile[]) {
 async function database() {
   return openDB('coa-studio-personalization', 1, { upgrade(db) { db.createObjectStore('assets') } })
 }
-export async function saveCustomBackground(file: File) {
+export async function saveCustomBackground(file: Blob) {
   const db = await database()
   const id = `background-${crypto.randomUUID()}`
   await db.put('assets', file, id)

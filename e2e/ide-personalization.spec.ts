@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import path from 'node:path'
 
 async function openStudio(page: import('@playwright/test').Page) {
   await page.goto('/ide')
@@ -220,7 +221,14 @@ test('CMD is black while OnlineGDB keeps cyan navigation, gray Monaco and white 
 })
 
 test('profiles keep independent GIF assets and restore the correct one', async ({ page }) => {
-  await openStudio(page)
+  await page.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', async (route) => {
+    const relative = new URL(route.request().url()).pathname.split('/min/')[1]
+    await route.fulfill({ path: path.join(process.cwd(), 'node_modules/monaco-editor/min', relative) })
+  })
+  await page.goto('/ide')
+  const start = page.getByRole('button', { name: 'Comenzar', exact: true })
+  if (await start.isVisible()) await start.click()
+  await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 45000 })
   await page.getByRole('button', { name: 'Configuración' }).click()
   await page.getByRole('button', { name: /Fondos/ }).click()
   const upload = page.locator('input[type=file][accept*="image/gif"]')
@@ -228,11 +236,13 @@ test('profiles keep independent GIF assets and restore the correct one', async (
   await page.getByRole('button', { name: /Perfiles/ }).click()
   await page.getByLabel('Nombre', { exact: true }).fill('Perfil GIF 1')
   await page.getByRole('button', { name: 'Guardar perfil' }).click()
+  await expect(page.locator('.profile-row')).toHaveCount(1)
   await page.getByRole('button', { name: /Fondos/ }).click()
   await upload.setInputFiles({ name: 'dos.gif', mimeType: 'image/gif', buffer: Buffer.from('4749463839610202', 'hex') })
   await page.getByRole('button', { name: /Perfiles/ }).click()
   await page.getByLabel('Nombre', { exact: true }).fill('Perfil GIF 2')
   await page.getByRole('button', { name: 'Guardar perfil' }).click()
+  await expect(page.locator('.profile-row')).toHaveCount(2)
   const ids = await page.evaluate(() => JSON.parse(localStorage.getItem('coa-studio-profiles-v1')!).map((profile: { settings: { customBackgroundId: string } }) => profile.settings.customBackgroundId))
   expect(ids).toHaveLength(2)
   expect(ids[0]).not.toBe(ids[1])
@@ -240,6 +250,13 @@ test('profiles keep independent GIF assets and restore the correct one', async (
   await page.locator('.profile-row').nth(0).getByRole('button', { name: 'Aplicar' }).click()
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('coa-studio-settings-v1')!).customBackgroundId)).toBe(ids[0])
   await expect.poll(() => page.locator('.coa-ide').evaluate((node) => getComputedStyle(node).getPropertyValue('--custom-background'))).not.toBe(secondUrl)
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  await page.getByRole('button', { name: 'Quitar imagen' }).click()
+  await page.getByRole('button', { name: /Perfiles/ }).click()
+  await page.locator('.profile-row').nth(0).getByRole('button', { name: 'Aplicar' }).click()
+  await page.getByRole('button', { name: /Fondos/ }).click()
+  await expect(page.getByRole('img', { name: 'Vista previa del fondo personalizado' })).toBeVisible()
+  await expect(page.getByText('El fondo personalizado de este perfil ya no está disponible.')).toBeHidden()
 })
 
 test('COA logo uses the larger toolbar size and dedicated mobile icon', async ({ page }) => {

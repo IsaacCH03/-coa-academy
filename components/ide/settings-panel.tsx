@@ -6,11 +6,13 @@ import { DEFAULT_QUICK_BAR, QUICK_ACTIONS, type AppearanceProfile, type StudioSe
 type Section = 'appearance' | 'background' | 'dialogs' | 'editor' | 'mobile' | 'accessibility' | 'profiles' | 'reset'
 const sectionNames: Record<Section, string> = { appearance: '🎨 Apariencia', background: '🖼 Fondos', dialogs: '▣ Ventanas', editor: '✍ Editor', mobile: '📱 Móvil', accessibility: '♿ Accesibilidad', profiles: '💾 Perfiles', reset: '↻ Restablecer' }
 
-export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChange, onProfiles, onImage, onRemoveImage, onReset, onPreviewDialog, notice }: {
+export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChange, onProfiles, onSaveProfile, onDeleteProfile, onImage, onRemoveImage, onReset, onPreviewDialog, notice }: {
   settings: StudioSettings
   profiles: AppearanceProfile[]
   onChange: (settings: StudioSettings) => void
   onProfiles: (profiles: AppearanceProfile[]) => void
+  onSaveProfile: (name: string) => Promise<boolean>
+  onDeleteProfile: (profile: AppearanceProfile) => Promise<void>
   onImage: (file: File) => Promise<string>
   onRemoveImage: () => Promise<void>
   customBackgroundUrl: string
@@ -20,6 +22,7 @@ export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChang
 }) {
   const [section, setSection] = useState<Section>('appearance')
   const [profileName, setProfileName] = useState('Mi Setup')
+  const [profileSaving, setProfileSaving] = useState(false)
   const upload = useRef<HTMLInputElement>(null)
   const set = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => onChange({ ...settings, [key]: value })
   const move = (index: number, amount: number) => {
@@ -64,7 +67,7 @@ export function SettingsPanel({ settings, profiles, customBackgroundUrl, onChang
     </div>}
     {section === 'mobile' && <div className="settings-section"><label className="ide-check"><input type="checkbox" checked={settings.mobileFocus} onChange={(e)=>set('mobileFocus',e.target.checked)}/>Modo enfoque al escribir</label><h3>Barra rápida</h3><label className="ide-field">Agregar atajo<select value="" onChange={(e)=>{if(e.target.value && !settings.quickBar.includes(e.target.value as never)) set('quickBar',[...settings.quickBar,e.target.value as never])}}><option value="">Elegir…</option>{QUICK_ACTIONS.map(a=><option key={a}>{a}</option>)}</select></label><ol className="quick-order">{settings.quickBar.map((a,i)=><li key={a}><span>{a}</span><button aria-label={`Subir ${a}`} onClick={()=>move(i,-1)}><ChevronUp size={14}/></button><button aria-label={`Bajar ${a}`} onClick={()=>move(i,1)}><ChevronDown size={14}/></button><button aria-label={`Quitar ${a}`} onClick={()=>set('quickBar',settings.quickBar.filter(x=>x!==a))}><Trash2 size={14}/></button></li>)}</ol><button onClick={()=>set('quickBar',[...DEFAULT_QUICK_BAR])}>Restaurar barra predeterminada</button></div>}
     {section === 'accessibility' && <div className="settings-section"><label className="ide-check"><input type="checkbox" checked={settings.reduceMotion} onChange={(e)=>set('reduceMotion',e.target.checked)}/>Reducir movimiento</label><label className="ide-check"><input type="checkbox" checked={settings.highContrast} onChange={(e)=>set('highContrast',e.target.checked)}/>Mayor contraste</label><label className="ide-field">Tamaño de interfaz<select value={settings.density} onChange={(e)=>set('density',e.target.value as StudioSettings['density'])}><option value="compact">Compacto</option><option value="normal">Normal</option><option value="large">Grande</option></select></label></div>}
-    {section === 'profiles' && <div className="settings-section"><label className="ide-field">Nombre<input value={profileName} onChange={(e)=>setProfileName(e.target.value)}/></label><button className="ide-primary" onClick={()=>{const name=profileName.trim();if(!name)return;onProfiles([...profiles,{id:crypto.randomUUID(),name,settings:{...settings,quickBar:[...settings.quickBar]}}])}}>Guardar perfil</button>{profiles.map(p=><div className="profile-row" key={p.id}><input aria-label={`Nombre de ${p.name}`} value={p.name} onChange={(e)=>onProfiles(profiles.map(x=>x.id===p.id?{...x,name:e.target.value}:x))}/><button onClick={()=>onChange(p.settings)}>Aplicar</button><button aria-label={`Eliminar ${p.name}`} onClick={()=>onProfiles(profiles.filter(x=>x.id!==p.id))}><Trash2 size={14}/></button></div>)}</div>}
+    {section === 'profiles' && <div className="settings-section"><label className="ide-field">Nombre<input value={profileName} onChange={(e)=>setProfileName(e.target.value)}/></label><button className="ide-primary" disabled={profileSaving} onClick={async()=>{const name=profileName.trim();if(!name)return;setProfileSaving(true);try{await onSaveProfile(name)}finally{setProfileSaving(false)}}}>{profileSaving?'Guardando perfil…':'Guardar perfil'}</button>{profiles.map(p=><div className="profile-row" key={p.id}><input aria-label={`Nombre de ${p.name}`} value={p.name} onChange={(e)=>onProfiles(profiles.map(x=>x.id===p.id?{...x,name:e.target.value}:x))}/><button onClick={()=>onChange({...p.settings,quickBar:[...p.settings.quickBar]})}>Aplicar</button><button aria-label={`Eliminar ${p.name}`} onClick={()=>void onDeleteProfile(p)}><Trash2 size={14}/></button></div>)}</div>}
     {section === 'reset' && <div className="settings-section"><p>Restaura únicamente la apariencia, editor, móvil y accesibilidad. Tus proyectos y archivos permanecen intactos.</p><button className="ide-danger" onClick={onReset}>Restaurar configuración predeterminada</button></div>}
   </section>
 }

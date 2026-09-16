@@ -163,6 +163,33 @@ export function IdeApp() {
     [],
   )
   const report = useCallback((message: string) => setNotice(message), [])
+  async function saveAppearanceProfile(name: string) {
+    let snapshot: StudioSettings = { ...settings, quickBar: [...settings.quickBar] }
+    if (snapshot.background === 'custom') {
+      const blob = await loadCustomBackground(snapshot.customBackgroundId)
+      if (!blob) {
+        report('Vuelve a subir el GIF antes de guardar este perfil; el archivo anterior ya no está disponible.')
+        return false
+      }
+      snapshot = { ...snapshot, customBackgroundId: await saveCustomBackground(blob) }
+    }
+    setProfiles((current) => [...current, { id: crypto.randomUUID(), name, settings: snapshot }])
+    return true
+  }
+  async function deleteAppearanceProfile(profile: AppearanceProfile) {
+    const remaining = profiles.filter((item) => item.id !== profile.id)
+    setProfiles(remaining)
+    const assetId = profile.settings.customBackgroundId
+    const stillUsed = settings.customBackgroundId === assetId || remaining.some((item) => item.settings.customBackgroundId === assetId)
+    if (assetId && !stillUsed) await deleteCustomBackground(assetId)
+  }
+  async function removeCurrentBackground() {
+    if (backgroundUrl) URL.revokeObjectURL(backgroundUrl)
+    setBackgroundUrl('')
+    const assetId = settings.customBackgroundId
+    const usedByProfile = profiles.some((profile) => profile.settings.customBackgroundId === assetId)
+    if (assetId && !usedByProfile) await deleteCustomBackground(assetId)
+  }
   const analyzeBuilder = useCallback(
     (code: string, offset: number) =>
       runtime.current!.analyzeBuilder(code, offset),
@@ -640,7 +667,7 @@ export function IdeApp() {
                   themedIcons={settings.style === 'eclipse'}
                 />
               )}
-              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} notice={report} onImage={saveCustomBackground} onRemoveImage={async()=>{if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);setBackgroundUrl('');await deleteCustomBackground(settings.customBackgroundId)}} onPreviewDialog={() => setPreviewDialog({kind:'showinfo',title:'Información',message:'Así se verán las ventanas emergentes de COA GUI.'})} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}); setBackgroundUrl(''); void deleteCustomBackground(settings.customBackgroundId) }} />}
+              {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} onSaveProfile={saveAppearanceProfile} onDeleteProfile={deleteAppearanceProfile} notice={report} onImage={saveCustomBackground} onRemoveImage={removeCurrentBackground} onPreviewDialog={() => setPreviewDialog({kind:'showinfo',title:'Información',message:'Así se verán las ventanas emergentes de COA GUI.'})} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; void removeCurrentBackground(); setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}) }} />}
               {panel === 'exercise' && (
                 <ExercisePanel
                   selected={exercise}
