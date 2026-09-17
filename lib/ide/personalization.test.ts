@@ -19,6 +19,10 @@ describe('Studio personalization', () => {
   it('inserts ordinary symbols literally', () => expect(quickInsertion('==')).toEqual({ text: '==', cursorBack: 0 }))
   it('defaults wallpaper visibility to an evident level', () => expect(DEFAULT_SETTINGS.wallpaperVisibility).toBe(70))
   it('keeps the split toolbar disabled by default', () => expect(DEFAULT_SETTINGS.splitToolbar).toBe(false))
+  it('normalizes console zoom to its readable limits', () => {
+    expect(normalizeSettings({ consoleFontSize: 100 }).consoleFontSize).toBe(28)
+    expect(normalizeSettings({ consoleFontSize: 2 }).consoleFontSize).toBe(10)
+  })
   it('keeps interface transparency within a readable limit', () => expect(normalizeSettings({ interfaceTransparency: 100 }).interfaceTransparency).toBe(72))
   it('supports the Pixel Art skin', () => expect(normalizeSettings({ style: 'pixel' }).style).toBe('pixel'))
   it('defaults COA GUI dialogs to themed and centered', () => {

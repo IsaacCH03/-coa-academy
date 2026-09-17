@@ -23,6 +23,7 @@ export interface StudioSettings {
   reduceMobileAnimation: boolean
   pauseHidden: boolean
   fontSize: number
+  consoleFontSize: number
   fontFamily: 'Consolas' | 'Monaco' | 'monospace'
   lineHeight: number
   minimap: boolean
@@ -51,7 +52,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   accent: 'coa', customColor: '#5f8ff5', style: 'none', background: 'none', customBackgroundId: null,
   backgroundOpacity: 70, wallpaperVisibility: 70, interfaceTransparency: 48, backgroundBlur: 2, backgroundDarkness: 38,
   backgroundFit: 'cover', animation: 'soft', reduceMobileAnimation: true,
-  pauseHidden: true, fontSize: 15, fontFamily: 'Consolas', lineHeight: 1.55,
+  pauseHidden: true, fontSize: 15, consoleFontSize: 13, fontFamily: 'Consolas', lineHeight: 1.55,
   minimap: false, wordWrap: true, lineNumbers: true, highlightLine: true,
   autoCloseBrackets: true, autoCloseQuotes: true, splitToolbar: false, density: 'normal',
   mobileFocus: true, quickBar: DEFAULT_QUICK_BAR, writingShortcuts: false, shortcutCount: 14, shortcutVisibility: 'all', reduceMotion: false,
@@ -68,6 +69,7 @@ export function normalizeSettings(value: unknown): StudioSettings {
   if (!value || typeof value !== 'object') return { ...DEFAULT_SETTINGS }
   const next = { ...DEFAULT_SETTINGS, ...(value as Partial<StudioSettings>) }
   next.fontSize = Math.min(24, Math.max(11, Number(next.fontSize) || 15))
+  next.consoleFontSize = Math.min(28, Math.max(10, Number(next.consoleFontSize) || 13))
   next.lineHeight = Math.min(2.2, Math.max(1.2, Number(next.lineHeight) || 1.55))
   next.wallpaperVisibility = Math.min(100, Math.max(20, Number(next.wallpaperVisibility) || 70))
   next.interfaceTransparency = Math.min(72, Math.max(0, Number(next.interfaceTransparency) || 48))

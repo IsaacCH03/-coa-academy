@@ -8,6 +8,8 @@ import {
   CornerDownLeft,
   ChevronDown,
   ChevronUp,
+  ZoomOut,
+  ZoomIn,
 } from 'lucide-react'
 import type { RuntimeDiagnostic } from '@/lib/ide/diagnostics'
 export function ConsolePanel({
@@ -22,6 +24,9 @@ export function ConsolePanel({
   diagnostic,
   title = 'CONSOLA',
   prompt,
+  fontSize,
+  onZoomIn,
+  onZoomOut,
 }: {
   output: string
   waiting: boolean
@@ -34,6 +39,9 @@ export function ConsolePanel({
   diagnostic: RuntimeDiagnostic | null
   title?: string
   prompt?: string
+  fontSize: number
+  onZoomIn: () => void
+  onZoomOut: () => void
 }) {
   const [value, setValue] = useState('')
   const scroll = useRef<HTMLPreElement>(null)
@@ -51,6 +59,22 @@ export function ConsolePanel({
           <Terminal size={15} /> {title}
         </span>
         <div>
+          <button
+            title="Alejar texto de la consola"
+            aria-label="Alejar texto de la consola"
+            onClick={onZoomOut}
+            disabled={fontSize <= 10}
+          >
+            <ZoomOut size={16} />
+          </button>
+          <button
+            title="Acercar texto de la consola"
+            aria-label="Acercar texto de la consola"
+            onClick={onZoomIn}
+            disabled={fontSize >= 28}
+          >
+            <ZoomIn size={16} />
+          </button>
           <button
             title={collapsed ? 'Mostrar consola' : 'Contraer consola'}
             aria-label={collapsed ? 'Mostrar consola' : 'Contraer consola'}
@@ -80,6 +104,7 @@ export function ConsolePanel({
         data-testid="python-output"
         tabIndex={0}
         hidden={collapsed}
+        style={{ fontSize }}
       >
         {prompt && <span className="ide-console-prompt">{prompt}{' '}</span>}{output || (
           <span className="ide-muted">
@@ -114,6 +139,7 @@ export function ConsolePanel({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             autoComplete="off"
+            style={{ fontSize }}
           />
           <button type="submit" aria-label="Enviar respuesta">
             <CornerDownLeft size={18} />

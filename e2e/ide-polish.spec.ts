@@ -60,4 +60,12 @@ test('writing shortcuts, class creation, layers and split editor work in Monaco'
   await expect(page.getByRole('button',{name:'presentation',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'domain',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'data',exact:true})).toBeVisible()
+
+  const consoleOutput = page.getByTestId('python-output')
+  await expect(consoleOutput).toHaveCSS('font-size','13px')
+  await page.getByRole('button',{name:'Acercar texto de la consola'}).click()
+  await expect(consoleOutput).toHaveCSS('font-size','14px')
+  await page.reload()
+  await expect(page.locator('.monaco-editor')).toBeVisible({timeout:45000})
+  await expect(page.getByTestId('python-output')).toHaveCSS('font-size','14px')
 })

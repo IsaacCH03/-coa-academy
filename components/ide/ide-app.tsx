@@ -850,6 +850,9 @@ export function IdeApp() {
           >
             <ConsolePanel
               output={output}
+              fontSize={settings.consoleFontSize}
+              onZoomIn={() => setSettings(current => ({ ...current, consoleFontSize: Math.min(28, current.consoleFontSize + 1) }))}
+              onZoomOut={() => setSettings(current => ({ ...current, consoleFontSize: Math.max(10, current.consoleFontSize - 1) }))}
               diagnostic={runtimeDiagnostic}
               title={settings.style === 'eclipse' ? 'Console' : settings.style === 'python' ? 'Python Shell' : settings.style === 'vscode' ? 'PROBLEMS  OUTPUT  CONSOLE' : 'CONSOLA'}
               prompt={settings.style === 'cmd' ? settings.cmdPrompt : settings.style === 'python' ? '>>>' : undefined}
