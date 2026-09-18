@@ -1,13 +1,8 @@
-# v0 sandbox internal files
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
-.snowflake/
-.v0-trash/
-.vercel/
-
-# Environment variables
-.env*.local
+# Environment variables / secretos
+.env
+.env.*
+!.env.example
+!.env.ejemplo
 
 # Common ignores
 node_modules
@@ -15,3 +10,11 @@ node_modules
 test-results/
 playwright-report/
 .DS_Store
+
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
