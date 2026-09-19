@@ -4,7 +4,7 @@ import path from 'node:path'
 async function openStudio(page: import('@playwright/test').Page) {
   await page.goto('/ide')
   const start = page.getByRole('button', { name: 'Comenzar', exact: true })
-  if (await start.isVisible()) await start.click()
+  await start.click()
   await expect(page.getByText('Python listo', { exact: true })).toBeVisible({ timeout: 100000 })
   await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 45000 })
 }
@@ -53,6 +53,10 @@ test('background controls, editor settings and profiles persist locally', async 
 test('mobile quick bar inserts pairs, navigates and can be customized', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openStudio(page)
+  await page.getByRole('button', { name: 'Configuración' }).click()
+  await page.getByRole('button', { name: /Atajos/ }).click()
+  await page.getByLabel('Atajos de escritura').check()
+  await page.locator('.ide-close-panel').click()
   await page.locator('.monaco-editor textarea').focus()
   await expect(page.getByLabel('Barra rápida de programación')).toBeVisible()
   await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace')
@@ -60,8 +64,9 @@ test('mobile quick bar inserts pairs, navigates and can be customized', async ({
   await page.keyboard.insertText('x')
   await expect.poll(() => page.locator('.monaco-editor textarea').inputValue()).toContain('(x)')
   await page.getByRole('button', { name: 'Configuración' }).click()
-  await page.getByRole('button', { name: /Móvil/ }).click()
+  await page.getByRole('button', { name: /Atajos/ }).click()
   await page.getByLabel('Agregar atajo').selectOption('print()')
+  await page.getByLabel('Cantidad visible').fill('20')
   await expect(page.getByLabel('Quitar print()')).toBeVisible()
   await page.reload()
   await page.locator('.monaco-editor textarea').focus()

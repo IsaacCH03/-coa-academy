@@ -915,7 +915,7 @@ export function IdeApp() {
           </div>
         </div>
       </div>
-      {mobileFocused && settings.writingShortcuts && settings.shortcutVisibility !== 'desktop' && <div className="ide-quickbar" aria-label="Barra rápida de programación">{focusMode && <button className="focus-exit" onClick={() => setFocusDismissed(true)}>Salir de enfoque</button>}{settings.quickBar.slice(0,settings.shortcutCount).map((action) => <button key={action} onPointerDown={(e) => e.preventDefault()} onClick={() => quickAction(action)}>{action}</button>)}</div>}
+      {mobileFocused && (focusMode || settings.writingShortcuts && settings.shortcutVisibility !== 'desktop') && <div className="ide-quickbar" aria-label="Barra rápida de programación">{focusMode && <button className="focus-exit" onClick={() => setFocusDismissed(true)}>Salir de enfoque</button>}{settings.writingShortcuts && settings.shortcutVisibility !== 'desktop' && settings.quickBar.slice(0,settings.shortcutCount).map((action) => <button key={action} onPointerDown={(e) => e.preventDefault()} onClick={() => quickAction(action)}>{action}</button>)}</div>}
       <footer className="ide-status">
         <span>
           <Circle

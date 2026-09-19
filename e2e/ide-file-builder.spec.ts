@@ -93,6 +93,10 @@ test('TXT functions, CSV imports and project file selectors use the current Mona
   expect((await monaco(page)).code).toBe(actual)
   await page.getByRole('button', { name: 'Insertar código', exact: true }).click()
   expect((await monaco(page)).code.match(/^import csv$/gm)).toHaveLength(1)
+  await monaco(page, 'class FilesCSV:\n    ', 2, 5)
+  await page.getByLabel('Forma de generación').selectOption('function')
+  await page.getByRole('button', { name: 'Insertar código', exact: true }).click()
+  expect((await monaco(page)).code).toContain('class FilesCSV:\n    def recorrer_csv(self):\n        with open(')
 })
 
 test('split editor inserts in group two and keeps group one unchanged', async ({ page }) => {

@@ -50,7 +50,7 @@ test('Builder recognizes COA layers and connects Presentation to a real Business
   await expect(page.locator('.ide-tip').filter({ hasText: 'Capa actual:' })).toContainText('Presentation')
   await expect(page.getByLabel('Clase de otra capa')).toHaveValue('Logic')
   await page.getByRole('button', { name: 'Previsualizar cambios' }).click()
-  await expect(page.getByText('SE REALIZARÁN ESTOS CAMBIOS')).toBeVisible()
+  await expect(page.locator('.layer-plan .ide-preview')).toContainText('from business.logic import Logic')
   await page.getByRole('button', { name: 'Aplicar cambios' }).click()
   await expect(page.locator('.monaco-editor')).toContainText('from business.logic import Logic')
   await expect(page.locator('.monaco-editor')).toContainText('logic = Logic()')

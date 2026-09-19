@@ -104,27 +104,21 @@ test('help modes, indentation, files, preferences and console controls', async (
   await page.getByLabel('Nombre o ruta').fill('datos/nota.txt')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
   await edit(page, 'Contenido de prueba')
-  await page
-    .getByRole('button', { name: 'Renombrar datos', exact: true })
-    .click()
+  await page.locator('summary[aria-label="Acciones de datos"]').click()
+  await page.getByRole('button', { name: 'Renombrar / mover', exact: true }).click()
   await page.getByLabel('Nuevo nombre o ruta').fill('recursos')
   await page.getByRole('button', { name: 'Renombrar', exact: true }).click()
   await expect(
-    page.getByRole('button', {
-      name: 'Renombrar recursos/nota.txt',
-      exact: true,
-    }),
+    page.locator('summary[aria-label="Acciones de recursos/nota.txt"]'),
   ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Eliminar recursos', exact: true })
-    .click()
+  await page.locator('summary[aria-label="Acciones de recursos"]').click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
   await expect(
     page.getByRole('button', { name: 'nota.txt', exact: true }),
   ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Eliminar recursos', exact: true })
-    .click()
+  await page.locator('summary[aria-label="Acciones de recursos"]').click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(
     page.getByRole('button', { name: 'nota.txt', exact: true }),
