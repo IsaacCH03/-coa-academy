@@ -563,6 +563,106 @@ def __coa_best(value, candidates):
     matches = [candidate for candidate in candidates if __coa_close_name(value, candidate)]
     return matches[0] if len(matches) == 1 else None
 
+def __coa_file_checks(tree, source, path):
+    # AST bindings are scoped: an arbitrary object named archivo is not a file.
+    csv_api = {'reader', 'writer', 'DictReader', 'DictWriter', 'Sniffer', 'Dialect', 'Error', 'field_size_limit', 'list_dialects', 'get_dialect', 'register_dialect', 'unregister_dialect'}
+    file_api = {'read', 'readline', 'readlines', 'write', 'writelines', 'seek', 'tell', 'flush', 'close', 'truncate', 'readable', 'writable', 'seekable', 'fileno', 'isatty'}
+    writer_api = {'writerow', 'writerows'}
+    result, missing = [], set()
+    ast, modules, best, item_for = __ast, __coa_modules, __coa_best, __coa_item
+    class Visitor(ast.NodeVisitor):
+        def __init__(self): self.bindings = {}; self.reported_csv = False
+        def bind(self, target, kind=None):
+            if isinstance(target, ast.Name): self.bindings[target.id] = kind
+            elif isinstance(target, (ast.Tuple, ast.List)):
+                for item in target.elts: self.bind(item)
+        def kind(self, value):
+            if isinstance(value, ast.Name): return self.bindings.get(value.id)
+            if isinstance(value, ast.Call):
+                fn = value.func
+                if isinstance(fn, ast.Name) and fn.id == 'open' and 'open' not in self.bindings: return 'file'
+                if isinstance(fn, ast.Attribute) and self.kind(fn.value) == 'csv':
+                    return {'writer': 'writer', 'DictWriter': 'dictwriter', 'reader': 'reader', 'DictReader': 'reader'}.get(fn.attr)
+            return None
+        def visit_Import(self, node):
+            for alias in node.names: self.bindings[alias.asname or alias.name.split('.')[0]] = 'csv' if alias.name == 'csv' and 'csv' not in modules else None
+        def visit_ImportFrom(self, node):
+            for alias in node.names: self.bindings[alias.asname or alias.name] = None
+        def visit_Assign(self, node):
+            self.visit(node.value)
+            for target in node.targets: self.bind(target, self.kind(node.value))
+        def visit_AnnAssign(self, node):
+            if node.value: self.visit(node.value)
+            self.bind(node.target, self.kind(node.value))
+        def visit_AugAssign(self, node):
+            self.visit(node.value); self.bind(node.target)
+        def visit_With(self, node):
+            for item in node.items:
+                self.visit(item.context_expr)
+                if item.optional_vars: self.bind(item.optional_vars, self.kind(item.context_expr))
+            for statement in node.body: self.visit(statement)
+        visit_AsyncWith = visit_With
+        def visit_For(self, node):
+            self.visit(node.iter); self.bind(node.target)
+            for statement in node.body + node.orelse: self.visit(statement)
+        visit_AsyncFor = visit_For
+        def visit_FunctionDef(self, node):
+            self.bindings[node.name] = None
+            outer = self.bindings
+            self.bindings = outer.copy()
+            # Local stores and parameters shadow outer imports throughout a function.
+            def local_names(statements):
+                for statement in statements:
+                    if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        self.bindings[statement.name] = None
+                        continue
+                    if isinstance(statement, ast.Name) and isinstance(statement.ctx, ast.Store): self.bindings[statement.id] = None
+                    local_names(ast.iter_child_nodes(statement))
+            local_names(node.body)
+            for arg in node.args.posonlyargs + node.args.args + node.args.kwonlyargs: self.bindings[arg.arg] = None
+            for arg in (node.args.vararg, node.args.kwarg):
+                if arg: self.bindings[arg.arg] = None
+            for statement in node.body: self.visit(statement)
+            self.bindings = outer
+        visit_AsyncFunctionDef = visit_FunctionDef
+        def visit_ClassDef(self, node):
+            self.bindings[node.name] = None
+            outer = self.bindings; self.bindings = outer.copy()
+            for statement in node.body: self.visit(statement)
+            self.bindings = outer
+        def visit_Call(self, node):
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id == 'open' and 'open' not in self.bindings:
+                mode = node.args[1] if len(node.args) > 1 else next((kw.value for kw in node.keywords if kw.arg == 'mode'), None)
+                if isinstance(mode, ast.Constant) and isinstance(mode.value, str):
+                    value = mode.value
+                    valid = bool(value) and set(value) <= set('rwaxbt+') and sum(value.count(ch) for ch in 'rwax') == 1 and value.count('b') + value.count('t') <= 1 and all(value.count(ch) <= 1 for ch in value)
+                    if not valid: result.append(item_for(path, 'open-mode', mode, f'El modo "{value}" no es válido para open().', 'Usa r, w, a, x y, opcionalmente, + y b o t.'))
+            if isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):
+                owner = fn.value.id
+                kind = self.kind(fn.value)
+                if owner == 'csv' and owner not in self.bindings and (fn.attr in csv_api or best(fn.attr, csv_api)) and 'csv' not in modules:
+                    missing.add((fn.value.lineno, fn.value.col_offset))
+                    if not self.reported_csv:
+                        self.reported_csv = True
+                        at = 1
+                        lines = source.splitlines()
+                        while at <= len(lines) and (not lines[at - 1].strip() or lines[at - 1].lstrip().startswith('#')): at += 1
+                        for index, statement in enumerate(tree.body):
+                            if isinstance(statement, (ast.Import, ast.ImportFrom)) or (index == 0 and isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant) and isinstance(statement.value.value, str)):
+                                at = max(at, statement.end_lineno + 1)
+                            else: break
+                        fix = {'title': 'Importar csv', 'startLine': at, 'startColumn': 1, 'endLine': at, 'endColumn': 1, 'text': 'import csv\\n'}
+                        result.append(item_for(path, 'csv-import', fn.value, 'Se está utilizando csv, pero el módulo csv no está importado.', 'Agrega import csv en la cabecera del archivo.', 'warning', fix))
+                api = csv_api if kind == 'csv' else file_api if kind == 'file' else writer_api if kind == 'writer' else writer_api | {'writeheader'} if kind == 'dictwriter' else set()
+                suggestion = best(fn.attr, api) if fn.attr not in api else None
+                if suggestion:
+                    fix = {'title': f'Cambiar a "{suggestion}"', 'startLine': fn.lineno, 'startColumn': fn.end_col_offset - len(fn.attr) + 1, 'endLine': fn.end_lineno, 'endColumn': fn.end_col_offset + 1, 'text': suggestion}
+                    result.append(item_for(path, 'file-api', fn, f'¿Querías escribir "{suggestion}" en lugar de "{fn.attr}"?', 'El tipo del objeto permite sugerir esta API conocida.', 'warning', fix))
+            self.generic_visit(node)
+    Visitor().visit(tree)
+    return result, missing
+
 __coa_diagnostics = []
 for __coa_path, __coa_diagnostic_source in __coa_python.items():
   try:
@@ -627,6 +727,8 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
     })
     continue
   else:
+    file_diagnostics, file_missing = __coa_file_checks(__coa_tree, __coa_diagnostic_source, __coa_path)
+    __coa_diagnostics.extend(file_diagnostics)
     definitions = {}
     loads = {}
     functions = {}
@@ -712,7 +814,7 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
     reported = set()
     for node in __ast.walk(__coa_tree):
         if not isinstance(node, __ast.Name) or not isinstance(node.ctx, __ast.Load): continue
-        if node.id in known or definitions.get(node.id, node.lineno + 1) <= node.lineno or node.id in reported or (node.id == 'gui' and coa_missing): continue
+        if node.id in known or definitions.get(node.id, node.lineno + 1) <= node.lineno or node.id in reported or (node.id == 'gui' and coa_missing) or (node.lineno, node.col_offset) in file_missing: continue
         reported.add(node.id)
         later = node.id in definitions
         suggestion = __coa_best(node.id, [name for name, defined_line in definitions.items() if defined_line <= node.lineno])

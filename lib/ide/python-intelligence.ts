@@ -1,4 +1,34 @@
 import type { ProjectEntry } from './project'
+import { pythonCodeMask } from './python-source'
+import { standardFileMembers } from './python-files'
+
+/** Tolerates an unfinished class body, but never treats a nested function as a method. */
+export function builderClassAt(source: string, offset: number, tabSize = 4) {
+  const prefix = pythonCodeMask(source.slice(0, offset))
+  const lines = prefix.split(/\r?\n/)
+  const stack: { indent: number; kind: string; name?: string }[] = []
+  const width = (line: string) => (line.match(/^[\t ]*/)?.[0] ?? '').split('').reduce((n, ch) => ch === '\t' ? n + tabSize - n % tabSize : n + 1, 0)
+  for (const line of lines.slice(0, -1)) {
+    if (!line.trim()) continue
+    const indent = width(line)
+    while (stack.length && stack.at(-1)!.indent >= indent) stack.pop()
+    if (line.trimEnd().endsWith(':')) {
+      const match = line.trim().match(/^(class|(?:async\s+)?def)\s+([\p{L}_][\p{L}\p{N}_]*)/u)
+      stack.push({ indent, kind: match?.[1] ?? 'block', name: match?.[2] })
+    }
+  }
+  const current = lines.at(-1) ?? ''
+  const indent = width(current)
+  if (!current.trim()) {
+    // An entirely empty line immediately after ':' inherits one level.
+    const implicit = !current && lines.length > 1 && lines.at(-2)!.trimEnd().endsWith(':')
+    if (!implicit) while (stack.length && stack.at(-1)!.indent >= indent) stack.pop()
+  } else if (/^\s*class\s+\w+.*:\s*$/.test(current)) {
+    return current.trim().match(/^class\s+(\w+)/)?.[1]
+  } else while (stack.length && stack.at(-1)!.indent >= indent) stack.pop()
+  const scope = [...stack].reverse().find((entry) => entry.kind !== 'block')
+  return scope?.kind === 'class' ? scope.name : undefined
+}
 
 export type PythonSymbolKind =
   | 'module'
@@ -63,6 +93,8 @@ const builtins = [
   ['sum', 'sum(valores)', 'Suma elementos numéricos.'],
   ['max', 'max(valores)', 'Devuelve el valor mayor.'],
   ['min', 'min(valores)', 'Devuelve el valor menor.'],
+  ['open', 'open(ruta, mode="r", encoding="utf-8")', 'Abre un archivo; usa with para cerrarlo automáticamente.'],
+  ['next', 'next(iterador, default)', 'Obtiene el siguiente elemento; default evita StopIteration.'],
 ] as const
 
 const coaGuiMembers: Array<[string, PythonSymbolKind, string]> = [
@@ -312,6 +344,8 @@ export class PythonProjectIndex {
   members(path: string, expression: string, line: number): PythonSymbol[] {
     const file = this.files.get(path)
     if (!file) return []
+    const standard = this.modules.has('csv') ? [] : standardFileMembers(file.source, expression, line)
+    if (standard.length) return standard.map(({ name, signature, docstring, module }) => ({ name, signature, docstring, kind: module === 'csv' ? 'function' : 'method', path: 'python', line: 1, column: 1 }))
     const value = this.resolveValue(file, expression, line)
     if (value === 'coa_gui') return coaGuiMembers.map(([name, kind, signature]) => ({ name, kind, signature, path: 'coa_gui', line: 1, column: 1 }))
     if (!value) return []

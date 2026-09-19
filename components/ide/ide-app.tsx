@@ -38,7 +38,7 @@ import {
 } from '@/lib/ide/project'
 import { PythonRuntime, type CoaGuiDialogRequest, type RuntimeState } from '@/lib/ide/runtime'
 import type { CoaGuiPreview as CoaGuiPreviewModel } from '@/lib/ide/runtime'
-import { insertionAt } from '@/lib/ide/insertion'
+import { builderInsertion } from '@/lib/ide/insertion'
 import { educationalHints, explainCode } from '@/lib/ide/education'
 import { matchesOutput, type Exercise } from '@/lib/ide/exercises'
 import {
@@ -95,6 +95,7 @@ export function IdeApp() {
   const [personalizationReady, setPersonalizationReady] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const editorSelections = useRef(new WeakMap<editor.ICodeEditor, { model: editor.ITextModel; selection: import('monaco-editor').Selection }>())
   const editorRefs = useRef<Partial<Record<1 | 2, editor.IStandaloneCodeEditor>>>({})
   const monacoRef = useRef<Monaco | null>(null)
   const diagnosticsRef = useRef<CodeDiagnostic[]>([])
@@ -270,7 +271,7 @@ export function IdeApp() {
     const monaco = monacoRef.current
     if (!model || !monaco || !project) return
     const visible = allDiagnostics.filter((item) => item.path === activePath)
-    diagnosticsRef.current = visible
+    diagnosticsRef.current = allDiagnostics
     monaco.editor.setModelMarkers(model, 'coa-diagnostics', visible.map((item) => ({
       startLineNumber: item.line,
       startColumn: item.column,
@@ -390,19 +391,25 @@ export function IdeApp() {
     update((p) => ({ ...p, tabs: [...new Set([...p.tabs, ...(p.secondaryTabs ?? [])])], splitEnabled: false, activeEditorGroup: 1, secondaryActive: '', secondaryTabs: [] }))
   }
   function insert(code: string) {
-    const ed = editorRef.current
-    if (busy || !activePath.endsWith('.py')) {
+    const ed = monacoRef.current?.editor.getEditors().find((candidate) => candidate.hasTextFocus()) ?? editorRef.current
+    const model = ed?.getModel()
+    if (busy || model?.getLanguageId() !== 'python') {
       report('Abre un archivo .py para agregar código.')
       return
     }
-    const range = ed?.getSelection()
+    const saved = ed && editorSelections.current.get(ed)
+    const range = ed?.getSelection() ?? (saved?.model === model ? saved?.selection : null)
     if (!ed || !range) {
       report('Coloca el cursor en el editor antes de agregar código.')
       return
     }
-    const edit = insertionAt(ed.getValue(), range, code)
+    const plan = builderInsertion(ed.getValue(), range, code, model!.getOptions())
     ed.pushUndoStop()
-    ed.executeEdits('coa-builder', [edit])
+    ed.executeEdits('coa-builder', plan.edits)
+    const preceding = model!.getValue().replace(/\r\n/g, '\n').slice(0, plan.cursorOffset).split('\n')
+    const next = { lineNumber: preceding.length, column: preceding.at(-1)!.length + 1 }
+    ed.setSelection({ startLineNumber: next.lineNumber, startColumn: next.column, endLineNumber: next.lineNumber, endColumn: next.column + plan.selectionLength })
+    ed.revealPositionInCenterIfOutsideViewport(next)
     ed.pushUndoStop()
     ed.focus()
     if (window.innerWidth < 768) setPanel(null)
@@ -438,10 +445,24 @@ export function IdeApp() {
     ed.focus()
   }
   function applyBuilderChanges(changes: BuilderChange[]) {
+    if (busy) return
+    for (const change of changes.filter((item) => !item.blocked)) {
+      const ed = Object.values(editorRefs.current).find((candidate) => decodeURIComponent(candidate?.getModel()?.uri.path ?? '').replace(/^\//, '') === change.path)
+      const model = ed?.getModel()
+      if (!ed || !model) continue
+      const before = model.getValue(), after = change.content
+      let start = 0, end = 0
+      while (start < Math.min(before.length, after.length) && before[start] === after[start]) start++
+      while (end < Math.min(before.length, after.length) - start && before[before.length - end - 1] === after[after.length - end - 1]) end++
+      const from = model.getPositionAt(start), to = model.getPositionAt(before.length - end)
+      ed.pushUndoStop()
+      ed.executeEdits('coa-builder-refactor', [{ range: { startLineNumber: from.lineNumber, startColumn: from.column, endLineNumber: to.lineNumber, endColumn: to.column }, text: after.slice(start, after.length - end) }])
+      ed.pushUndoStop()
+    }
     update((current) => ({
       ...current,
       entries: current.entries.map((entry) => {
-        const change = changes.find((item) => item.path === entry.path)
+        const change = changes.find((item) => item.path === entry.path && !item.blocked)
         return change && entry.kind === 'file' ? { ...entry, content: change.content } : entry
       }),
     }))
@@ -543,6 +564,8 @@ export function IdeApp() {
   }
   function activateEditor(group: 1 | 2) {
     editorRef.current = editorRefs.current[group] ?? null
+    const ed = editorRef.current, position = ed?.getPosition()
+    if (ed && position) setCursor({ source: ed.getValue(), offset: ed.getModel()?.getOffsetAt(position) ?? 0 })
     update((p) => ({ ...p, activeEditorGroup: group }))
     setMobileFocused(true)
   }
@@ -552,11 +575,24 @@ export function IdeApp() {
     monacoRef.current = monaco
     if (!codeActions.current) codeActions.current = monaco.languages.registerCodeActionProvider('python', {
       provideCodeActions(model, range) {
-        const fixes = diagnosticsRef.current.filter((item) => item.fix && item.line <= range.endLineNumber && item.endLine >= range.startLineNumber)
+        const path = decodeURIComponent(model.uri.path).replace(/^\//, '')
+        const fixes = diagnosticsRef.current.filter((item) => item.path === path && item.fix && item.line <= range.endLineNumber && item.endLine >= range.startLineNumber)
         return { actions: fixes.map((item) => ({ title: `💡 ${item.fix!.title}`, kind: 'quickfix', isPreferred: true, edit: { edits: [{ resource: model.uri, textEdit: { range: { startLineNumber: item.fix!.startLine, startColumn: item.fix!.startColumn, endLineNumber: item.fix!.endLine, endColumn: item.fix!.endColumn }, text: item.fix!.text }, versionId: model.getVersionId() }] } })), dispose() {} }
       },
     })
-    ed.onDidChangeCursorPosition(({ position }) => { if (editorRef.current === ed) setCursor({ source: ed.getValue(), offset: ed.getModel()?.getOffsetAt(position) ?? 0 }) })
+    const remember = () => {
+      const model = ed.getModel(), selection = ed.getSelection(), position = ed.getPosition()
+      if (model && selection) editorSelections.current.set(ed, { model, selection })
+      if (editorRef.current === ed && position) setCursor({ source: ed.getValue(), offset: model?.getOffsetAt(position) ?? 0 })
+    }
+    const subscriptions = [ed.onDidFocusEditorText(() => { editorRef.current = ed; remember() }), ed.onDidChangeCursorSelection(remember), ed.onDidChangeModel(remember), ed.onDidChangeModelContent(remember)]
+    ed.onDidDispose(() => {
+      subscriptions.forEach((subscription) => subscription.dispose())
+      editorSelections.current.delete(ed)
+      if (editorRefs.current[group] === ed) delete editorRefs.current[group]
+      if (editorRef.current === ed) editorRef.current = null
+    })
+    remember()
   }
   function navigateDefinition(path: string, line: number, column: number) {
     const secondHasFile = project?.splitEnabled && (project.secondaryTabs ?? []).includes(path)
@@ -680,7 +716,7 @@ export function IdeApp() {
               {panel === 'learn' && (
                 <LearnPanel
                   source={source}
-                  cursorOffset={cursor.source === source ? cursor.offset : source.length}
+                  cursorOffset={cursor.source === source ? cursor.offset : 0}
                   onAnalyze={analyzeBuilder}
                   entries={project.entries}
                   activePath={activePath}

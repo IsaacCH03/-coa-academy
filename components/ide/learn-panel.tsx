@@ -13,6 +13,8 @@ import type { ProjectEntry } from '@/lib/ide/project'
 import type { BuilderChange } from '@/lib/ide/layers'
 import { EncapsulationBuilder, LayerBuilder } from './layer-builder'
 import { detectProjectRoot, projectRoots } from '@/lib/ide/layers'
+import { FileBuilder } from './file-builder'
+import type { FileKind } from '@/lib/ide/file-builder'
 
 export function LearnPanel({
   source,
@@ -45,6 +47,7 @@ export function LearnPanel({
 }) {
   const [query, setQuery] = useState('')
   const [actionId, setActionId] = useState<string | null>(null)
+  const [fileKind, setFileKind] = useState<FileKind | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
   const [level, setLevel] = useState<1 | 2 | 3>(1)
   const [analysis, setAnalysis] = useState<BuilderAnalysis>({ valid: false, variables: [], classes: [] })
@@ -149,6 +152,12 @@ export function LearnPanel({
           El editor es tuyo. Puedes volver al modo guiado cuando necesites
           recordar una estructura.
         </p>
+      ) : fileKind ? (
+        <>
+          <button className="ide-text-button" onClick={() => setFileKind(null)}><ArrowLeft size={15} /> Volver</button>
+          <h3>Archivos · {fileKind}</h3>
+          <FileBuilder key={fileKind} kind={fileKind} entries={entries} source={source} cursorOffset={cursorOffset} disabled={disabled} onInsert={onInsert} />
+        </>
       ) : action ? (
         <>
           <button className="ide-text-button" onClick={() => setActionId(null)}>
@@ -159,10 +168,10 @@ export function LearnPanel({
           {action.id === 'encapsulation' ? (
             <EncapsulationBuilder entries={entries} active={activePath} onApply={onApplyChanges} />
           ) : action.id.startsWith('layer-') ? (
-            <LayerBuilder actionId={action.id} entries={entries} active={activePath} projectRoot={layerRoot} roots={[...new Set([...projectRoots(entries), ...entries.filter((entry) => entry.kind === 'folder').map((entry) => entry.path)])]} onProjectRoot={changeLayerRoot} onApply={onApplyChanges} />
+            <LayerBuilder actionId={action.id} entries={entries} active={activePath} projectRoot={layerRoot} roots={[...new Set([...projectRoots(entries), ...entries.filter((entry) => entry.kind === 'folder').map((entry) => entry.path)])]} onProjectRoot={changeLayerRoot} onApply={onApplyChanges} onInsert={onInsert} cursorOffset={cursorOffset} />
           ) : (<>
           {mode === 'guided' &&
-            action.fields.map((field) => (
+            action.fields.filter((field) => !(action.id === 'while-true' && field.key === 'text' && resolvedValues.body === 'Bloque vacío')).map((field) => (
               <label className="ide-field" key={field.key}>
                 {field.label}
                 {field.options ? (
@@ -303,9 +312,8 @@ export function LearnPanel({
             <details open>
               <summary>Archivos</summary>
               <div className="ide-action-list">
-                {['TXT', 'CSV', 'Excel'].map((name) => (
-                  <button key={name} disabled>{name}<small>Próximamente</small></button>
-                ))}
+                {(['TXT', 'CSV'] as const).map((name) => <button key={name} onClick={() => setFileKind(name)}>{name}<span>+</span></button>)}
+                <button disabled>Excel<small>Próximamente</small></button>
               </div>
             </details>
           )}

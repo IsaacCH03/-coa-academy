@@ -127,11 +127,13 @@ export function addEntries(
   }
   validateEntries(entries)
   const file = incoming.find((e) => e.kind === 'file')?.path
+  const secondary = project.splitEnabled && project.activeEditorGroup === 2
   return {
     ...project,
     entries,
-    active: file ?? project.active,
-    tabs: file ? [...new Set([...project.tabs, file])] : project.tabs,
+    active: file && !secondary ? file : project.active,
+    tabs: file && !secondary ? [...new Set([...project.tabs, file])] : project.tabs,
+    ...(file && secondary ? { secondaryActive: file, secondaryTabs: [...new Set([...(project.secondaryTabs ?? []), file])] } : {}),
     explorerExpanded: [
       ...new Set([
         ...project.explorerExpanded,

@@ -1,10 +1,28 @@
 import { expect, it } from 'vitest'
 import { insertionAt } from './insertion'
+import { actions, generateCode } from './builder'
 const cursor = (line: number, column: number) => ({
   startLineNumber: line,
   startColumn: column,
   endLineNumber: line,
   endColumn: column,
+})
+it('converts every existing template and generator to the active tab style', () => {
+  for (const action of actions) {
+    const values = Object.fromEntries(action.fields.map((field) => [field.key, field.value]))
+    for (const snippet of [action.template, generateCode(action, values)]) {
+      const edit = insertionAt('def ejecutar():\n\tif activo:\n\t\tfor i in range(5):\n\t\t\t', cursor(4, 4), snippet, { tabSize: 4, insertSpaces: false })
+      const output = edit.text.split('\n')
+      expect(output[0], action.id).toBe('\t\t\t' + snippet.split('\n')[0])
+      expect(output.every((line) => !/^\t+ {4}/.test(line)), action.id).toBe(true)
+    }
+  }
+})
+it('uses two spaces and replaces a pass placeholder in its block', () => {
+  expect(insertionAt('if True:\n  pass', cursor(2, 3), 'while True:\n    pass', { tabSize: 2, insertSpaces: true }).text).toBe('  while True:\n    pass')
+})
+it('uses the cursor column when it is inside existing whitespace', () => {
+  expect(insertionAt('if True:\n    print(1)\n        ', cursor(3, 5), 'while True:\n    pass').text).toBe('    while True:\n        pass\n    ')
 })
 it('inserts inside a condition with four spaces', () =>
   expect(

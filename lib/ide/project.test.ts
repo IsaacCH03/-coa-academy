@@ -17,6 +17,13 @@ it('creates missing parent folders and opens the new file', () => {
   ).toBe(true)
   expect(p.active).toBe('business/logic.py')
 })
+it('opens new files in the active split group without changing group one', () => {
+  const p = addEntries({ ...newProject(), splitEnabled: true, activeEditorGroup: 2 }, [{ path: 'logic.py', kind: 'file', content: '' }])
+  expect(p.active).toBe('main.py')
+  expect(p.tabs).toEqual(['main.py'])
+  expect(p.secondaryActive).toBe('logic.py')
+  expect(p.secondaryTabs).toEqual(['logic.py'])
+})
 it('renames a folder with its contents and tabs', () => {
   const p = addEntries(newProject(), [
     { path: 'business/logic.py', kind: 'file', content: '' },

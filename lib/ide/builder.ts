@@ -272,11 +272,11 @@ export const actions: BuilderAction[] = [
     title: 'while True',
     category: 'Bucles',
     description:
-      'Repite hasta que break termine el ciclo. Este ejemplo permite escribir salir.',
-    fields: [text('text', 'Pregunta', 'Escribe salir para terminar: ')],
-    template: 'while True:\n    # Agrega una condición de salida\n    break',
+      'Repite hasta que break termine el ciclo. Completa el bloque o elige el ejemplo que pide escribir salir.',
+    fields: [{ key: 'body', label: 'Cuerpo del bucle', value: 'Bloque vacío', options: ['Bloque vacío', 'Pedir dato hasta salir'] }, text('text', 'Pregunta', 'Escribe salir para terminar: ')],
+    template: 'while True:\n    pass',
     generate: (v) =>
-      `while True:\n    respuesta = input(${quote(v.text)})\n    if respuesta == "salir":\n        break`,
+      v.body === 'Bloque vacío' ? 'while True:\n    pass' : `while True:\n    respuesta = input(${quote(v.text)})\n    if respuesta == "salir":\n        break`,
   },
   {
     id: 'for',

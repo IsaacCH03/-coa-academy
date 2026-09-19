@@ -1,4 +1,5 @@
 import type { ProjectEntry } from './project'
+import { moduleImportEdit } from './python-source'
 
 export const coaLayers = ['presentation', 'business', 'domain', 'data'] as const
 export type CoaLayer = (typeof coaLayers)[number]
@@ -61,12 +62,10 @@ export function analyzeLayerClasses(entries: ProjectEntry[], root = ''): LayerCl
 export const moduleFor = (target: LayerClass) => target.module
 export function ensureImport(source: string, target: LayerClass) {
   const statement = `from ${moduleFor(target)} import ${target.name}`
-  if (new RegExp(`^\\s*from\\s+${moduleFor(target).replace(/\./g, '\\.')}\\s+import\\s+[^#\\n]*\\b${target.name}\\b`, 'm').test(source)) return { source, added: false }
-  const lines = source.split('\n')
-  let at = 0
-  while (at < lines.length && (/^\s*(?:from|import)\s/.test(lines[at]) || !lines[at].trim())) at++
-  lines.splice(at, 0, statement)
-  return { source: lines.join('\n'), added: true }
+  const edit = moduleImportEdit(source, [statement])
+  if (!edit) return { source, added: false }
+  const offset = source.split('\n').slice(0, edit.range.startLineNumber - 1).reduce((n, line) => n + line.length + 1, 0) + edit.range.startColumn - 1
+  return { source: source.slice(0, offset) + edit.text + source.slice(offset), added: true }
 }
 export function defaultObjectName(className: string) {
   return className.charAt(0).toLowerCase() + className.slice(1).replace(/Logic$/, 'Logic')

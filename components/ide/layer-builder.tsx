@@ -1,12 +1,13 @@
 'use client'
 import { useMemo, useState } from 'react'
 import type { ProjectEntry } from '@/lib/ide/project'
+import { builderClassAt } from '@/lib/ide/python-intelligence'
+import { isPythonName } from '@/lib/ide/builder'
 import {
   analyzeLayerClasses,
   architectureStatus,
   buildConnectionChange,
   buildObjectChange,
-  buildReturnChange,
   capitalize,
   coaLayers,
   defaultObjectName,
@@ -23,7 +24,7 @@ const targetByAction: Record<string, CoaLayer> = {
   'layer-object-business': 'business', 'layer-object-data': 'data', 'layer-object-domain': 'domain',
   'layer-ui-controller': 'business', 'layer-controller-ui': 'presentation',
 }
-export function LayerBuilder({ actionId, entries, active, projectRoot, roots, onProjectRoot, onApply }: {
+export function LayerBuilder({ actionId, entries, active, projectRoot, roots, onProjectRoot, onApply, onInsert, cursorOffset }: {
   actionId: string
   entries: ProjectEntry[]
   active: string
@@ -31,6 +32,8 @@ export function LayerBuilder({ actionId, entries, active, projectRoot, roots, on
   roots: string[]
   onProjectRoot: (root: string) => void
   onApply: (changes: BuilderChange[]) => void
+  onInsert: (code: string) => void
+  cursorOffset: number
 }) {
   const root = projectRoot ?? ''
   const rootAvailable = projectRoot !== null && (root === '' || entries.some((entry) => entry.kind === 'folder' && entry.path === root))
@@ -47,28 +50,44 @@ export function LayerBuilder({ actionId, entries, active, projectRoot, roots, on
   const [argumentsText, setArgumentsText] = useState('')
   const [steps, setSteps] = useState({ addImport: true, addObject: true, addCall: true })
   const [plan, setPlan] = useState<BuilderChange[] | null>(null)
+  const [snippet, setSnippet] = useState<string | null>(null)
+  const [error, setError] = useState('')
   const review = useMemo(() => reviewLayerConnections(entries, root), [entries, root])
   const source = entries.find((entry) => entry.path === active)?.content ?? ''
   const isReview = actionId === 'layer-review'
   const isReturn = actionId === 'layer-return'
   const isCreateMethod = actionId === 'layer-create-method'
   const prepare = () => {
+    setError(''); setSnippet(null); setPlan(null)
     if (isReturn) {
       const variable = argumentsText.trim() || 'resultado'
-      setPlan([buildReturnChange(source, active, variable)])
+      if (/[\r\n;]/.test(variable)) { setError('Escribe una expresión en una sola línea.'); return }
+      setSnippet(`return ${variable}`)
       return
     }
     if (isCreateMethod) {
       const name = methodName.trim() || 'nuevo_metodo'
+      const params = argumentsText.split(',').map((item) => item.trim()).filter(Boolean)
+      if (!isPythonName(name) || !params.every(isPythonName) || new Set(params).size !== params.length || params.includes('self')) { setError('Usa un nombre válido y parámetros distintos, sin self.'); return }
       if (new RegExp(`def\\s+${name}\\s*\\(`).test(source)) setPlan([{ path: active, content: source, summary: [`El método ${name} ya existe`] }])
-      else setPlan([{ path: active, content: source.replace(/\s*$/, '') + `\n\n    def ${name}(self${argumentsText.trim() ? ', ' + argumentsText : ''}):\n        pass\n`, summary: [`método ${name} con parámetros ${argumentsText || 'ninguno'}`] }])
+      else setSnippet(`def ${name}(${[...(builderClassAt(source, cursorOffset) ? ['self'] : []), ...params].join(', ')}):\n    pass`)
       return
     }
     if (!selected) return
     const values = argumentsText.split(',').map((item) => item.trim()).filter(Boolean)
     const objectOnly = actionId.startsWith('layer-object-')
+    if (!isPythonName(objectName)) { setError('El objeto debe tener un nombre Python válido.'); return }
     if (actionId === 'layer-controller-ui' && steps.addImport && wouldCreateCircularImport(entries, active, selected)) {
       setPlan([{ path: active, content: source, blocked: true, summary: ['⚠ No se aplicará: este import produciría una dependencia circular clara'] }])
+      return
+    }
+    const member = currentLayer === 'business' && targetLayer === 'data' || actionId === 'layer-ui-controller'
+    if (objectOnly || !member) {
+      const code: string[] = []
+      if (objectOnly || steps.addImport) code.push(`from ${selected.module} import ${selected.name}`, '')
+      if (objectOnly || steps.addObject) code.push(`${objectName} = ${selected.name}(${selected.constructor.map((parameter, index) => values[index] || parameter).join(', ')})`)
+      if (!objectOnly && steps.addCall && methodName) code.push(`${objectName}.${methodName}(${(selected.methods.find((item) => item.name === methodName)?.parameters ?? []).map((parameter, index) => values[index] || parameter).join(', ')})`)
+      setSnippet(code.join('\n'))
       return
     }
     setPlan([objectOnly ? buildObjectChange(source, active, selected, objectName, values) : buildConnectionChange(source, active, selected, objectName, methodName, values, { ...steps, member: actionId === 'layer-ui-controller' })])
@@ -100,8 +119,11 @@ export function LayerBuilder({ actionId, entries, active, projectRoot, roots, on
         {selected && <p className="ide-tip"><strong>Constructor:</strong> {selected.constructor.join(', ') || 'sin parámetros'}<br/><strong>Método:</strong> {selected.methods.find((item) => item.name === methodName)?.parameters.join(', ') || 'sin parámetros'}</p>}
       </>}
       {(selected?.constructor.length || selected?.methods.find((item) => item.name === methodName)?.parameters.length || isReturn || isCreateMethod) ? <label className="ide-field">{isReturn ? 'Resultado que se devolverá' : isCreateMethod ? 'Parámetros separados por coma' : 'Variables o valores separados por coma'}<input value={argumentsText} onChange={(event) => setArgumentsText(event.target.value)} /></label> : null}
+      {isCreateMethod && <label className="ide-field">Nombre del método / función<input value={methodName} onChange={(event) => setMethodName(event.target.value)} /></label>}
       <div className="layer-flow"><strong>FLUJO</strong><span>Presentation · parámetros</span><b>↓</b><span>Business · lógica</span><b>↓</b><span>Domain · objeto</span><b>↓</b><span>Data · persistencia</span></div>
       <button className="ide-primary wide" disabled={!selected && !isReturn && !isCreateMethod} onClick={prepare}>Previsualizar cambios</button>
+      {error && <p className="ide-warning" role="status">{error}</p>}
+      {snippet !== null && <div className="layer-plan"><pre className="ide-preview"><code>{snippet}</code></pre><button className="ide-primary wide" onClick={() => { onInsert(snippet); setSnippet(null) }}>Aplicar cambios</button></div>}
       {plan && <div className="layer-plan"><strong>SE REALIZARÁN ESTOS CAMBIOS</strong>{plan.map((change) => <div key={change.path}><b>{change.path}</b>{change.summary.map((summary) => <span key={summary}>+ {summary}</span>)}</div>)}<button className="ide-primary wide" disabled={plan.some((change) => change.blocked)} onClick={() => { onApply(plan); setPlan(null) }}>Aplicar cambios</button></div>}
     </>}
   </div>

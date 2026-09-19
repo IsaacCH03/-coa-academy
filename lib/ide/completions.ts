@@ -58,6 +58,7 @@ export function configurePython(monaco: Monaco) {
   disposables.push(monaco.languages.registerCompletionItemProvider('python', {
     triggerCharacters: ['.'],
     provideCompletionItems(model, position) {
+      intelligence.updateFile(modelPath(model), model.getValue())
       const word = model.getWordUntilPosition(position)
       const range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn }
       const prefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1)

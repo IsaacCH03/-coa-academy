@@ -17,7 +17,7 @@ it('encrypts tokens and rejects tampering and expired sessions', () => {
   const encrypted = seal({ token: 'sensitive', exp: Date.now() + 10000 })
   expect(encrypted).not.toContain('sensitive')
   expect(unseal(encrypted)?.token).toBe('sensitive')
-  expect(unseal('x' + encrypted.slice(1))).toBeNull()
+  expect(unseal((encrypted[0] === 'x' ? 'y' : 'x') + encrypted.slice(1))).toBeNull()
   expect(unseal(seal({ exp: Date.now() - 1 }))).toBeNull()
 })
 it('rejects cross-site writes and malformed repository names', () => {
