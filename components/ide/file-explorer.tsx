@@ -213,7 +213,7 @@ export function FileExplorer({
         ref={fileInput}
         type="file"
         multiple
-        accept=".py,.txt,.csv,.json,.md"
+        accept=".py,.txt,.csv,.xlsx,.json,.md"
         hidden
         onChange={(e) => {
           void importFiles(e.target.files)
@@ -346,7 +346,7 @@ export function FileExplorer({
       </ul>
       <p className="ide-muted">
         <small>
-          .py · .txt · .csv · .json · .md
+          .py · .txt · .csv · .xlsx · .json · .md
           <br />
           Los archivos existentes no se sobrescriben al importar. Renombra
           primero si hay coincidencias. El selector de carpetas depende del

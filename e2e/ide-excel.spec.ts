@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import JSZip from 'jszip'
 
 async function start(page: Page) {
   await page.goto('/ide')
@@ -89,4 +90,20 @@ wb.save("reporte.xlsx")`
   const stream=await (await downloadPromise).createReadStream(); const chunks:Buffer[]=[]
   for await(const chunk of stream) chunks.push(Buffer.from(chunk))
   expect(Buffer.concat(chunks).subarray(0,4)).toEqual(Buffer.from([0x50,0x4b,0x03,0x04]))
+})
+
+test('an imported strict OOXML workbook opens with optional nodes absent',async({page})=>{
+  const zip=new JSZip()
+  zip.file('xl/workbook.xml','<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:rel="http://purl.oclc.org/ooxml/officeDocument/relationships"><sheets><sheet name="Importada" sheetId="1" rel:id="externalSheet"/></sheets></workbook>')
+  zip.file('xl/_rels/workbook.xml.rels','<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/xl/worksheets/sheet1.xml" Id="externalSheet"/></Relationships>')
+  zip.file('xl/worksheets/sheet1.xml','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row/><row><c t="inlineStr"><is><t>Archivo externo</t></is></c><c/></row></sheetData></worksheet>')
+  const content=await zip.generateAsync({type:'nodebuffer'})
+  await start(page)
+  await page.getByRole('button',{name:'Extensiones',exact:true}).click()
+  await page.getByRole('button',{name:'Instalar',exact:true}).click()
+  await page.getByRole('button',{name:'Archivos',exact:true}).click()
+  await page.locator('input[type="file"][accept*=".xlsx"]').setInputFiles({name:'externo.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:content})
+  await page.locator('.ide-tree-name[title="externo.xlsx"]').click()
+  await expect(page.getByTestId('excel-viewer')).toContainText('Archivo externo')
+  await expect(page.getByTestId('excel-viewer')).toContainText('Importada')
 })

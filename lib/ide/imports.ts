@@ -1,6 +1,6 @@
 import {
   extensions,
-  MAX_FILE_SIZE,
+  fileSizeLimit,
   validateEntries,
   type ProjectEntry,
 } from './project'
@@ -35,8 +35,10 @@ const ignored = new Set([
 const supported = (path: string) =>
   extensions.includes(path.split('.').pop()?.toLowerCase() ?? '')
 async function fileEntry(file: File, path: string): Promise<ProjectEntry> {
-  if (file.size > MAX_FILE_SIZE)
-    throw new Error(`${file.name} supera el límite de 1 MB.`)
+  if (file.size > fileSizeLimit(path))
+    throw new Error(
+      `${file.name} supera el límite de ${path.toLowerCase().endsWith('.xlsx') ? '20 MB' : '5 MB'}.`,
+    )
   const bytes = await file.arrayBuffer()
   if (path.toLowerCase().endsWith('.xlsx')) return {
     path,

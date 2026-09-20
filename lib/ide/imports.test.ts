@@ -52,6 +52,9 @@ it('rejects undecodable content and oversized files before applying changes', as
     importFileList([new File([new Uint8Array([0xff])], 'mal.py')]),
   ).rejects.toThrow('UTF-8')
   await expect(
-    importFileList([new File(['a'.repeat(1048577)], 'big.py')]),
-  ).rejects.toThrow('1 MB')
+    importFileList([new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.py')]),
+  ).rejects.toThrow('5 MB')
+  await expect(
+    importFileList([new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'big.xlsx')]),
+  ).rejects.toThrow('20 MB')
 })

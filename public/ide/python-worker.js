@@ -234,8 +234,8 @@ function snapshot(
     } else if (
       python.FS.isFile(stat.mode) &&
       /\.(py|txt|csv|json|md|xlsx)$/i.test(name) &&
-      stat.size <= 1048576 &&
-      budget.bytes + stat.size <= 8388608
+      stat.size <= (/\.xlsx$/i.test(name) ? 20 * 1024 * 1024 : 5 * 1024 * 1024) &&
+      budget.bytes + stat.size <= 30 * 1024 * 1024
     ) {
       budget.bytes += stat.size
       const binary = /\.xlsx$/i.test(name)

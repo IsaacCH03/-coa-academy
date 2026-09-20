@@ -7,7 +7,7 @@ import { columnLabel, type XlsxBook } from '@/lib/ide/xlsx-reader'
 const ROW_HEIGHT = 29
 export default function ExcelViewer({ entry }: { entry: ProjectEntry }) {
   const [book,setBook]=useState<XlsxBook|null>(null), [error,setError]=useState(''), [sheetIndex,setSheetIndex]=useState(0), [selected,setSelected]=useState(''), [scrollTop,setScrollTop]=useState(0), [height,setHeight]=useState(500)
-  useEffect(()=>{ let active=true; void import('@/lib/ide/xlsx-reader').then(({readXlsx})=>readXlsx(base64ToBytes(entry.content))).then((value)=>active&&setBook(value),(cause)=>active&&setError(`No se pudo abrir este XLSX. ${(cause as Error).message}`)); return()=>{active=false} },[entry.content])
+  useEffect(()=>{ let active=true; void import('@/lib/ide/xlsx-reader').then(({readXlsx})=>readXlsx(base64ToBytes(entry.content))).then((value)=>active&&setBook(value),(cause)=>{ console.error(`[Excel Viewer] No se pudo interpretar ${entry.path}.`,cause); if(active)setError('No se pudo visualizar este archivo Excel. El archivo puede contener una estructura dañada o una característica que Excel Viewer todavía no admite.') }); return()=>{active=false} },[entry.content,entry.path])
   const sheet=book?.sheets[sheetIndex]
   const range=useMemo(()=>{ const start=Math.max(1,Math.floor(scrollTop/ROW_HEIGHT)-8), count=Math.ceil(height/ROW_HEIGHT)+16; return {start,end:Math.min(sheet?.rows??0,start+count)} },[scrollTop,height,sheet?.rows])
   if(error) return <div className="excel-state" role="alert"><strong>{entry.path}</strong><p>{error}</p></div>

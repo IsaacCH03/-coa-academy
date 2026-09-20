@@ -7,6 +7,7 @@ import {
   renameEntry,
   restoreProject,
   validPath,
+  validateEntries,
 } from './project'
 it('creates missing parent folders and opens the new file', () => {
   const p = addEntries(newProject(), [
@@ -16,6 +17,12 @@ it('creates missing parent folders and opens the new file', () => {
     p.entries.some((e) => e.path === 'business' && e.kind === 'folder'),
   ).toBe(true)
   expect(p.active).toBe('business/logic.py')
+})
+it('applies separate text and Excel size limits', () => {
+  expect(() => validateEntries([{ path: 'grande.py', kind: 'file', content: 'a'.repeat(5 * 1024 * 1024 + 1) }])).toThrow('5 MB')
+  const twentyMb = 'A'.repeat(Math.ceil(20 * 1024 * 1024 * 4 / 3))
+  expect(() => validateEntries([{ path: 'grande.xlsx', kind: 'file', content: twentyMb, encoding: 'base64' }])).not.toThrow()
+  expect(() => validateEntries([{ path: 'demasiado.xlsx', kind: 'file', content: twentyMb + 'AAAA', encoding: 'base64' }])).toThrow('20 MB')
 })
 it('opens new files in the active split group without changing group one', () => {
   const p = addEntries({ ...newProject(), splitEnabled: true, activeEditorGroup: 2 }, [{ path: 'logic.py', kind: 'file', content: '' }])

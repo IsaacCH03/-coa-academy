@@ -30,8 +30,14 @@ export type Project = {
   secondaryTabs?: string[]
 }
 export const extensions = ['py', 'txt', 'csv', 'json', 'md', 'xlsx']
-export const MAX_FILE_SIZE = 1024 * 1024
-export const MAX_PROJECT_SIZE = 8 * 1024 * 1024
+export const MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024
+export const MAX_XLSX_FILE_SIZE = 20 * 1024 * 1024
+export const MAX_PROJECT_SIZE = 30 * 1024 * 1024
+export function fileSizeLimit(path: string) {
+  return path.toLowerCase().endsWith('.xlsx')
+    ? MAX_XLSX_FILE_SIZE
+    : MAX_TEXT_FILE_SIZE
+}
 export function newProject(): Project {
   return {
     version: 1,
@@ -98,8 +104,12 @@ export function validateEntries(entries: ProjectEntry[]) {
     const bytes = entry.encoding === 'base64'
       ? Math.floor(entry.content.length * 3 / 4) - (entry.content.endsWith('==') ? 2 : entry.content.endsWith('=') ? 1 : 0)
       : new TextEncoder().encode(entry.content).length
-    if (bytes > MAX_FILE_SIZE)
-      throw new Error('Cada archivo puede ocupar hasta 1 MB.')
+    if (bytes > fileSizeLimit(entry.path))
+      throw new Error(
+        entry.path.toLowerCase().endsWith('.xlsx')
+          ? 'Cada archivo Excel puede ocupar hasta 20 MB.'
+          : 'Cada archivo de texto o código puede ocupar hasta 5 MB.',
+      )
     size += bytes
     if (
       entries.some(
@@ -110,7 +120,7 @@ export function validateEntries(entries: ProjectEntry[]) {
       throw new Error('Un archivo no puede contener otros archivos.')
   }
   if (size > MAX_PROJECT_SIZE)
-    throw new Error('El proyecto puede ocupar hasta 8 MB.')
+    throw new Error('El proyecto puede ocupar hasta 30 MB.')
   return entries
 }
 export function addEntries(
