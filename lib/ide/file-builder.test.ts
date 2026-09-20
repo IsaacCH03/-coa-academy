@@ -65,3 +65,33 @@ describe('standard-library intelligence', () => {
     expect(index.members('main.py', 'csv', 3)).toEqual([])
   })
 })
+
+describe('Excel generation', () => {
+  const excel = () => fileOperations.filter((item) => item.kind === 'Excel')
+  it('offers all 39 portable openpyxl operations and detects XLSX files', () => {
+    expect(excel()).toHaveLength(39)
+    expect(excel().every((item) => generateFileCode(item, {}, { ...settings, path: 'reportes/ventas.xlsx', method: item.method }).includes('openpyxl') || item.id === 'excel-save')).toBe(true)
+    expect(projectDataFiles([{path:'ventas.xlsx',kind:'file',content:'',encoding:'base64'},{path:'datos.csv',kind:'file',content:''}], 'Excel')).toEqual(['ventas.xlsx'])
+  })
+  it('generates loose code, functions and class methods through shared insertion', () => {
+    const create=excel().find((item)=>item.id==='excel-create')!
+    const loose=generateFileCode(create,{}, {...settings,path:'reporte.xlsx'})
+    expect(apply('if generar:\n    ',loose,2,5)).toContain('if generar:\n    wb = Workbook()')
+    expect(generateFileCode(create,{}, {...settings,path:'reporte.xlsx',form:'function',method:'crear_reporte'})).toContain('def crear_reporte():')
+    expect(generateFileCode(create,{}, {...settings,path:'reporte.xlsx',form:'function',method:'crear_reporte',className:'Reporte'})).toContain('def crear_reporte(self):')
+  })
+  it('deduplicates openpyxl imports at module level', () => {
+    const create=excel().find((item)=>item.id==='excel-create')!
+    const generated=generateFileCode(create,{}, {...settings,path:'reporte.xlsx'})
+    const result=apply('from openpyxl import Workbook\n\nif True:\n    ',generated,4,5)
+    expect(result.match(/from openpyxl import Workbook/g)).toHaveLength(1)
+  })
+  it('completes openpyxl imports and inferred workbook/worksheet members', () => {
+    const source='from openpyxl import Workbook\nwb = Workbook()\nws = wb.active\n'
+    const index=new PythonProjectIndex().update([{path:'main.py',kind:'file',content:source}])
+    expect(index.completions('main.py',1,'from openpyxl import ').map(item=>item.name)).toEqual(['Workbook','load_workbook'])
+    expect(index.completions('main.py',1,'from openpyxl.styles import ').map(item=>item.name)).toContain('PatternFill')
+    expect(index.members('main.py','wb',2).map(item=>item.name)).toContain('create_sheet')
+    expect(index.members('main.py','ws',3).map(item=>item.name)).toEqual(expect.arrayContaining(['append','iter_rows','max_row']))
+  })
+})

@@ -15,7 +15,7 @@ export function FileBuilder({ kind, entries, source, cursorOffset, disabled, onI
     try { return localStorage.getItem('coa-file-builder-form') === 'function' ? 'function' : 'code' } catch { return 'code' }
   })
   const files = projectDataFiles(entries, kind)
-  const [path, setPath] = useState(files[0] ?? `datos.${kind.toLowerCase()}`)
+  const [path, setPath] = useState(files[0] ?? (kind === 'Excel' ? 'datos.xlsx' : `datos.${kind.toLowerCase()}`))
   const [method, setMethod] = useState(operation.method)
   const [pathParameter, setPathParameter] = useState(false)
   const [dataParameter, setDataParameter] = useState(false)

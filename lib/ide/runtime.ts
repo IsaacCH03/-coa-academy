@@ -53,6 +53,7 @@ export class PythonRuntime {
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
+  private openpyxlWheels: Promise<Uint8Array[]> | undefined
   constructor(private events: RuntimeEvents) {}
   start() {
     this.dispose()
@@ -154,6 +155,13 @@ export class PythonRuntime {
       if (!this.ready || this.resolve)
         throw new Error('Espera a que Python esté listo.')
     }
+    const needsOpenpyxl = project.entries.some((entry) => entry.kind === 'file' && entry.path.toLowerCase().endsWith('.py') && /(^|\n)\s*(?:from\s+openpyxl\b|import\s+openpyxl\b)/.test(entry.content))
+    if (needsOpenpyxl && !this.openpyxlWheels) this.openpyxlWheels = Promise.all(['et_xmlfile-2.0.0-py3-none-any.whl','openpyxl-3.1.5-py2.py3-none-any.whl'].map(async(name)=>{
+      const response=await fetch(`/ide/packages/${name}`)
+      if(!response.ok) throw new Error(`No se pudo cargar ${name}.`)
+      return new Uint8Array(await response.arrayBuffer())
+    }))
+    const openpyxlWheels = needsOpenpyxl ? await this.openpyxlWheels : undefined
     this.events.state('running')
     return new Promise((resolve) => {
       this.resolve = resolve
@@ -169,6 +177,7 @@ export class PythonRuntime {
         entries: project.entries,
         active: project.active,
         inputs,
+        openpyxlWheels,
       })
     })
   }
@@ -231,7 +240,7 @@ export class PythonRuntime {
     return new Promise<CodeDiagnostic[]>((resolve, reject) => {
       this.resolveDiagnostics = resolve
       this.rejectDiagnostics = reject
-      this.worker!.postMessage({ type: 'analyze-diagnostics', entries })
+      this.worker!.postMessage({ type: 'analyze-diagnostics', entries: entries.map((entry) => entry.kind === 'file' && !entry.path.toLowerCase().endsWith('.py') ? { ...entry, content: '', encoding: undefined } : entry) })
     })
   }
   stop() {

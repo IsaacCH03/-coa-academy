@@ -10,6 +10,7 @@ import {
   Circle,
   ChevronLeft,
   PanelLeftOpen,
+  Blocks,
 } from 'lucide-react'
 import type { editor } from 'monaco-editor'
 import type { Monaco } from '@monaco-editor/react'
@@ -27,6 +28,7 @@ import { SettingsPanel } from './settings-panel'
 import { CoaGuiDialog } from './coa-gui-dialog'
 import { GeneratedCodePanel } from './generated-code-panel'
 import { EditorGroup } from './editor-group'
+import { ExtensionsPanel } from './extensions-panel'
 import { useProject } from './use-project'
 import {
   addEntries,
@@ -51,6 +53,8 @@ import type { BuilderChange } from '@/lib/ide/layers'
 import { DEFAULT_SETTINGS, accentColor, derivedColors, quickInsertion, type AppearanceProfile, type QuickAction, type StudioSettings } from '@/lib/ide/personalization'
 import { deleteCustomBackground, loadCustomBackground, loadProfiles, loadSettings, saveCustomBackground, saveProfiles, saveSettings } from '@/lib/ide/personalization-storage'
 import { convertCoaGuiToTkinter, usesCoaGui } from '@/lib/ide/coa-gui-converter'
+import { entryBlob } from '@/lib/ide/binary'
+import { DEFAULT_EXTENSIONS, loadExtensions, saveExtensions, type ExtensionState } from '@/lib/ide/extensions'
 
 const statusLabels: Record<RuntimeState, string> = {
   loading: 'Cargando Python…',
@@ -60,7 +64,7 @@ const statusLabels: Record<RuntimeState, string> = {
   stopped: 'Programa detenido',
   error: 'Python no disponible',
 }
-type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github' | 'settings'
+type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github' | 'settings' | 'extensions'
 
 export function IdeApp() {
   const { project, update, save, saveStatus, storageError } = useProject()
@@ -93,6 +97,8 @@ export function IdeApp() {
   const [focusDismissed, setFocusDismissed] = useState(false)
   const [pageVisible, setPageVisible] = useState(true)
   const [personalizationReady, setPersonalizationReady] = useState(false)
+  const [extensions, setExtensions] = useState<ExtensionState>(DEFAULT_EXTENSIONS)
+  const [extensionsReady, setExtensionsReady] = useState(false)
   const runtime = useRef<PythonRuntime | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const editorSelections = useRef(new WeakMap<editor.ICodeEditor, { model: editor.ITextModel; selection: import('monaco-editor').Selection }>())
@@ -124,6 +130,8 @@ export function IdeApp() {
   }, [])
   useEffect(() => { if (!personalizationReady) return; try { saveSettings(settings) } catch { /* Personalization stays optional. */ } }, [settings, personalizationReady])
   useEffect(() => { if (!personalizationReady) return; try { saveProfiles(profiles) } catch { /* Profiles stay optional. */ } }, [profiles, personalizationReady])
+  useEffect(() => { const frame=requestAnimationFrame(()=>{setExtensions(loadExtensions());setExtensionsReady(true)}); return()=>cancelAnimationFrame(frame) },[])
+  useEffect(() => { if(extensionsReady) try { saveExtensions(extensions) } catch { /* Local extension state is optional. */ } },[extensions,extensionsReady])
   useEffect(() => {
     if (!personalizationReady || settings.background !== 'custom') return
     let active = true
@@ -516,7 +524,7 @@ export function IdeApp() {
         )
       else
         service.downloadBlob(
-          new Blob([source], { type: 'text/plain;charset=utf-8' }),
+          entryBlob(project.entries.find((entry)=>entry.path===activePath)!),
           activePath.split('/').pop() || 'main.py',
         )
     } catch {
@@ -680,6 +688,7 @@ export function IdeApp() {
               { id: 'files', label: 'Archivos', icon: Files },
               { id: 'ai', label: 'COA IA', icon: Bot },
               { id: 'exercise', label: 'Ejercicios', icon: GraduationCap },
+              { id: 'extensions', label: 'Extensiones', icon: Blocks },
               { id: 'designer', label: 'Diseñador', icon: PanelsTopLeft },
             ] as const
           ).map((item) => (
@@ -748,6 +757,7 @@ export function IdeApp() {
                 />
               )}
               {panel === 'settings' && <SettingsPanel settings={settings} profiles={profiles} customBackgroundUrl={backgroundUrl} onChange={setSettings} onProfiles={setProfiles} onSaveProfile={saveAppearanceProfile} onDeleteProfile={deleteAppearanceProfile} notice={report} onImage={saveCustomBackground} onRemoveImage={removeCurrentBackground} onPreviewDialog={() => setPreviewDialog({kind:'showinfo',title:'Información',message:'Así se verán las ventanas emergentes de COA GUI.'})} onReset={() => { if (!confirm('¿Restaurar la configuración visual predeterminada? Tus proyectos no se eliminarán.')) return; void removeCurrentBackground(); setSettings({...DEFAULT_SETTINGS,quickBar:[...DEFAULT_SETTINGS.quickBar]}) }} />}
+              {panel === 'extensions' && <ExtensionsPanel extensions={extensions} onChange={setExtensions}/>}
               {panel === 'exercise' && (
                 <ExercisePanel
                   selected={exercise}
@@ -815,8 +825,8 @@ export function IdeApp() {
         >
           {settings.splitToolbar && <div className="ide-split-toolbar"><button aria-label="Abrir explorador" title="Abrir explorador" onClick={()=>setPanel('files')}><PanelLeftOpen size={16}/></button><button onClick={()=>openAside(activePath,'right')}>Dividir a la derecha</button><button onClick={()=>openAside(activePath,'down')}>Dividir abajo</button>{project.splitEnabled&&<button onClick={closeSplit}>Cerrar división</button>}<button className="ide-split-toolbar-close" aria-label="Desactivar barra de división" title="Desactivar barra de división" onClick={()=>setSettings(current=>({...current,splitToolbar:false}))}><X size={18}/></button></div>}
           <div className={`ide-editor-split ${project.splitEnabled ? `active ${project.splitOrientation}` : ''}`} style={{ display: expanded ? 'none' : undefined, '--split-ratio': `${project.splitRatio ?? 50}%` } as CSSProperties}>
-            <EditorGroup group={1} path={project.active} tabs={project.tabs} entries={project.entries} readOnly={busy} settings={settings} onActivate={()=>activateEditor(1)} onOpen={(path)=>{update(p=>({...p,active:path,activeEditorGroup:1}));}} onClose={(path)=>closeTab(path,1)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(1,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/>
-            {project.splitEnabled&&<><div className="ide-split-divider" role="separator" aria-label="Redimensionar editores" tabIndex={0} onPointerDown={(e)=>e.currentTarget.setPointerCapture(e.pointerId)} onPointerMove={(e)=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const box=e.currentTarget.parentElement?.getBoundingClientRect();if(!box)return;const ratio=project.splitOrientation==='down'?(e.clientY-box.top)/box.height*100:(e.clientX-box.left)/box.width*100;update(p=>({...p,splitRatio:Math.min(75,Math.max(25,Math.round(ratio)))}));editorRefs.current[1]?.layout();editorRefs.current[2]?.layout()}}/><EditorGroup group={2} path={project.secondaryActive ?? ''} tabs={project.secondaryTabs ?? []} entries={project.entries} readOnly={busy} settings={settings} onActivate={()=>activateEditor(2)} onOpen={(path)=>update(p=>({...p,secondaryActive:path,activeEditorGroup:2}))} onClose={(path)=>closeTab(path,2)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(2,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/></>}
+            <EditorGroup group={1} path={project.active} tabs={project.tabs} entries={project.entries} readOnly={busy} settings={settings} excelViewerEnabled={extensions['excel-viewer'].enabled} onInstallExcelViewer={()=>setExtensions(current=>({...current,'excel-viewer':{installed:true,enabled:true}}))} onActivate={()=>activateEditor(1)} onOpen={(path)=>{update(p=>({...p,active:path,activeEditorGroup:1}));}} onClose={(path)=>closeTab(path,1)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(1,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/>
+            {project.splitEnabled&&<><div className="ide-split-divider" role="separator" aria-label="Redimensionar editores" tabIndex={0} onPointerDown={(e)=>e.currentTarget.setPointerCapture(e.pointerId)} onPointerMove={(e)=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const box=e.currentTarget.parentElement?.getBoundingClientRect();if(!box)return;const ratio=project.splitOrientation==='down'?(e.clientY-box.top)/box.height*100:(e.clientX-box.left)/box.width*100;update(p=>({...p,splitRatio:Math.min(75,Math.max(25,Math.round(ratio)))}));editorRefs.current[1]?.layout();editorRefs.current[2]?.layout()}}/><EditorGroup group={2} path={project.secondaryActive ?? ''} tabs={project.secondaryTabs ?? []} entries={project.entries} readOnly={busy} settings={settings} excelViewerEnabled={extensions['excel-viewer'].enabled} onInstallExcelViewer={()=>setExtensions(current=>({...current,'excel-viewer':{installed:true,enabled:true}}))} onActivate={()=>activateEditor(2)} onOpen={(path)=>update(p=>({...p,secondaryActive:path,activeEditorGroup:2}))} onClose={(path)=>closeTab(path,2)} onChange={(path,content)=>{setRuntimeMarker(null);setRuntimeDiagnostic(null);update(p=>({...p,entries:p.entries.map(e=>e.path===path?{...e,content}:e)}))}} onMount={(ed,monaco)=>mountEditor(2,ed,monaco)} onNavigate={navigateDefinition} onNotice={report}/></>}
           </div>
           <div className="ide-editor-overlay">
             {guiPreview && (

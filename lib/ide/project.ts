@@ -9,6 +9,7 @@ export type ProjectEntry = {
   path: string
   kind: 'file' | 'folder'
   content: string
+  encoding?: 'base64'
 }
 export type Project = {
   version: 1
@@ -28,7 +29,7 @@ export type Project = {
   secondaryActive?: string
   secondaryTabs?: string[]
 }
-export const extensions = ['py', 'txt', 'csv', 'json', 'md']
+export const extensions = ['py', 'txt', 'csv', 'json', 'md', 'xlsx']
 export const MAX_FILE_SIZE = 1024 * 1024
 export const MAX_PROJECT_SIZE = 8 * 1024 * 1024
 export function newProject(): Project {
@@ -81,7 +82,7 @@ export function validPath(path: string, kind: ProjectEntry['kind'] = 'file') {
     kind === 'file' &&
     !extensions.includes(path.split('.').pop()?.toLowerCase() ?? '')
   )
-    throw new Error('Puedes abrir archivos .py, .txt, .csv, .json y .md.')
+    throw new Error('Puedes abrir archivos .py, .txt, .csv, .json, .md y .xlsx.')
   return path
 }
 export function validateEntries(entries: ProjectEntry[]) {
@@ -94,7 +95,9 @@ export function validateEntries(entries: ProjectEntry[]) {
     if (seen.has(entry.path))
       throw new Error('Ya existe un archivo o carpeta con ese nombre.')
     seen.add(entry.path)
-    const bytes = new TextEncoder().encode(entry.content).length
+    const bytes = entry.encoding === 'base64'
+      ? Math.floor(entry.content.length * 3 / 4) - (entry.content.endsWith('==') ? 2 : entry.content.endsWith('=') ? 1 : 0)
+      : new TextEncoder().encode(entry.content).length
     if (bytes > MAX_FILE_SIZE)
       throw new Error('Cada archivo puede ocupar hasta 1 MB.')
     size += bytes
@@ -213,6 +216,7 @@ export function restoreProject(value: unknown): Project {
         e &&
         typeof e.path === 'string' &&
         typeof e.content === 'string' &&
+        (e.encoding === undefined || e.encoding === 'base64') &&
         ['file', 'folder'].includes(e.kind),
     )
   )
@@ -273,7 +277,8 @@ export function mergeRuntimeEntries(
     if (
       !before ||
       before.content !== entry.content ||
-      before.kind !== entry.kind
+      before.kind !== entry.kind ||
+      before.encoding !== entry.encoding
     )
       entries.push(entry)
     else {

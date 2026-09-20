@@ -1,0 +1,92 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function start(page: Page) {
+  await page.goto('/ide')
+  await page.getByRole('button',{name:'Comenzar',exact:true}).click()
+  await expect(page.locator('.monaco-editor').first()).toBeVisible({timeout:90000})
+  await expect(page.getByText('Python listo',{exact:true})).toBeVisible({timeout:90000})
+}
+async function monaco(page: Page, code?: string, line?: number, column?: number, group=0) {
+  return page.evaluate(async ({code,line,column,group})=>{
+    const api=await new Promise<typeof import('monaco-editor')>(resolve=>(window as unknown as {require:(deps:string[],cb:(api:typeof import('monaco-editor'))=>void)=>void}).require(['vs/editor/editor.main'],resolve))
+    const editor=api.editor.getEditors()[group]
+    if(code!==undefined) editor.setValue(code)
+    if(line!==undefined) editor.setPosition({lineNumber:line,column:column??1})
+    editor.focus()
+    return editor.getValue().replace(/\r\n/g,'\n')
+  },{code,line,column,group})
+}
+
+test('Excel Builder shares Monaco insertion, imports, class detection, undo and IntelliSense',async({page})=>{
+  await start(page)
+  await monaco(page,'class Reporte:\n    ',2,5)
+  await page.getByRole('button',{name:'Nivel 2',exact:true}).click()
+  await page.getByRole('button',{name:'Excel +',exact:true}).click()
+  await page.getByLabel('Operación Excel').selectOption('excel-create')
+  await page.getByLabel('Forma de generación').selectOption('function')
+  await expect(page.locator('.ide-preview')).toContainText('def crear_excel(self):')
+  await page.getByLabel('Forma de generación').selectOption('code')
+  await monaco(page,'class Reporte:\n    def generar(self):\n        if self.activo:\n            ',4,13)
+  await page.getByRole('button',{name:'Insertar código',exact:true}).click()
+  const inserted=await monaco(page)
+  expect(inserted).toContain('from openpyxl import Workbook')
+  expect(inserted).toContain('        if self.activo:\n            wb = Workbook()')
+  await page.keyboard.press('Control+z')
+  expect(await monaco(page)).not.toContain('Workbook')
+  await monaco(page,'from openpyxl import Workbook\nwb = Workbook()\nwb.cre',3,7)
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget')).toContainText('create_sheet')
+  await page.keyboard.press('Escape')
+  await monaco(page,'wb = Workbook()',1,6)
+  await page.locator('.diagnostics-summary').click()
+  await expect(page.getByRole('button',{name:'💡 Importar Workbook desde openpyxl',exact:true})).toBeVisible()
+  await monaco(page,'wb = load_workbook()',1,10)
+  await expect(page.getByRole('button',{name:'💡 Importar load_workbook desde openpyxl',exact:true})).toBeVisible()
+  await expect(page.getByText('load_workbook() necesita la ruta del archivo.')).toBeVisible()
+  await monaco(page,'fuente = Font(bold=True)',1,12)
+  await expect(page.getByRole('button',{name:'💡 Importar Font desde openpyxl',exact:true})).toBeVisible()
+  await page.locator('.diagnostics-summary').click()
+  await monaco(page,'from openpyxl.styles import ',1,29)
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget')).toContainText('PatternFill')
+})
+
+test('openpyxl creates binary XLSX, Explorer opens lazy Viewer in split and download stays valid',async({page})=>{
+  await start(page)
+  await page.getByRole('button',{name:'Extensiones',exact:true}).click()
+  await page.getByRole('button',{name:'Instalar',exact:true}).click()
+  const code=`from openpyxl import Workbook
+wb = Workbook()
+ws = wb.active
+ws.title = "Ventas"
+ws.append(["Producto", "Precio", "Cantidad", "Total"])
+ws.append(["Mouse", 8000, 2, 16000])
+ws.append(["Teclado", 15000, 1, 15000])
+resumen = wb.create_sheet("Resumen")
+resumen.append(["Registros", 2])
+wb.save("reporte.xlsx")`
+  await monaco(page,code,11,1)
+  await page.getByRole('button',{name:/Ejecutar/}).click()
+  await expect(page.getByText('Python listo',{exact:true})).toBeVisible({timeout:180000})
+  await page.getByRole('button',{name:'Archivos',exact:true}).click()
+  const excel=page.locator('.ide-tree-name[title="reporte.xlsx"]')
+  await expect(excel).toBeVisible({timeout:30000})
+  await excel.click()
+  await expect(page.getByTestId('excel-viewer')).toBeVisible({timeout:30000})
+  await expect(page.getByTestId('excel-viewer')).toContainText('Ventas')
+  await expect(page.getByTestId('excel-viewer')).toContainText('Mouse')
+  await page.getByLabel('Hoja de Excel').selectOption({label:'Resumen'})
+  await expect(page.getByTestId('excel-viewer')).toContainText('Registros')
+  await page.getByRole('tab',{name:/main\.py/}).click()
+  const item=excel.locator('xpath=..')
+  await item.locator('summary[aria-label^="Acciones de"]').click()
+  await item.getByRole('button',{name:'Abrir a la derecha',exact:true}).click()
+  await expect(page.locator('.ide-editor-group[data-group="2"] [data-testid="excel-viewer"]')).toBeVisible({timeout:30000})
+  await page.getByRole('button',{name:'Archivos',exact:true}).click()
+  await item.locator('summary[aria-label^="Acciones de"]').click()
+  const downloadPromise=page.waitForEvent('download')
+  await item.getByRole('button',{name:'Descargar',exact:true}).click()
+  const stream=await (await downloadPromise).createReadStream(); const chunks:Buffer[]=[]
+  for await(const chunk of stream) chunks.push(Buffer.from(chunk))
+  expect(Buffer.concat(chunks).subarray(0,4)).toEqual(Buffer.from([0x50,0x4b,0x03,0x04]))
+})

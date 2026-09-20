@@ -10,6 +10,19 @@ let output = ''
 let testing = false
 const LIMIT = 200000
 const decoder = new TextDecoder()
+let openpyxlReady = false
+function bytesToBase64(bytes) {
+  let binary = ''
+  for (let index = 0; index < bytes.length; index += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
+  return btoa(binary)
+}
+function base64ToBytes(value) {
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
+  return bytes
+}
 function requestDialog(kind, title, message) {
   if (!inputBuffer)
     throw new Error('Los diálogos COA GUI necesitan HTTPS o localhost.')
@@ -220,16 +233,14 @@ function snapshot(
       snapshot(full, relative + '/', result, budget)
     } else if (
       python.FS.isFile(stat.mode) &&
-      /\.(py|txt|csv|json|md)$/i.test(name) &&
+      /\.(py|txt|csv|json|md|xlsx)$/i.test(name) &&
       stat.size <= 1048576 &&
       budget.bytes + stat.size <= 8388608
     ) {
       budget.bytes += stat.size
-      result.push({
-        path: relative,
-        kind: 'file',
-        content: python.FS.readFile(full, { encoding: 'utf8' }),
-      })
+      const binary = /\.xlsx$/i.test(name)
+      const content = python.FS.readFile(full, binary ? undefined : { encoding: 'utf8' })
+      result.push({ path: relative, kind: 'file', content: binary ? bytesToBase64(content) : content, ...(binary ? { encoding: 'base64' } : {}) })
     }
   }
   return result
@@ -810,6 +821,44 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                 if received < 2:
                     message = f'{member} necesita un título y un mensaje.' if received == 0 else 'Falta el mensaje de la ventana emergente.'
                     __coa_diagnostics.append(__coa_item(__coa_path, 'coa-dialog-args', call, message, 'Agrega el título y el mensaje como los dos primeros argumentos.'))
+    # High-confidence openpyxl names, inferred workbook/worksheet members and import fixes.
+    excel_imports = {
+        'Workbook': 'from openpyxl import Workbook', 'load_workbook': 'from openpyxl import load_workbook',
+        'Font': 'from openpyxl.styles import Font', 'Alignment': 'from openpyxl.styles import Alignment',
+        'PatternFill': 'from openpyxl.styles import PatternFill', 'Border': 'from openpyxl.styles import Border', 'Side': 'from openpyxl.styles import Side',
+    }
+    excel_loaded = {local for local, imported in imported_names.items() if isinstance(imported, __ast.ImportFrom) and (imported.module or '').startswith('openpyxl')}
+    insert_line = 1
+    source_lines = __coa_diagnostic_source.splitlines()
+    while insert_line <= len(source_lines) and (not source_lines[insert_line - 1].strip() or source_lines[insert_line - 1].lstrip().startswith('#')): insert_line += 1
+    for statement in __coa_tree.body:
+        if isinstance(statement, (__ast.Import, __ast.ImportFrom)): insert_line = max(insert_line, statement.end_lineno + 1)
+        elif not (isinstance(statement, __ast.Expr) and isinstance(statement.value, __ast.Constant) and isinstance(statement.value.value, str)): break
+    for node in (item for item in __ast.walk(__coa_tree) if isinstance(item, __ast.Name) and isinstance(item.ctx, __ast.Load) and item.id in excel_imports):
+        if node.id in definitions or node.id in excel_loaded: continue
+        item = __coa_item(__coa_path, 'openpyxl-import', node, f'{node.id} se está utilizando, pero no está importado.', 'Agrega el import oficial de openpyxl.', 'warning')
+        item['fix'] = {'title': f'Importar {node.id} desde openpyxl', 'startLine': insert_line, 'startColumn': 1, 'endLine': insert_line, 'endColumn': 1, 'text': excel_imports[node.id] + '\\n'}
+        __coa_diagnostics.append(item); definitions[node.id] = 0
+    workbook_vars, worksheet_vars = set(), set()
+    for node in (item for item in __ast.walk(__coa_tree) if isinstance(item, (__ast.Assign, __ast.AnnAssign))):
+        targets = node.targets if isinstance(node, __ast.Assign) else [node.target]
+        if len(targets) != 1 or not isinstance(targets[0], __ast.Name): continue
+        target, value = targets[0].id, node.value
+        if isinstance(value, __ast.Call) and isinstance(value.func, __ast.Name) and value.func.id in ('Workbook','load_workbook'): workbook_vars.add(target)
+        if isinstance(value, __ast.Attribute) and isinstance(value.value, __ast.Name) and value.value.id in workbook_vars and value.attr == 'active': worksheet_vars.add(target)
+        if isinstance(value, __ast.Subscript) and isinstance(value.value, __ast.Name) and value.value.id in workbook_vars: worksheet_vars.add(target)
+    excel_members = {'workbook': {'save','create_sheet','remove'}, 'worksheet': {'append','iter_rows','iter_cols','cell'}}
+    for node in (item for item in __ast.walk(__coa_tree) if isinstance(item, __ast.Call)):
+        if isinstance(node.func, __ast.Name) and node.func.id == 'load_workbook' and not node.args and not node.keywords:
+            __coa_diagnostics.append(__coa_item(__coa_path, 'openpyxl-args', node, 'load_workbook() necesita la ruta del archivo.', 'Agrega una ruta relativa, por ejemplo "datos.xlsx".'))
+        if not isinstance(node.func, __ast.Attribute) or not isinstance(node.func.value, __ast.Name): continue
+        kind = 'workbook' if node.func.value.id in workbook_vars else 'worksheet' if node.func.value.id in worksheet_vars else ''
+        if kind and node.func.attr not in excel_members[kind]:
+            suggestion = __coa_best(node.func.attr, excel_members[kind])
+            if suggestion:
+                item = __coa_item(__coa_path, 'openpyxl-member', node.func, f'"{node.func.attr}" no existe en este objeto de openpyxl.', f'¿Querías escribir "{suggestion}"?')
+                item['fix'] = {'title': f'Cambiar a "{suggestion}"', 'startLine': node.func.lineno, 'startColumn': node.func.end_col_offset - len(node.func.attr) + 1, 'endLine': node.func.end_lineno, 'endColumn': node.func.end_col_offset + 1, 'text': suggestion}
+                __coa_diagnostics.append(item)
     known = set(dir(__builtins)) | {'__name__', '__file__'}
     reported = set()
     for node in __ast.walk(__coa_tree):
@@ -975,7 +1024,7 @@ __json.dumps(__coa_diagnostics)
       if (entry.kind === 'folder') python.FS.mkdirTree(path)
       else {
         python.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')))
-        python.FS.writeFile(path, entry.content)
+        python.FS.writeFile(path, entry.encoding === 'base64' ? base64ToBytes(entry.content) : entry.content)
       }
     }
     python.FS.chdir('/home/coa')
@@ -999,6 +1048,17 @@ __json.dumps(__coa_diagnostics)
         )
       },
     })
+    const needsOpenpyxl = data.entries.some((entry) => entry.kind === 'file' && /\.py$/i.test(entry.path) && /(^|\n)\s*(?:from\s+openpyxl\b|import\s+openpyxl\b)/.test(entry.content))
+    if (needsOpenpyxl && !openpyxlReady) {
+      self.postMessage({ type: 'output', text: 'Preparando openpyxl por primera vez…\n' })
+      await python.loadPackage('micropip')
+      const wheelNames = ['et_xmlfile-2.0.0-py3-none-any.whl', 'openpyxl-3.1.5-py2.py3-none-any.whl']
+      if (!Array.isArray(data.openpyxlWheels) || data.openpyxlWheels.length !== wheelNames.length) throw new Error('No se recibieron los paquetes locales de openpyxl.')
+      for (let index = 0; index < wheelNames.length; index++) python.FS.writeFile(`/tmp/${wheelNames[index]}`, data.openpyxlWheels[index])
+      python.globals.set('__coa_openpyxl_wheels', JSON.stringify(wheelNames.map((name) => `emfs:/tmp/${name}`)))
+      await python.runPythonAsync("import micropip, json; await micropip.install(json.loads(__coa_openpyxl_wheels), deps=False)")
+      openpyxlReady = true
+    }
     python.globals.set('__coa_entry', '/home/coa/' + data.active)
     const activeParts = data.active.split('/')
     const layerAt = activeParts.findIndex((part) => ['presentation', 'business', 'domain', 'data'].includes(part))

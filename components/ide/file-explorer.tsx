@@ -15,6 +15,7 @@ import {
   Plus,
   Braces,
   Copy,
+  Sheet,
 } from 'lucide-react'
 import {
   addEntries,
@@ -28,6 +29,7 @@ import {
   importFileList,
   type PickerWindow,
 } from '@/lib/ide/imports'
+import { entryBlob } from '@/lib/ide/binary'
 
 export function FileExplorer({
   project,
@@ -99,7 +101,7 @@ export function FileExplorer({
   }) {
     if (!entries.length) {
       onError(
-        'No se encontraron archivos compatibles. Usa .py, .txt, .csv, .json o .md.',
+        'No se encontraron archivos compatibles. Usa .py, .txt, .csv, .json, .md o .xlsx.',
       )
       return
     }
@@ -132,7 +134,7 @@ export function FileExplorer({
   async function downloadEntry(entry: ProjectEntry) {
     const service = await import('@/lib/ide/downloads')
     if (entry.kind === 'folder') service.downloadBlob(await service.folderZip(project,entry.path),`${entry.path.split('/').pop()}.zip`)
-    else service.downloadBlob(new Blob([entry.content],{type:'text/plain;charset=utf-8'}),entry.path.split('/').pop()!)
+    else service.downloadBlob(entryBlob(entry),entry.path.split('/').pop()!)
   }
   function duplicate(entry: ProjectEntry) {
     if (entry.kind !== 'file') return
@@ -171,8 +173,8 @@ export function FileExplorer({
           multiple: true,
           types: [
             {
-              description: 'Archivos de Python y texto',
-              accept: { 'text/plain': ['.py', '.txt', '.csv', '.json', '.md'] },
+              description: 'Archivos de COA Python Studio',
+              accept: { 'text/plain': ['.py', '.txt', '.csv', '.json', '.md'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
             },
           ],
         })
@@ -330,6 +332,8 @@ export function FileExplorer({
                     )}
                     <Folder size={16} className={themedIcons ? 'theme-folder-icon' : ''} />
                   </>
+                ) : entry.path.toLowerCase().endsWith('.xlsx') ? (
+                  <Sheet size={16} className="ide-excel-icon" />
                 ) : (
                   <FileCode2 size={16} />
                 )}

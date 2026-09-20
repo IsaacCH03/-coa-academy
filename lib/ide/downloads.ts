@@ -1,11 +1,12 @@
 import JSZip from 'jszip'
 import type { Project } from './project'
+import { entryBytes } from './binary'
 
 export async function projectZip(project: Project) {
   const zip = new JSZip()
   for (const entry of project.entries) {
     if (entry.kind === 'folder') zip.folder(entry.path)
-    else zip.file(entry.path, entry.content)
+    else zip.file(entry.path, entry.encoding === 'base64' ? entryBytes(entry) : entry.content)
   }
   return zip.generateAsync({ type: 'blob' })
 }
@@ -15,7 +16,7 @@ export async function folderZip(project: Project, folder: string) {
   for (const entry of project.entries) {
     if (entry.path !== folder && !entry.path.startsWith(prefix)) continue
     if (entry.kind === 'folder') zip.folder(entry.path)
-    else zip.file(entry.path, entry.content)
+    else zip.file(entry.path, entry.encoding === 'base64' ? entryBytes(entry) : entry.content)
   }
   return zip.generateAsync({ type: 'blob' })
 }

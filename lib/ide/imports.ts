@@ -4,6 +4,7 @@ import {
   validateEntries,
   type ProjectEntry,
 } from './project'
+import { bytesToBase64 } from './binary'
 
 export type LocalFileHandle = {
   kind: 'file'
@@ -33,10 +34,16 @@ const ignored = new Set([
 ])
 const supported = (path: string) =>
   extensions.includes(path.split('.').pop()?.toLowerCase() ?? '')
-async function textEntry(file: File, path: string): Promise<ProjectEntry> {
+async function fileEntry(file: File, path: string): Promise<ProjectEntry> {
   if (file.size > MAX_FILE_SIZE)
     throw new Error(`${file.name} supera el límite de 1 MB.`)
   const bytes = await file.arrayBuffer()
+  if (path.toLowerCase().endsWith('.xlsx')) return {
+    path,
+    kind: 'file',
+    content: bytesToBase64(new Uint8Array(bytes)),
+    encoding: 'base64',
+  }
   try {
     return {
       path,
@@ -60,7 +67,7 @@ export async function importFileList(files: Iterable<File>) {
     }
     if (entries.length >= 300)
       throw new Error('Selecciona como máximo 300 archivos compatibles.')
-    entries.push(await textEntry(file, path))
+    entries.push(await fileEntry(file, path))
   }
   validateEntries(entries)
   return { entries, skipped }
@@ -85,7 +92,7 @@ export async function importDirectory(handle: LocalDirectoryHandle) {
       const path = `${prefix}/${child.name}`
       if (child.kind === 'directory') await visit(child, path)
       else if (supported(path))
-        entries.push(await textEntry(await child.getFile(), path))
+        entries.push(await fileEntry(await child.getFile(), path))
       else skipped++
       validateEntries(entries)
     }

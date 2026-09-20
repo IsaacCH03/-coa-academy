@@ -312,8 +312,7 @@ export function LearnPanel({
             <details open>
               <summary>Archivos</summary>
               <div className="ide-action-list">
-                {(['TXT', 'CSV'] as const).map((name) => <button key={name} onClick={() => setFileKind(name)}>{name}<span>+</span></button>)}
-                <button disabled>Excel<small>Próximamente</small></button>
+                {(['TXT', 'CSV', 'Excel'] as const).map((name) => <button key={name} onClick={() => setFileKind(name)}>{name}<span>+</span></button>)}
               </div>
             </details>
           )}

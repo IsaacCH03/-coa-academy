@@ -106,6 +106,11 @@ const coaGuiMembers: Array<[string, PythonSymbolKind, string]> = [
   ['askfloat', 'function', 'askfloat(título, mensaje)'], ['askyesno', 'function', 'askyesno(título, mensaje)'],
   ['askokcancel', 'function', 'askokcancel(título, mensaje)'],
 ]
+const excelMembers = {
+  workbook: [['save','save(ruta)','Guarda el libro XLSX.'],['create_sheet','create_sheet(título)','Crea una hoja.'],['remove','remove(hoja)','Elimina una hoja.'],['sheetnames','sheetnames','Lista los nombres de hojas.'],['active','active','Devuelve la hoja activa.']],
+  worksheet: [['append','append(fila)','Agrega una fila.'],['iter_rows','iter_rows(values_only=False)','Recorre las filas.'],['iter_cols','iter_cols(values_only=False)','Recorre las columnas.'],['cell','cell(fila, columna, value=None)','Obtiene o escribe una celda.'],['max_row','max_row','Última fila con datos.'],['max_column','max_column','Última columna con datos.'],['title','title','Nombre de la hoja.']],
+} as const
+const excelSymbols = (kind: keyof typeof excelMembers): PythonSymbol[] => excelMembers[kind].map(([name,signature,docstring])=>({name,signature,docstring,kind:signature.includes('(')?'method':'property',path:'openpyxl',line:1,column:1}))
 
 function moduleFromPath(path: string) {
   return path.replace(/\.py$/i, '').replace(/\/__init__$/, '').replaceAll('/', '.')
@@ -346,6 +351,10 @@ export class PythonProjectIndex {
     if (!file) return []
     const standard = this.modules.has('csv') ? [] : standardFileMembers(file.source, expression, line)
     if (standard.length) return standard.map(({ name, signature, docstring, module }) => ({ name, signature, docstring, kind: module === 'csv' ? 'function' : 'method', path: 'python', line: 1, column: 1 }))
+    const escaped = expression.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const before = file.source.split(/\r?\n/).slice(0,line).join('\n')
+    if (new RegExp(`(?:^|\\n)\\s*${escaped}\\s*=\\s*(?:Workbook|load_workbook)\\s*\\(`).test(before)) return excelSymbols('workbook')
+    if (new RegExp(`(?:^|\\n)\\s*${escaped}\\s*=\\s*[A-Za-z_]\\w*(?:\\.active|\\s*\\[)`).test(before)) return excelSymbols('worksheet')
     const value = this.resolveValue(file, expression, line)
     if (value === 'coa_gui') return coaGuiMembers.map(([name, kind, signature]) => ({ name, kind, signature, path: 'coa_gui', line: 1, column: 1 }))
     if (!value) return []
@@ -358,6 +367,8 @@ export class PythonProjectIndex {
     if (!file) return []
     const importSymbols = prefix.match(/^\s*from\s+([\w.]*)\s+import\s+(\w*)$/)
     if (importSymbols) {
+      if (importSymbols[1] === 'openpyxl') return ['Workbook','load_workbook'].map((name)=>({name,kind:name==='Workbook'?'class':'function',path:'openpyxl',line:1,column:1,sortGroup:0}))
+      if (importSymbols[1] === 'openpyxl.styles') return ['Font','Alignment','PatternFill','Border','Side'].map((name)=>({name,kind:'class',path:'openpyxl',line:1,column:1,sortGroup:0}))
       const target = this.modules.get(importSymbols[1])
       return (target?.symbols ?? []).filter((symbol) => ['class', 'function', 'variable'].includes(symbol.kind) && !symbol.name.startsWith('_')).map((symbol) => ({ ...symbol, sortGroup: 0 }))
     }

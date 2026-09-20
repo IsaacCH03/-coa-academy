@@ -148,7 +148,7 @@ test('TXT and CSV selectors show real project paths and allow manual paths', asy
     }
     await page.getByRole('button', { name: 'Volver', exact: true }).click()
   }
-  await expect(page.getByRole('button', { name: /Excel/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Excel +', exact: true })).toBeEnabled()
 })
 
 test('CSV diagnostics offer a Monaco code action and Ctrl+Space knows CSV and file APIs', async ({ page }) => {
@@ -179,7 +179,7 @@ test('CSV diagnostics offer a Monaco code action and Ctrl+Space knows CSV and fi
 
 test('all TXT/CSV operations execute in Python and diagnostics are scoped and actionable', async ({ page }) => {
   await page.goto('/ide')
-  const samples = fileOperations.map((op) => ({ id: op.id, kind: op.kind, method: op.method, code: generateFileCode(op, {}, { form: 'function', method: op.method, path: 'datos.txt', pathParameter: true, dataParameter: false }) }))
+  const samples = fileOperations.filter((op)=>op.kind!=='Excel').map((op) => ({ id: op.id, kind: op.kind, method: op.method, code: generateFileCode(op, {}, { form: 'function', method: op.method, path: 'datos.txt', pathParameter: true, dataParameter: false }) }))
   const result = await page.evaluate(async (samples) => {
     const worker = new Worker('/ide/python-worker.js')
     const request = (message: object, expected: string) => new Promise<Record<string, unknown>>((resolve, reject) => {

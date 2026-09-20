@@ -1,7 +1,8 @@
 import { generateCode, isPythonName, quote, type Field } from './builder'
 import type { ProjectEntry } from './project'
+import { excelOperations } from './excel-operations'
 
-export type FileKind = 'TXT' | 'CSV'
+export type FileKind = 'TXT' | 'CSV' | 'Excel'
 export type FileOperation = {
   id: string; kind: FileKind; group: string; title: string; help: string; method: string
   fields: Field[]; read?: boolean; write?: boolean; data?: boolean
@@ -22,7 +23,7 @@ const readCsv = (v: Record<string, string>, retainHeader = false) => `${open(v, 
 const writeCsv = (v: Record<string, string>, mode = 'w') => `${open(v, mode, true)}\n    ${v.writer} = csv.writer(archivo, delimiter=${quote(v.delimiter)})`
 const csvResult = (body: string, result?: string) => ({ body, result, imports: ['import csv'] })
 
-export const fileOperations: FileOperation[] = [
+const textFileOperations: FileOperation[] = [
   ...(['write', 'append', 'lines'] as const).map((id): FileOperation => ({
     id: `txt-${id}`, kind: 'TXT', group: 'Crear / escribir', title: { write: 'Crear / sobrescribir archivo', append: 'Agregar contenido', lines: 'Escribir varias líneas' }[id],
     help: id === 'lines' ? 'writelines() escribe los textos tal como están; incluye \\n al final de cada línea.' : id === 'write' ? 'El modo w crea el archivo o reemplaza su contenido.' : 'El modo a agrega al final sin borrar lo anterior.',
@@ -88,11 +89,14 @@ export const fileOperations: FileOperation[] = [
     build: (v) => csvResult(`${open(v, 'w', true)}\n    ${v.writer} = csv.DictWriter(archivo, fieldnames=${v.headings}, delimiter=${quote(v.delimiter)})\n    ${v.writer}.writeheader()\n    ${v.writer}.writerows(${v.data})`) },
 ]
 
+export const fileOperations: FileOperation[] = [...textFileOperations, ...excelOperations]
+
 export function fileFields(operation: FileOperation) {
   return [...(operation.kind === 'CSV' ? [delimiter] : []), ...(operation.read ? [header, reader] : []), ...(operation.write ? [writer] : []), ...operation.fields]
 }
 export function projectDataFiles(entries: ProjectEntry[], kind: FileKind) {
-  return entries.filter((entry) => entry.kind === 'file' && entry.path.toLowerCase().endsWith('.' + kind.toLowerCase())).map((entry) => entry.path).sort()
+  const extension = kind === 'Excel' ? '.xlsx' : '.' + kind.toLowerCase()
+  return entries.filter((entry) => entry.kind === 'file' && entry.path.toLowerCase().endsWith(extension)).map((entry) => entry.path).sort()
 }
 export type FileGeneration = { form: 'code' | 'function'; method: string; className?: string; path: string; pathParameter: boolean; dataParameter: boolean }
 export function generateFileCode(operation: FileOperation, values: Record<string, string>, settings: FileGeneration) {
