@@ -1,16 +1,18 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { base64ToBytes } from '@/lib/ide/binary'
 import type { ProjectEntry } from '@/lib/ide/project'
-import { columnLabel, type XlsxBook } from '@/lib/ide/xlsx-reader'
+import { loadXlsxWorkbook, peekXlsxWorkbook } from '@/lib/ide/xlsx-cache'
+import { columnLabel } from '@/lib/ide/xlsx-reader'
 
 const ROW_HEIGHT = 29
 export default function ExcelViewer({ entry }: { entry: ProjectEntry }) {
-  const [book,setBook]=useState<XlsxBook|null>(null), [error,setError]=useState(''), [sheetIndex,setSheetIndex]=useState(0), [selected,setSelected]=useState(''), [scrollTop,setScrollTop]=useState(0), [height,setHeight]=useState(500)
-  useEffect(()=>{ let active=true; void import('@/lib/ide/xlsx-reader').then(({readXlsx})=>readXlsx(base64ToBytes(entry.content))).then((value)=>active&&setBook(value),(cause)=>{ console.error(`[Excel Viewer] No se pudo interpretar ${entry.path}.`,cause); if(active)setError('No se pudo visualizar este archivo Excel. El archivo puede contener una estructura dañada o una característica que Excel Viewer todavía no admite.') }); return()=>{active=false} },[entry.content,entry.path])
+  const cached=peekXlsxWorkbook(entry)
+  const [loaded,setLoaded]=useState(()=>cached?{path:entry.path,content:entry.content,book:cached}:null), [error,setError]=useState<{path:string;content:string;message:string}|null>(null), [sheetIndex,setSheetIndex]=useState(0), [selected,setSelected]=useState(''), [scrollTop,setScrollTop]=useState(0), [height,setHeight]=useState(500)
+  useEffect(()=>{ let active=true; void loadXlsxWorkbook(entry).then((book)=>{if(active)setLoaded({path:entry.path,content:entry.content,book})},(cause)=>{ console.error(`[Excel Viewer] No se pudo interpretar ${entry.path}.`,cause); if(active)setError({path:entry.path,content:entry.content,message:'No se pudo visualizar este archivo Excel. El archivo puede contener una estructura dañada o una característica que Excel Viewer todavía no admite.'}) }); return()=>{active=false} },[entry])
+  const book=cached??(loaded?.path===entry.path&&loaded.content===entry.content?loaded.book:null)
   const sheet=book?.sheets[sheetIndex]
   const range=useMemo(()=>{ const start=Math.max(1,Math.floor(scrollTop/ROW_HEIGHT)-8), count=Math.ceil(height/ROW_HEIGHT)+16; return {start,end:Math.min(sheet?.rows??0,start+count)} },[scrollTop,height,sheet?.rows])
-  if(error) return <div className="excel-state" role="alert"><strong>{entry.path}</strong><p>{error}</p></div>
+  if(error?.path===entry.path&&error.content===entry.content) return <div className="excel-state" role="alert"><strong>{entry.path}</strong><p>{error.message}</p></div>
   if(!book) return <div className="excel-state"><strong>{entry.path}</strong><p>Cargando Excel Viewer…</p></div>
   if(!sheet) return <div className="excel-state"><strong>{entry.path}</strong><p>El libro no contiene hojas visibles.</p></div>
   const columns=Math.max(sheet.columns,1), template=`48px ${Array.from({length:columns},(_,i)=>`${sheet.widths[i]??112}px`).join(' ')}`

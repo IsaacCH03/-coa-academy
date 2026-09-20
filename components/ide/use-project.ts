@@ -76,6 +76,7 @@ export function useProject() {
       }
       current.current = next
       setProject(next)
+      window.dispatchEvent(new CustomEvent('coa:project-entries', { detail: next.entries }))
       setSaveStatus('Cambios sin guardar…')
       clearTimeout(timer.current)
       timer.current = setTimeout(() => {
