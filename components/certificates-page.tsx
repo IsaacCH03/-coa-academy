@@ -15,7 +15,7 @@ export function CertificatesPage({ initialCode }: { initialCode?: string }) {
           <p className="mx-auto mt-4 max-w-2xl text-pretty text-lg leading-relaxed text-primary-foreground/85">Consulta la información de un certificado emitido por COA – Cursos Online Avanzados.</p>
         </div>
       </section>
-      <section className="mx-auto max-w-6xl px-4 py-10 md:py-16"><CertificateVerifier initialCode={initialCode} /></section>
+      <section className="mx-auto max-w-6xl px-4 py-10 md:py-16"><CertificateVerifier key={initialCode||'certificate-search'} initialCode={initialCode} /></section>
     </main>
     <SiteFooter />
     <WhatsAppFloat />

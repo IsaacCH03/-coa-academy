@@ -15,7 +15,7 @@ import type { Certificado } from '@/lib/certificates'
 export const certificados: Certificado[] = [
   {
     codigo: 'COA-PYB-2026-0001',
-    nombre: 'Evelio Josué H. Bezpowy',
+    nombre: 'Evelio Josué Chevez Powell',
     curso: 'Python Básico',
     modalidad: 'Virtual',
     fechaEmision: '21/09/2026',

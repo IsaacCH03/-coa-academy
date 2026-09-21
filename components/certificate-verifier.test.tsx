@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { CertificateResult, CertificateVerifier } from './certificate-verifier'
 
-afterEach(cleanup)
+const navigation=vi.hoisted(()=>({push:vi.fn(),replace:vi.fn()}))
+vi.mock('next/navigation',()=>({useRouter:()=>navigation,usePathname:()=>'/certificados'}))
+
+afterEach(()=>{cleanup();navigation.push.mockClear();navigation.replace.mockClear()})
 
 it('validates empty input and preserves an unknown code',()=>{
   render(<CertificateVerifier />)
@@ -20,8 +23,9 @@ it('uses Enter and finds a lowercase code with surrounding spaces',()=>{
   const input=screen.getByLabelText('Código del certificado')
   fireEvent.change(input,{target:{value:' coa-pyb-2026-0001 '}})
   fireEvent.submit(input.closest('form')!)
-  expect(screen.getByTestId('certificate-result').textContent).toContain('Evelio Josué H. Bezpowy')
+  expect(screen.getByTestId('certificate-result').textContent).toContain('COA-PYB-2026-0001')
   expect(screen.getByTestId('certificate-result').textContent).toContain('Estado: Válido')
+  expect(navigation.push).toHaveBeenCalledWith('/certificados/COA-PYB-2026-0001')
 })
 it('automatically verifies valid and invalid direct URL codes',()=>{
   const {unmount}=render(<CertificateVerifier initialCode="COA-PYB-2026-0001" />)

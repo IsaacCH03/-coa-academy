@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { Award, BadgeCheck, Search, ShieldX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { findCertificate, normalizeCertificateCode, type Certificado } from '@/lib/certificates'
@@ -15,8 +16,16 @@ function initialResult(code: string): Result {
 }
 
 export function CertificateVerifier({ initialCode = '' }: { initialCode?: string }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [code, setCode] = useState(initialCode)
   const [result, setResult] = useState<Result>(() => initialResult(initialCode))
+  useEffect(()=>{
+    const certificate=findCertificate(initialCode)
+    if(!certificate)return
+    const canonical=`/certificados/${encodeURIComponent(certificate.codigo)}`
+    if(pathname!==canonical)router.replace(canonical)
+  },[initialCode,pathname,router])
 
   function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -24,6 +33,7 @@ export function CertificateVerifier({ initialCode = '' }: { initialCode?: string
     if (!normalized) { setResult({ kind: 'empty' }); return }
     const certificate = findCertificate(normalized)
     setResult(certificate ? { kind: 'found', certificate } : { kind: 'missing', code: normalized })
+    if (certificate) router.push(`/certificados/${encodeURIComponent(certificate.codigo)}`)
   }
 
   return <div className="mx-auto w-full max-w-4xl">

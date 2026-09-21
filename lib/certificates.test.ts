@@ -8,7 +8,7 @@ it('normalizes only surrounding whitespace and letter case',()=>{
   expect(normalizeCertificateCode('coa pyb-1')).toBe('COA PYB-1')
 })
 it('finds the public certificate case-insensitively',()=>{
-  expect(findCertificate(' coa-pyb-2026-0001 ')?.nombre).toBe('Evelio Josué H. Bezpowy')
+  expect(findCertificate(' coa-pyb-2026-0001 ')?.codigo).toBe('COA-PYB-2026-0001')
   expect(findCertificate('NO-EXISTE')).toBeUndefined()
 })
 it('detects duplicate codes after normalization',()=>{
