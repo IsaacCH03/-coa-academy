@@ -51,7 +51,7 @@ export function AuthForm({
           {state.message}
         </div>
       )}
-      {captcha && <CaptchaField />}
+      {captcha && <CaptchaField resetKey={state} />}
       <button disabled={pending} className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
         {pending ? pendingLabel : submitLabel}
       </button>
