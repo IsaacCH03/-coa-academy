@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, LogOut } from 'lucide-react'
 import { signOutAction } from '@/app/cuenta/actions'
+import { NotificationBell } from './notification-bell'
 
 export function AccountShell({ title, eyebrow, children }: { title: string; eyebrow: string; children: ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export function AccountShell({ title, eyebrow, children }: { title: string; eyeb
             <Link href="/" className="flex items-center gap-2"><Image src="/logoCOA.png" alt="C.O.A" width={42} height={42} className="h-10 w-10 object-contain" /><strong className="hidden text-primary sm:inline">C.O.A</strong></Link>
             <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="h-4 w-4" />Volver al sitio</Link>
           </div>
-          <form action={signOutAction}><button className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-secondary"><LogOut className="h-4 w-4" />Cerrar sesión</button></form>
+          <div className="flex items-center gap-2"><NotificationBell /><form action={signOutAction}><button className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-secondary"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Cerrar sesión</span></button></form></div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-10">

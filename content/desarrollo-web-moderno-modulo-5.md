@@ -1966,6 +1966,9 @@ La explicación debe responder:
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m5-mini-proyecto -->
+
 # 9. Proyecto del módulo: sprint profesional asistido por IA para COA
 
 ## Descripción
@@ -2466,6 +2469,9 @@ El proyecto debe corregirse antes de aprobarse si:
 El proyecto debe ser aprobado antes de continuar al Módulo 6. Si recibe observaciones, realiza las correcciones y entrega una nueva versión.
 
 ---
+
+
+<!-- coa-activity:desarrollo-web-m5-proyecto -->
 
 # 10. Evaluación del módulo
 

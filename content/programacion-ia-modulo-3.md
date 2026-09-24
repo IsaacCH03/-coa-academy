@@ -1175,6 +1175,32 @@ Incluye comandos de Git o un sistema de versiones numeradas si todavía no utili
 
 ---
 
+## Rúbrica de los ejercicios
+
+| Criterio global | Puntos |
+|---|---:|
+| Completa los ocho ejercicios | 4 |
+| Define contratos, alcance y evidencia | 3 |
+| Distingue diseño, refactorización y funcionalidad | 3 |
+| Revisa dependencias y diffs con criterio | 3 |
+| Justifica decisiones y recuperación | 2 |
+| **Total** | **15** |
+
+Para aprobar necesitas:
+
+- obtener al menos `80/100`;
+- aprobar el proyecto principal;
+- entregar todos los archivos obligatorios;
+- corregir cualquier fallo crítico;
+- demostrar comprensión del código y los diffs;
+- registrar con honestidad el uso de IA.
+
+No continúes al Módulo 4 hasta que esta entrega figure como aprobada.
+
+---
+
+<!-- coa-activity:programacion-ia-m3-ejercicios-obligatorios -->
+
 # Reto adicional opcional
 
 Pide dos implementaciones del mismo contrato:
@@ -1385,6 +1411,9 @@ Revisa el diff y vuelve a ejecutar los ocho casos.
 | **Total** | **20** |
 
 ---
+
+
+<!-- coa-activity:programacion-ia-m3-mini-proyecto -->
 
 # Proyecto del módulo. Gestor de solicitudes de soporte
 
@@ -1906,6 +1935,9 @@ No necesitas implementar el código. Debes demostrar que puedes revisar una prop
 
 ---
 
+
+<!-- coa-activity:programacion-ia-m3-proyecto -->
+
 # Calificación del módulo
 
 | Evidencia | Valor |
@@ -1915,30 +1947,6 @@ No necesitas implementar el código. Debes demostrar que puedes revisar una prop
 | Proyecto del módulo | 50 puntos |
 | Evaluación práctica | 15 puntos |
 | **Total** | **100 puntos** |
-
-## Rúbrica de los ejercicios
-
-| Criterio global | Puntos |
-|---|---:|
-| Completa los ocho ejercicios | 4 |
-| Define contratos, alcance y evidencia | 3 |
-| Distingue diseño, refactorización y funcionalidad | 3 |
-| Revisa dependencias y diffs con criterio | 3 |
-| Justifica decisiones y recuperación | 2 |
-| **Total** | **15** |
-
-Para aprobar necesitas:
-
-- obtener al menos `80/100`;
-- aprobar el proyecto principal;
-- entregar todos los archivos obligatorios;
-- corregir cualquier fallo crítico;
-- demostrar comprensión del código y los diffs;
-- registrar con honestidad el uso de IA.
-
-No continúes al Módulo 4 hasta que esta entrega figure como aprobada.
-
----
 
 # Errores frecuentes
 

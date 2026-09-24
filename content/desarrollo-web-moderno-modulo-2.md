@@ -1421,6 +1421,9 @@ Conserva esta sección dentro de la landing. Formará parte del proyecto del mó
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m2-mini-proyecto -->
+
 # 9. Proyecto del módulo — Explorador interactivo de cursos COA
 
 ## Desafío
@@ -1727,6 +1730,9 @@ El proyecto deberá corregirse aunque alcance 75 puntos si:
 - no existe evidencia razonada de IA.
 
 ---
+
+
+<!-- coa-activity:desarrollo-web-m2-proyecto -->
 
 # 11. Evaluación del módulo
 

@@ -957,6 +957,9 @@ Agrupa directamente y registra el resultado. Después ordena por la misma clave,
 
 ---
 
+
+<!-- coa-activity:python-practico-m3-actividades-obligatorias -->
+
 # 8. Proyecto del módulo — Centro de análisis y cola de atención
 
 ## Desafío
@@ -1435,6 +1438,9 @@ El proyecto no puede aprobarse si:
 - el estudiante no puede explicar el código.
 
 ---
+
+
+<!-- coa-activity:python-practico-m3-proyecto -->
 
 # 10. Evaluación del módulo
 

@@ -1944,6 +1944,9 @@ Escribe una consulta para cada pregunta:
 
 ---
 
+
+<!-- coa-activity:sql-m4-mini-proyecto -->
+
 # 17. Proyecto obligatorio del módulo — Análisis de operaciones de una tienda
 
 ## Propósito
@@ -2466,6 +2469,9 @@ No continúes al módulo 5 hasta que el proyecto y la evaluación aparezcan como
 [Entregar el Módulo 4](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m4-proyecto -->
 
 # 21. Retos adicionales
 

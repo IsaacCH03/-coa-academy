@@ -1445,6 +1445,9 @@ INSERT INTO entradas_festival VALUES
 
 ---
 
+
+<!-- coa-activity:sql-m5-mini-proyecto -->
+
 # 23. Proyecto obligatorio — Sistema de reportes académicos
 
 ## Propósito
@@ -1812,6 +1815,9 @@ Si recibes correcciones, actualiza el script, las evidencias afectadas y una sec
 [Entregar el Módulo 5](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m5-proyecto -->
 
 # 27. Retos adicionales
 

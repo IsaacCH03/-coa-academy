@@ -1816,6 +1816,9 @@ Este mini proyecto se integra en la evidencia de trabajo del módulo. No requier
 
 ---
 
+
+<!-- coa-activity:sql-m2-mini-proyecto -->
+
 # 14. Proyecto del módulo — Sistema de gestión para una clínica
 
 ## Desafío
@@ -2233,6 +2236,9 @@ Toda la documentación se reúne en un único PDF. No es necesario crear varios 
 [Entregar el Módulo 2](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m2-proyecto -->
 
 # 18. Retos adicionales
 

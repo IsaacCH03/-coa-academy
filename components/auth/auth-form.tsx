@@ -20,6 +20,7 @@ export function AuthForm({
   submitLabel,
   pendingLabel,
   captcha = false,
+  hiddenFields,
   footer,
 }: {
   action: (state: AuthActionState, formData: FormData) => Promise<AuthActionState>
@@ -27,11 +28,13 @@ export function AuthForm({
   submitLabel: string
   pendingLabel: string
   captcha?: boolean
+  hiddenFields?: Record<string, string>
   footer?: React.ReactNode
 }) {
   const [state, formAction, pending] = useActionState(action, initialAuthState)
   return (
     <form action={formAction} className="space-y-5">
+      {Object.entries(hiddenFields ?? {}).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {fields.map((field) => (
         <label key={field.name} className="block text-sm font-semibold text-foreground">
           {field.label}

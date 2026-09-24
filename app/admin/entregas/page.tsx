@@ -1,0 +1,15 @@
+import Link from 'next/link'
+import { Inbox } from 'lucide-react'
+import { AccountShell } from '@/components/account/account-shell'
+import { requireAdmin } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
+
+type AdminSubmission = { id: string; student_id: string; activity_id: string; submitted_at: string; profiles: { full_name: string } | null; courses: { title: string; slug: string } | null; activities: { title: string } | null; submission_files: { id: string; file_deleted_at: string | null }[] }
+
+export default async function AdminSubmissionsPage() {
+  await requireAdmin()
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('submissions').select('id, student_id, activity_id, submitted_at, profiles!submissions_student_id_fkey(full_name), courses!submissions_course_id_fkey(title,slug), activities!submissions_activity_id_fkey(title), submission_files(id,file_deleted_at)').order('submitted_at', { ascending: false })
+  const submissions = (data ?? []) as unknown as AdminSubmission[]
+  return <AccountShell title="Entregas académicas" eyebrow="Administración"><Link href="/admin" className="text-sm font-bold text-primary hover:underline">← Volver al panel</Link><section className="mt-6 overflow-hidden rounded-2xl border border-border bg-background"><div className="flex items-center gap-3 border-b border-border p-5"><Inbox className="h-6 w-6 text-primary" /><div><h2 className="text-xl font-bold">Archivos recibidos</h2><p className="text-sm text-muted-foreground">{submissions.length} entregas registradas</p></div></div>{error ? <p role="alert" className="p-5 text-sm text-destructive">No pudimos consultar las entregas. Verifica la migración de la beta académica.</p> : submissions.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Todavía no hay entregas.</p> : <div className="divide-y divide-border">{submissions.map((item) => { const count = item.submission_files.filter((file) => !file.file_deleted_at).length; const href = item.courses ? `/admin/cursos/${item.courses.slug}/estudiantes/${item.student_id}` : '/admin'; return <article key={item.id} className="grid gap-3 p-5 md:grid-cols-[1fr_1fr_1.4fr_auto] md:items-center"><div><p className="text-xs font-bold uppercase text-muted-foreground">Estudiante</p><p className="font-semibold">{item.profiles?.full_name ?? '—'}</p></div><div><p className="text-xs font-bold uppercase text-muted-foreground">Curso</p><p>{item.courses?.title ?? '—'}</p></div><div><p className="text-xs font-bold uppercase text-muted-foreground">Actividad</p><p>{item.activities?.title ?? item.activity_id}</p><p className="mt-1 text-xs text-muted-foreground">{count} archivo{count === 1 ? '' : 's'} · {new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.submitted_at))}</p></div><Link href={href} className="rounded-lg bg-primary px-3 py-2 text-center text-sm font-bold text-primary-foreground">Ir al estudiante</Link></article> })}</div>}</section></AccountShell>
+}

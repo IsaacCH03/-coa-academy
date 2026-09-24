@@ -748,6 +748,7 @@ http://127.0.0.1:8001/
 
 ---
 
+
 # 11. Proyecto y aplicación: no son lo mismo
 
 Esta diferencia es fundamental.
@@ -2480,6 +2481,8 @@ El mini proyecto debe:
 
 ---
 
+<!-- coa-activity:django-m1-mini-proyecto -->
+
 # 34. Proyecto del módulo
 
 # Portal de Operaciones COA
@@ -2917,6 +2920,9 @@ No es necesario copiar conversaciones completas. Registra las decisiones importa
 [Entregar el Módulo 1](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m1-proyecto -->
 
 # 39. Errores comunes y soluciones
 

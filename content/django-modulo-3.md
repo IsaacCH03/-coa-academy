@@ -2171,6 +2171,9 @@ No construyas todavía formularios públicos, autenticación propia ni un CRUD v
 
 ---
 
+
+<!-- coa-activity:django-m3-mini-proyecto -->
+
 # 37. Proyecto del módulo: Núcleo de Inventario Empresarial
 
 ## Situación profesional
@@ -2670,6 +2673,9 @@ No incluyas:
 [Entregar el Módulo 3](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m3-proyecto -->
 
 # 42. Errores comunes y soluciones
 

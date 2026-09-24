@@ -1013,6 +1013,31 @@ Indica el resultado esperado de cada caso.
 
 ---
 
+## Rúbrica de los ejercicios obligatorios
+
+Cada ejercicio vale `2.5` puntos:
+
+| Criterio por ejercicio | Puntos |
+|---|---:|
+| Respuesta completa y ajustada al enunciado | 1.0 |
+| Decisión o razonamiento comprensible | 1.0 |
+| Uso correcto del principio de seguridad o validación | 0.5 |
+
+Para aprobar el módulo necesitas:
+
+- obtener al menos `80/100`;
+- aprobar el proyecto principal;
+- entregar todos los archivos obligatorios;
+- corregir cualquier fallo crítico;
+- demostrar comprensión del código;
+- documentar con honestidad el uso de IA.
+
+No continúes al Módulo 2 hasta que esta entrega figure como aprobada.
+
+---
+
+<!-- coa-activity:programacion-ia-m1-ejercicios-obligatorios -->
+
 # Reto adicional opcional
 
 Elige una función breve de un proyecto propio que no contenga información privada.
@@ -1102,6 +1127,9 @@ Envía exactamente los mismos requisitos a ambos chats. Solicita una solución e
 Una respuesta no obtiene una mejor calificación por provenir de una herramienta diferente. La evidencia debe determinar la decisión.
 
 ---
+
+
+<!-- coa-activity:programacion-ia-m1-mini-proyecto -->
 
 # Proyecto del módulo. Validador de pedidos y descuentos
 
@@ -1418,6 +1446,9 @@ La respuesta afirma:
 
 ---
 
+
+<!-- coa-activity:programacion-ia-m1-proyecto -->
+
 # Calificación del módulo
 
 | Evidencia | Valor |
@@ -1427,29 +1458,6 @@ La respuesta afirma:
 | Proyecto del módulo | 50 puntos |
 | Evaluación práctica | 15 puntos |
 | **Total** | **100 puntos** |
-
-## Rúbrica de los ejercicios obligatorios
-
-Cada ejercicio vale `2.5` puntos:
-
-| Criterio por ejercicio | Puntos |
-|---|---:|
-| Respuesta completa y ajustada al enunciado | 1.0 |
-| Decisión o razonamiento comprensible | 1.0 |
-| Uso correcto del principio de seguridad o validación | 0.5 |
-
-Para aprobar el módulo necesitas:
-
-- obtener al menos `80/100`;
-- aprobar el proyecto principal;
-- entregar todos los archivos obligatorios;
-- corregir cualquier fallo crítico;
-- demostrar comprensión del código;
-- documentar con honestidad el uso de IA.
-
-No continúes al Módulo 2 hasta que esta entrega figure como aprobada.
-
----
 
 # Errores frecuentes en las actividades
 

@@ -1078,6 +1078,9 @@ No avances a la integración final hasta que el prototipo sea aprobado.
 
 ---
 
+
+<!-- coa-activity:django-m7-mini-proyecto -->
+
 # 15. Fase 3: integración funcional
 
 Cuando el flujo crítico esté aprobado, completa el resto mediante recorridos verticales.
@@ -2363,6 +2366,9 @@ Comprueba todos los enlaces en una sesión privada antes de enviar.
 [Entregar el Proyecto Final](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m7-proyecto-final -->
 
 # 40. Proceso de revisión
 

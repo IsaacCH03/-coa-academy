@@ -1346,6 +1346,9 @@ Modulo6_ProyectoFinal_Ana_Rojas.pdf
 
 ---
 
+
+<!-- coa-activity:logica-m6-proyecto-final-cafeteria -->
+
 # PARTE 10 — SOLUCIÓN DE REFERENCIA
 
 ## 41. Solución del ejercicio 1

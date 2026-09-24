@@ -2141,6 +2141,9 @@ El mini proyecto se aprueba con al menos **16 de 20 puntos** y sin fallos críti
 
 ---
 
+
+<!-- coa-activity:django-m6-mini-proyecto -->
+
 # 49. Proyecto del módulo: Versión Candidata del Sistema Empresarial
 
 ## Contexto
@@ -2456,6 +2459,9 @@ No envíes un formulario por ejercicio. Todos los ejercicios, mini proyecto, eva
 [Entregar el Módulo 6](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m6-proyecto -->
 
 # 55. Proceso de revisión y corrección
 

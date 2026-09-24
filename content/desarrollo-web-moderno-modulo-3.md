@@ -1586,6 +1586,9 @@ Incluye:
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m3-mini-proyecto -->
+
 # 9. Proyecto del módulo: explorador de cursos COA en React
 
 ## Descripción
@@ -1935,6 +1938,9 @@ El proyecto debe corregirse antes de aprobarse si ocurre cualquiera de estas sit
 El proyecto debe ser aprobado antes de continuar al Módulo 4. Si recibe correcciones, aplica los cambios solicitados y entrega una nueva versión.
 
 ---
+
+
+<!-- coa-activity:desarrollo-web-m3-proyecto -->
 
 # 10. Evaluación del módulo
 

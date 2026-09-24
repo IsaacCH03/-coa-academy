@@ -1481,6 +1481,10 @@ Puede utilizar más de una secuencia si un dato de finalización impide probar l
 
 ---
 
+
+
+<!-- coa-activity:logica-m5-ejercicios-retos -->
+
 # PARTE 10 — MINI PROYECTO
 
 ## 53. Clínica de algoritmos: venta de entradas
@@ -1728,6 +1732,10 @@ Formulario:
 > Envíe únicamente el mini proyecto completo.
 
 ---
+
+
+
+<!-- coa-activity:logica-m5-mini-proyecto -->
 
 # PARTE 11 — SOLUCIONES EXPLICADAS
 

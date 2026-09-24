@@ -1524,6 +1524,10 @@ No existe una respuesta universal para la pregunta 3. La explicación debe relac
 
 ---
 
+
+
+<!-- coa-activity:logica-m3-ejercicios-retos -->
+
 # PARTE 11 — MINI PROYECTO
 
 ## 48. Sistema de decisiones para una actividad
@@ -1735,6 +1739,10 @@ Formulario de entrega:
 > No envíe un formulario por cada ejercicio. Envíe únicamente el mini proyecto completo cuando esté terminado.
 
 ---
+
+
+
+<!-- coa-activity:logica-m3-mini-proyecto -->
 
 # PARTE 12 — SOLUCIONES EXPLICADAS
 

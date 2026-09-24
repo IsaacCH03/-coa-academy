@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  FileUp,
   GraduationCap,
   Lightbulb,
   ListChecks,
@@ -19,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { InteractiveCodeBlock as CodeBlock } from '@/components/interactive-code-block'
 import { ModuleExperience, type ModuleTocItem } from '@/components/module-experience'
+import { ActivityDeliveryPoint } from '@/components/academic/module-activities'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
@@ -29,8 +29,6 @@ export const metadata: Metadata = {
   description:
     'Módulo 1 del curso de Lógica de Programación: Pensar como un programador.',
 }
-
-const deliveryForm = 'https://forms.gle/nTx97JRkFkbH5Vfr6'
 
 const moduleOneToc: ModuleTocItem[] = [
   { id: '1-objetivo-del-modulo', label: 'Objetivo' },
@@ -77,49 +75,7 @@ function Section({
 }
 
 function DeliveryBlock() {
-  return (
-    <div className="mt-6 rounded-2xl border border-primary/20 bg-secondary p-5">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-background text-primary">
-          <FileUp className="h-5 w-5" />
-        </span>
-            <div>
-              <h4 className="font-bold text-foreground">Entrega de la actividad</h4>
-              <span className="mt-2 inline-flex rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
-                Último paso del ejercicio
-              </span>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Una vez completado este ejercicio, sube tu solución utilizando el
-            siguiente formulario.
-          </p>
-        </div>
-      </div>
-      <div className="mt-4 rounded-xl bg-background p-4 text-sm text-foreground">
-        <p className="font-semibold">El nombre del archivo debe incluir:</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>Nombre completo</li>
-          <li>Curso</li>
-          <li>Número del ejercicio</li>
-        </ul>
-        <p className="mt-3 text-muted-foreground">
-          Ejemplo: Juan Pérez - Lógica de Programación - Ejercicio 3.pdf
-        </p>
-        <p className="mt-2 font-semibold text-primary">
-          Antes de enviar, verifica que el archivo tenga el nombre solicitado.
-        </p>
-      </div>
-      <Button
-        asChild
-        size="lg"
-        className="mt-4 gap-2 bg-primary px-5 font-semibold hover:bg-primary/90"
-      >
-        <a href={deliveryForm} target="_blank" rel="noopener noreferrer">
-          Entregar actividad
-          <ExternalLink className="h-4 w-4" />
-        </a>
-      </Button>
-    </div>
-  )
+  return null
 }
 
 function Activity({
@@ -688,6 +644,8 @@ export default function LogicCourseClassroomPage() {
             </Activity>
           </div>
 
+          <ActivityDeliveryPoint activityId="logica-m1-ejercicios-1-4" />
+
           <Section title="13. Algoritmo y programa no son lo mismo">
             <p>Un algoritmo es el plan lógico de la solución.</p>
             <p>
@@ -1048,6 +1006,8 @@ FIN`}</CodeBlock>
             </div>
           </Section>
 
+          <ActivityDeliveryPoint activityId="logica-m1-ejercicios-5-7-retos" />
+
           <section id="mini-proyecto" className="scroll-mt-32 rounded-3xl border-2 border-accent bg-card p-6 shadow-lg md:p-9">
             <div className="flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -1162,6 +1122,8 @@ FIN`}</CodeBlock>
               <DeliveryBlock />
             </div>
           </section>
+
+          <ActivityDeliveryPoint activityId="logica-m1-mini-proyecto-robot-domestico" />
 
           <Section eyebrow="Parte 8 — Evaluación" title="Evaluación de dominio">
             <div className="space-y-5">

@@ -1704,6 +1704,10 @@ Después:
 
 ---
 
+
+
+<!-- coa-activity:logica-m4-ejercicios-retos -->
+
 # PARTE 11 — MINI PROYECTO
 
 ## 55. Plan de ahorro hasta alcanzar una meta
@@ -1966,6 +1970,10 @@ Formulario:
 > No envíe cada ejercicio por separado. Envíe únicamente el mini proyecto completo.
 
 ---
+
+
+
+<!-- coa-activity:logica-m4-mini-proyecto -->
 
 # PARTE 12 — SOLUCIONES EXPLICADAS
 

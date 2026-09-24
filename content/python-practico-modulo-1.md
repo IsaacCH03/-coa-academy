@@ -1080,6 +1080,9 @@ No basta con escribir el nombre de la herramienta. La justificación demuestra q
 
 ---
 
+
+<!-- coa-activity:python-practico-m1-actividades-obligatorias -->
+
 # 8. Proyecto del módulo — Normalizador y auditor de registros
 
 ## Desafío
@@ -1461,6 +1464,9 @@ El proyecto no puede aprobarse si:
 - faltan archivos necesarios para la revisión.
 
 ---
+
+
+<!-- coa-activity:python-practico-m1-proyecto -->
 
 # 10. Evaluación del módulo
 

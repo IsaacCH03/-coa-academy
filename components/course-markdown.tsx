@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import { ExternalLink, FileUp } from 'lucide-react'
 import { InteractiveCodeBlock } from '@/components/interactive-code-block'
 import { courseSectionId } from '@/lib/course-navigation'
+import { ActivityDeliveryPoint } from '@/components/academic/module-activities'
 
 function inline(text: string): ReactNode[] {
   const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g
@@ -99,6 +99,13 @@ export function CourseMarkdown({
       continue
     }
 
+    const activityAnchor = trimmed.match(/^<!-- coa-activity:([a-z0-9]+(?:-[a-z0-9]+)*) -->$/)
+    if (activityAnchor) {
+      nodes.push(<ActivityDeliveryPoint key={`activity-${activityAnchor[1]}`} activityId={activityAnchor[1]} />)
+      index += 1
+      continue
+    }
+
     if (trimmed === '<details>') {
       const closingIndex = lines.findIndex(
         (candidate, candidateIndex) =>
@@ -166,60 +173,7 @@ export function CourseMarkdown({
       /^\[(Entregar [^\]]+)\]\((https:\/\/forms\.gle\/[^)]+)\)$/,
     )
     if (deliveryLink) {
-      const variant = deliveryVariants.find((item) =>
-        deliveryLink[1].toLowerCase().includes(item.match.toLowerCase()),
-      )
-      const deliveryContent = variant ?? delivery
-      nodes.push(
-        <div
-          key={index}
-          className="my-6 rounded-2xl border border-primary/20 bg-secondary p-5"
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-background text-primary">
-              <FileUp className="h-5 w-5" />
-            </span>
-            <div>
-              <h4 className="font-bold text-foreground">
-                {variant?.title ?? 'Entrega de la actividad'}
-              </h4>
-              <span className="mt-2 inline-flex rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
-                {variant?.stepLabel ?? 'Último paso del proyecto'}
-              </span>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {variant?.description ??
-                  'Una vez completado este proyecto, sube tu solución utilizando el siguiente formulario.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-xl bg-background p-4 text-sm text-foreground">
-            <p className="font-semibold">
-              {variant?.itemsLabel ?? 'El archivo debe incluir:'}
-            </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {deliveryContent.items.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-            <p className="mt-3 text-muted-foreground">
-              {variant?.fileNameLabel ?? 'Nombre del archivo'}:{' '}
-              {deliveryContent.fileName}
-            </p>
-            <p className="mt-2 font-semibold text-primary">
-              Antes de enviar, verifica que el archivo tenga el nombre solicitado.
-            </p>
-          </div>
-
-          <a
-            href={deliveryLink[2]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            {variant?.buttonLabel ?? 'Entregar actividad'}
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        </div>,
-      )
+      // The structured activity renders this legacy URL once, after its rubric.
       index += 1
       continue
     }

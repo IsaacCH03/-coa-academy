@@ -1375,6 +1375,9 @@ El mini proyecto es obligatorio, pero se conserva dentro de la evidencia del mó
 
 ---
 
+
+<!-- coa-activity:sql-m3-mini-proyecto -->
+
 # 11. Proyecto del módulo — Sistema de inventario y movimientos
 
 ## Desafío
@@ -1757,6 +1760,9 @@ Toda la explicación se reúne en un único PDF.
 [Entregar el Módulo 3](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m3-proyecto -->
 
 # 15. Retos adicionales
 

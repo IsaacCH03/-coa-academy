@@ -1348,6 +1348,32 @@ Redacta un mensaje de recuperación que:
 
 ---
 
+## Rúbrica de los ejercicios
+
+| Criterio global | Puntos |
+|---|---:|
+| Completa los ocho enunciados | 4 |
+| Distingue intenciones y etapas | 3 |
+| Convierte ambigüedades en preguntas o criterios | 3 |
+| Controla contexto, archivos e interfaces | 3 |
+| Justifica decisiones con claridad | 2 |
+| **Total** | **15** |
+
+Para aprobar necesitas:
+
+- obtener al menos `80/100`;
+- aprobar el proyecto principal;
+- entregar todas las evidencias obligatorias;
+- corregir cualquier fallo crítico;
+- poder explicar los prompts, decisiones y código;
+- registrar con honestidad el uso de IA.
+
+No continúes al Módulo 3 hasta que esta entrega figure como aprobada.
+
+---
+
+<!-- coa-activity:programacion-ia-m2-ejercicios-obligatorios -->
+
 # Reto adicional opcional
 
 Toma un prompt que hayas utilizado anteriormente para programar.
@@ -1466,6 +1492,9 @@ Registra:
 | **Total** | **20** |
 
 ---
+
+
+<!-- coa-activity:programacion-ia-m2-mini-proyecto -->
 
 # Proyecto del módulo. Cotizador de servicios construido mediante conversación estructurada
 
@@ -1914,6 +1943,9 @@ No necesitas implementar la función. La evaluación mide tu capacidad para diri
 
 ---
 
+
+<!-- coa-activity:programacion-ia-m2-proyecto -->
+
 # Calificación del módulo
 
 | Evidencia | Valor |
@@ -1923,30 +1955,6 @@ No necesitas implementar la función. La evaluación mide tu capacidad para diri
 | Proyecto del módulo | 50 puntos |
 | Evaluación práctica | 15 puntos |
 | **Total** | **100 puntos** |
-
-## Rúbrica de los ejercicios
-
-| Criterio global | Puntos |
-|---|---:|
-| Completa los ocho enunciados | 4 |
-| Distingue intenciones y etapas | 3 |
-| Convierte ambigüedades en preguntas o criterios | 3 |
-| Controla contexto, archivos e interfaces | 3 |
-| Justifica decisiones con claridad | 2 |
-| **Total** | **15** |
-
-Para aprobar necesitas:
-
-- obtener al menos `80/100`;
-- aprobar el proyecto principal;
-- entregar todas las evidencias obligatorias;
-- corregir cualquier fallo crítico;
-- poder explicar los prompts, decisiones y código;
-- registrar con honestidad el uso de IA.
-
-No continúes al Módulo 3 hasta que esta entrega figure como aprobada.
-
----
 
 # Errores frecuentes
 

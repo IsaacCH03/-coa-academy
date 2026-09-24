@@ -1,10 +1,15 @@
 import { AuthForm, AuthLink } from '@/components/auth/auth-form'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { signUpAction } from '../actions'
+import { safeAuthDestination } from '@/lib/auth/redirects'
+import { getSiteUrl } from '@/lib/supabase/config'
 
 export const metadata = { title: 'Crear cuenta | C.O.A' }
 
-export default function SignUpPage() {
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const params = await searchParams
+  const next = safeAuthDestination(params.next ?? null, new URL(getSiteUrl()).origin)
+  const nextQuery = next === '/mi-coa' ? '' : `?next=${encodeURIComponent(next)}`
   return (
     <AuthShell title="Crea tu cuenta" description="Regístrate como estudiante. Te enviaremos un enlace para confirmar tu correo.">
       <AuthForm
@@ -17,8 +22,9 @@ export default function SignUpPage() {
         ]}
         submitLabel="Crear cuenta"
         pendingLabel="Creando cuenta…"
+        hiddenFields={{ next }}
         captcha
-        footer={<p className="text-center text-sm text-muted-foreground">¿Ya tienes cuenta? <AuthLink href="/cuenta/iniciar-sesion">Iniciar sesión</AuthLink></p>}
+        footer={<p className="text-center text-sm text-muted-foreground">¿Ya tienes cuenta? <AuthLink href={`/cuenta/iniciar-sesion${nextQuery}`}>Iniciar sesión</AuthLink></p>}
       />
     </AuthShell>
   )

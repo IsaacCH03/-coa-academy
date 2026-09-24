@@ -1103,6 +1103,9 @@ Utiliza exclusivamente `Decimal` para los valores monetarios. Indica:
 
 ---
 
+
+<!-- coa-activity:python-practico-m5-actividades-obligatorias -->
+
 # 8. Proyecto del módulo — Planificador de vencimientos y reporte de métricas
 
 ## 8.1. Situación profesional
@@ -1555,6 +1558,9 @@ El incumplimiento de un requisito crítico exige corrección independientemente 
 - **Fallo de un requisito crítico:** requiere corrección, aunque el puntaje alcance 70.
 
 ---
+
+
+<!-- coa-activity:python-practico-m5-proyecto -->
 
 # 10. Evaluación del módulo
 

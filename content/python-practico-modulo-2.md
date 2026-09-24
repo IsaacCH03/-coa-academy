@@ -1009,6 +1009,9 @@ Concluye cuál utilizarías en este caso y por qué.
 
 ---
 
+
+<!-- coa-activity:python-practico-m2-actividades-obligatorias -->
+
 # 8. Proyecto del módulo — Analizador de inventario y pedidos
 
 ## Desafío
@@ -1461,6 +1464,9 @@ El proyecto no puede aprobarse si:
 - el estudiante no puede explicar el código.
 
 ---
+
+
+<!-- coa-activity:python-practico-m2-proyecto -->
 
 # 10. Evaluación del módulo
 

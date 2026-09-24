@@ -1815,6 +1815,9 @@ El catálogo debe poder ampliarse agregando datos a la colección sin copiar una
 
 ---
 
+
+<!-- coa-activity:django-m2-mini-proyecto -->
+
 # 26. Proyecto del módulo: Sitio Empresarial Reutilizable
 
 ## Situación profesional
@@ -2135,6 +2138,9 @@ No incluyas el entorno virtual, secretos, archivos temporales ni carpetas de cac
 [Entregar el Módulo 2](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m2-proyecto -->
 
 # 31. Errores comunes y cómo resolverlos
 

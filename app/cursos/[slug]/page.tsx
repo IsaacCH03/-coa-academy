@@ -9,14 +9,14 @@ import {
   BarChart3,
   User,
   Check,
-  MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
+import { getCurrentAccount } from '@/lib/auth/session'
+import { courseContentPath } from '@/lib/course-access'
 import { courses, getCourse } from '@/lib/courses'
-import { createWhatsAppLink } from '@/lib/site'
 
 export function generateStaticParams() {
   return courses.map((course) => ({ slug: course.slug }))
@@ -64,11 +64,9 @@ export default async function CoursePage({
   const course = getCourse(slug)
   if (!course) notFound()
   if (course.comingSoon) notFound()
-
-  const courseWhatsapp = createWhatsAppLink(
-    course.whatsappMessage ??
-      `Hola C.O.A, quiero información sobre el curso "${course.title}".`,
-  )
+  const account = await getCurrentAccount()
+  const contentPath = courseContentPath(slug)
+  const adminContentPath = account?.profile.role === 'admin' ? contentPath : null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -226,20 +224,9 @@ export default async function CoursePage({
                   size="lg"
                   className="w-full gap-2 bg-accent font-semibold text-accent-foreground hover:bg-accent/90"
                 >
-                  {course.ctaHref ? (
-                    <Link href={course.ctaHref}>{course.ctaLabel}</Link>
-                  ) : (
-                    <a href={courseWhatsapp} target="_blank" rel="noopener noreferrer">
-                      <MessageCircle className="h-5 w-5" />
-                      Inscribirme por WhatsApp
-                    </a>
-                  )}
+                  <Link href={adminContentPath ?? `/inscripcion/${course.slug}`}>{adminContentPath ? 'Ver curso' : 'Inscribirme'}</Link>
                 </Button>
-                {!course.ctaHref && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Te responderemos con los pasos para inscribirte.
-                  </p>
-                )}
+                <p className="text-center text-xs text-muted-foreground">{adminContentPath ? 'Acceso de inspección administrativa.' : 'Inicia sesión o crea tu cuenta para continuar.'}</p>
               </div>
             </aside>
           </div>

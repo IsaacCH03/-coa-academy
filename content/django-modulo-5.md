@@ -2448,6 +2448,9 @@ Construir un sistema de acceso basado en capacidades, con pruebas permitidas y d
 
 ---
 
+
+<!-- coa-activity:django-m5-mini-proyecto -->
+
 # 47. Proyecto del módulo: Sistema Seguro de Ventas e Inventario
 
 ## Situación profesional
@@ -2868,6 +2871,9 @@ Las credenciales temporales se entregan únicamente mediante el canal autorizado
 [Entregar el Módulo 5](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m5-proyecto -->
 
 # 52. Errores comunes y soluciones
 

@@ -1562,6 +1562,9 @@ Incluye:
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m4-mini-proyecto -->
+
 # 10. Proyecto del módulo: portal COA en Next.js
 
 ## Descripción
@@ -1977,6 +1980,9 @@ El proyecto debe corregirse antes de aprobarse si:
 El proyecto debe ser aprobado antes de continuar al Módulo 5. Si recibe observaciones, realiza las correcciones y entrega una nueva versión.
 
 ---
+
+
+<!-- coa-activity:desarrollo-web-m4-proyecto -->
 
 # 11. Evaluación del módulo
 

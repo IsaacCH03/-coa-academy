@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getSiteUrl } from '@/lib/supabase/config'
 import { isValidEmail, normalizeEmail, readText, validatePassword } from '@/lib/auth/validation'
+import { safeAuthDestination } from '@/lib/auth/redirects'
 import type { AuthActionState } from '@/lib/auth/types'
 
 const errorState = (message: string, fields?: Record<string, string>): AuthActionState => ({
@@ -24,12 +25,17 @@ function captchaToken(formData: FormData) {
   return typeof value === 'string' && value ? value : undefined
 }
 
+function authDestination(formData: FormData) {
+  return safeAuthDestination(readText(formData.get('next')), new URL(getSiteUrl()).origin)
+}
+
 export async function signUpAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const fullName = readText(formData.get('fullName'))
   const email = normalizeEmail(formData.get('email'))
   const password = String(formData.get('password') || '')
   const confirmation = String(formData.get('passwordConfirmation') || '')
   const fields = { fullName, email }
+  const next = authDestination(formData)
   if (fullName.length < 2) return errorState('Escribe tu nombre completo.', fields)
   if (!isValidEmail(email)) return errorState('Escribe un correo válido.', fields)
   const passwordError = validatePassword(password)
@@ -42,18 +48,19 @@ export async function signUpAction(_: AuthActionState, formData: FormData): Prom
     password,
     options: {
       data: { full_name: fullName },
-      emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/mi-coa`,
+      emailRedirectTo: `${getSiteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
       captchaToken: captchaToken(formData),
     },
   })
   if (error) return errorState(friendlyAuthError(error.message, error.code), fields)
-  if (data.session) redirect('/mi-coa')
+  if (data.session) redirect(next)
   return { status: 'success', message: 'Cuenta creada. Revisa tu correo y abre el enlace de confirmación para activarla.' }
 }
 
 export async function signInAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const email = normalizeEmail(formData.get('email'))
   const password = String(formData.get('password') || '')
+  const next = authDestination(formData)
   if (!isValidEmail(email) || !password) return errorState('Completa el correo y la contraseña.', { email })
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({
@@ -67,7 +74,7 @@ export async function signInAction(_: AuthActionState, formData: FormData): Prom
   const { data: profile } = user
     ? await supabase.from('profiles').select('role').eq('id', user.id).single<{ role: string }>()
     : { data: null }
-  redirect(profile?.role === 'admin' ? '/admin' : '/mi-coa')
+  redirect(next !== '/mi-coa' ? next : profile?.role === 'admin' ? '/admin' : '/mi-coa')
 }
 
 export async function requestPasswordResetAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {

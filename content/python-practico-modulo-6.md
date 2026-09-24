@@ -1182,6 +1182,9 @@ El objetivo no es copiar toda la página, sino demostrar que puedes convertir do
 
 ---
 
+
+<!-- coa-activity:python-practico-m6-actividades-obligatorias -->
+
 # 9. Proyecto del módulo — COA Toolkit
 
 ## 9.1. Situación profesional
@@ -1605,6 +1608,9 @@ El incumplimiento de cualquiera exige corrección independientemente del puntaje
 - **Fallo crítico:** requiere corrección aunque el puntaje alcance 70.
 
 ---
+
+
+<!-- coa-activity:python-practico-m6-proyecto -->
 
 # 11. Evaluación del módulo
 

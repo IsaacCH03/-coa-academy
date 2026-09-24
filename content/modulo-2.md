@@ -1408,6 +1408,10 @@ Después:
 
 ---
 
+
+
+<!-- coa-activity:logica-m2-ejercicios-retos -->
+
 # PARTE 11 — MINI PROYECTO
 
 ## 42. Calculadora de compra en papel
@@ -1650,6 +1654,10 @@ Módulo 2 — Mini proyecto: Calculadora de compra en papel
 ```
 
 ---
+
+
+
+<!-- coa-activity:logica-m2-mini-proyecto -->
 
 # PARTE 12 — SOLUCIONES EXPLICADAS
 

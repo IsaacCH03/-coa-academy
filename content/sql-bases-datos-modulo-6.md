@@ -966,6 +966,9 @@ Para cada hallazgo utiliza:
 
 ---
 
+
+<!-- coa-activity:sql-m6-mini-proyecto -->
+
 # 14. Proyecto final integrador — Sistema de gestión de un hotel
 
 ## Propósito
@@ -1586,6 +1589,9 @@ Si recibes observaciones:
 [Entregar el Módulo 6](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m6-proyecto-final -->
 
 # 18. Videos recomendados
 

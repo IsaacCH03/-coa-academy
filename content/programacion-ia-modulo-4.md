@@ -999,6 +999,9 @@ Una aplicación rechazaba una reserva que terminaba exactamente a las 18:00. Dis
 
 ---
 
+
+<!-- coa-activity:programacion-ia-m4-ejercicios-obligatorios -->
+
 # Mini proyecto. Laboratorio de diagnóstico
 
 ## Propósito
@@ -1070,6 +1073,9 @@ El laboratorio está completo cuando:
 - la evidencia compartida está sanitizada.
 
 ---
+
+
+<!-- coa-activity:programacion-ia-m4-mini-proyecto -->
 
 # Proyecto del módulo. Rescate de una aplicación defectuosa
 
@@ -1355,6 +1361,9 @@ y varios elementos.
 | **Total** | **15** |
 
 ---
+
+
+<!-- coa-activity:programacion-ia-m4-proyecto -->
 
 # Calificación del módulo
 

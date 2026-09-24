@@ -2366,6 +2366,9 @@ Construir un módulo CRUD responsive con validaciones, búsqueda, paginación y 
 
 ---
 
+
+<!-- coa-activity:django-m4-mini-proyecto -->
+
 # 39. Proyecto del módulo: Gestor Web de Clientes y Productos
 
 ## Situación profesional
@@ -2800,6 +2803,9 @@ No incluyas:
 [Entregar el Módulo 4](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:django-m4-proyecto -->
 
 # 44. Errores comunes y soluciones
 

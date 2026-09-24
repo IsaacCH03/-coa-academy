@@ -1439,6 +1439,9 @@ Este mini proyecto es una actividad obligatoria de práctica. Se conservará com
 
 ---
 
+
+<!-- coa-activity:sql-m1-mini-proyecto -->
+
 # 10. Proyecto del módulo — Catálogo digital de una biblioteca
 
 ## Desafío
@@ -1770,6 +1773,9 @@ El archivo `.db` facilita la revisión, pero el script SQL es la evidencia princ
 [Entregar el Módulo 1](https://forms.gle/nTx97JRkFkbH5Vfr6)
 
 ---
+
+
+<!-- coa-activity:sql-m1-proyecto -->
 
 # 14. Retos adicionales
 

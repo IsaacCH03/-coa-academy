@@ -2036,6 +2036,9 @@ No es necesario comenzar de nuevo salvo que la aplicación no corresponda al alc
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m6-proyecto-final-integrador -->
+
 # Videos recomendados
 
 Los videos apoyan etapas concretas. No necesitas reproducir todos antes de empezar.

@@ -1033,6 +1033,9 @@ No ejecutes las operaciones destructivas.
 
 ---
 
+
+<!-- coa-activity:python-practico-m4-actividades-obligatorias -->
+
 # 9. Proyecto del módulo — Gestor local de catálogo y respaldos
 
 ## 9.1. Situación profesional
@@ -1482,6 +1485,9 @@ El incumplimiento de cualquiera de ellos requiere corrección antes de aprobar e
 - **Fallo de un requisito crítico:** requiere corrección, independientemente del puntaje.
 
 ---
+
+
+<!-- coa-activity:python-practico-m4-proyecto -->
 
 # 11. Evaluación del módulo
 

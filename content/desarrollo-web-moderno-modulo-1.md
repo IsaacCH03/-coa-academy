@@ -1379,6 +1379,9 @@ Conserva la tarjeta dentro del proyecto. Se reutilizará en la landing page del 
 
 ---
 
+
+<!-- coa-activity:desarrollo-web-m1-mini-proyecto -->
+
 # 9. Proyecto del módulo — Landing page profesional de un curso COA
 
 ## Desafío
@@ -1619,6 +1622,9 @@ Aunque el puntaje alcance 75, el proyecto deberá corregirse si ocurre alguno de
 - El estudiante no puede explicar una parte sustancial del código entregado.
 
 ---
+
+
+<!-- coa-activity:desarrollo-web-m1-proyecto -->
 
 # 11. Evaluación del módulo
 
