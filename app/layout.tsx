@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import './globals.css'
+import { PUBLIC_ORIGIN } from '@/lib/seo'
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -10,6 +11,7 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(PUBLIC_ORIGIN),
   title: 'C.O.A | Cursos Online Avanzados',
   description:
     'Academia de programación online (C.O.A). Aprende Python, desarrollo web, bases de datos e inteligencia artificial con cursos prácticos y proyectos reales.',
