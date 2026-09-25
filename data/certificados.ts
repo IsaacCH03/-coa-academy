@@ -46,7 +46,7 @@ export const certificados: Certificado[] = [
     estado: 'valido',
   },
   {
-    codigo: 'COA-PYB-2026-0002',
+    codigo: 'COA-PYI-2026-0002',
     nombre: 'Obet Yarit López Cordero ',
     curso: 'Python Intermedio',
     modalidad: 'Virtual',
