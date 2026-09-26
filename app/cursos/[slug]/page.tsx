@@ -17,6 +17,7 @@ import { WhatsAppFloat } from '@/components/whatsapp-float'
 import { getCurrentAccount } from '@/lib/auth/session'
 import { courseContentPath } from '@/lib/course-access'
 import { courseEnrollmentHref, courses, getCourse, usesWhatsAppEnrollment } from '@/lib/courses'
+import { createPublicMetadata } from '@/lib/seo'
 
 export function generateStaticParams() {
   return courses.map((course) => ({ slug: course.slug }))
@@ -30,10 +31,11 @@ export async function generateMetadata({
   const { slug } = await params
   const course = getCourse(slug)
   if (!course) return { title: 'Curso no encontrado | C.O.A' }
-  return {
+  return createPublicMetadata({
     title: course.seoTitle ?? `${course.title} | C.O.A`,
     description: course.seoDescription ?? course.short,
-  }
+    path: `/cursos/${encodeURIComponent(course.slug)}`,
+  })
 }
 
 export default async function CoursePage({

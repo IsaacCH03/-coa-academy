@@ -22,12 +22,14 @@ import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
 import { createWhatsAppLink, site } from '@/lib/site'
+import { createPublicMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPublicMetadata({
   title: 'Términos y Condiciones | C.O.A.',
   description:
     'Conoce las condiciones de los cursos, certificados, pagos y servicios de Cursos Online Avanzados.',
-}
+  path: '/terminos-y-condiciones',
+})
 
 const sections = [
   { id: 'naturaleza', number: '01', title: 'Naturaleza de la academia', icon: Building2 },

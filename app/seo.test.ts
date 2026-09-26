@@ -14,6 +14,12 @@ import { metadata as python } from './cursos/python-practico/curso/layout'
 import { metadata as sql } from './cursos/sql-bases-datos/curso/layout'
 import { metadata as django } from './cursos/desarrollo-web-django/curso/layout'
 import { metadata as ai } from './cursos/programacion-con-ia/curso/layout'
+import { metadata as home } from './page'
+import { metadata as certificates } from './certificados/page'
+import { metadata as experience } from './experiencia-profesional/page'
+import { metadata as ide } from './ide/page'
+import { metadata as terms } from './terminos-y-condiciones/page'
+import { generateMetadata as courseMetadata } from './cursos/[slug]/page'
 
 const origin = 'https://www.cursoscoa.com'
 
@@ -88,4 +94,29 @@ it('sets noindex on the account and academic layouts', () => {
   for (const metadata of [admin, dashboard, account, enrollment, logic, web, python, sql, django, ai]) {
     expect(metadata.robots).toEqual({ index: false, follow: false })
   }
+})
+
+describe('public metadata', () => {
+  it('uses self-referencing canonicals and complete social metadata', async () => {
+    const python = await courseMetadata({ params: Promise.resolve({ slug: 'python-practico' }) })
+    const entries = [
+      [home, '/'],
+      [experience, '/experiencia-profesional'],
+      [certificates, '/certificados'],
+      [ide, '/ide'],
+      [terms, '/terminos-y-condiciones'],
+      [python, '/cursos/python-practico'],
+    ] as const
+
+    for (const [metadata, path] of entries) {
+      expect(metadata.alternates?.canonical).toBe(path)
+      expect(metadata.openGraph?.url).toBe(path)
+      expect(metadata.openGraph?.title).toBe(metadata.title)
+      expect(metadata.openGraph?.description).toBe(metadata.description)
+      expect(metadata.openGraph?.images).toBeTruthy()
+      expect(metadata.twitter?.title).toBe(metadata.title)
+      expect(metadata.twitter?.description).toBe(metadata.description)
+      expect(metadata.twitter?.images).toBeTruthy()
+    }
+  })
 })

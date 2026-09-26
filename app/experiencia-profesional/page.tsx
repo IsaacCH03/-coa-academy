@@ -23,11 +23,13 @@ import {
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
+import { createPublicMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPublicMetadata({
   title: 'Programa de Experiencia Profesional | C.O.A.',
   description: 'Conoce el Programa de Experiencia Profesional de C.O.A. y la oportunidad de aplicar tus conocimientos en proyectos reales.',
-}
+  path: '/experiencia-profesional',
+})
 
 const steps = [
   ['1', 'Completa la Ruta Python', 'Finaliza la formación técnica requerida.'],
