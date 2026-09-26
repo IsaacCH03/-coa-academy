@@ -67,7 +67,7 @@ export class PythonRuntime {
     this.loadingTimeout = setTimeout(
       () =>
         this.fail(
-          'La carga de Python tardó demasiado. Revisa tu conexión y pulsa Recargar Python.',
+          'La carga de Python tardó demasiado. Revisa tu conexión y pulsa Reiniciar entorno.',
         ),
       90000,
     )
@@ -134,7 +134,7 @@ export class PythonRuntime {
     }
     worker.onerror = () =>
       this.fail(
-        'No se pudo iniciar el entorno Python. Pulsa Recargar Python para volver a intentarlo.',
+        'No se pudo iniciar el entorno Python. Pulsa Reiniciar entorno para volver a intentarlo.',
       )
     worker.postMessage({ type: 'init', inputBuffer: this.buffer })
   }

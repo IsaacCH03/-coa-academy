@@ -8,6 +8,7 @@ import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
 import { createPublicMetadata, PUBLIC_ORIGIN } from '@/lib/seo'
 import { site } from '@/lib/site'
+import { ContinueLearningSection } from '@/components/continue-learning-section'
 
 const title = 'C.O.A | Cursos Online Avanzados'
 const description =
@@ -32,6 +33,7 @@ export default function HomePage() {
       <SiteHeader />
       <main className="flex-1">
         <HeroSection />
+        <ContinueLearningSection />
         <CoursesSection />
         <AboutSection />
         <ContactSection />

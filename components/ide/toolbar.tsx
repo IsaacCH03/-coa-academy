@@ -13,7 +13,6 @@ export function Toolbar({
   onDownload,
   onGithub,
   onRestart,
-  needsRestart,
   onSettings,
   canExportTkinter,
   onExportTkinter,
@@ -27,7 +26,6 @@ export function Toolbar({
   onDownload: (project: boolean) => void
   onGithub: () => void
   onRestart: () => void
-  needsRestart: boolean
   onSettings: () => void
   canExportTkinter: boolean
   onExportTkinter: () => void
@@ -59,11 +57,9 @@ export function Toolbar({
         <button className="ide-stop" disabled={!canStop} onClick={onStop}>
           <Square size={14} fill="currentColor" /> <span>Detener</span>
         </button>
-        {needsRestart && (
-          <button onClick={onRestart}>
-            <RotateCcw size={15} /> Recargar Python
-          </button>
-        )}
+        <button className="ide-restart" onClick={onRestart} aria-label="Reiniciar entorno" title="Reinicia Python y el análisis sin borrar tu proyecto">
+          <RotateCcw size={15} /> <span>Reiniciar entorno</span>
+        </button>
         <details className="ide-download">
           <summary>
             <Download size={16} />

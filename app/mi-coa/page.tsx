@@ -3,24 +3,18 @@ import { BookOpen, ShieldCheck, UserRound } from 'lucide-react'
 import { AccountShell } from '@/components/account/account-shell'
 import { requireAccount } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { enrollmentStatusLabel, type EnrollmentStatus } from '@/lib/academic'
+import { enrollmentStatusLabel } from '@/lib/academic'
+import { getCurrentStudentEnrollments } from '@/lib/student-enrollments'
 
 export const metadata = { title: 'Mi COA | C.O.A' }
-
-type EnrollmentRow = { id: string; status: EnrollmentStatus; enrolled_at: string; courses: { slug: string; title: string; status: string } | null }
 
 export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ 'sin-permiso'?: string; 'sin-acceso'?: string; inscripcion?: string }> }) {
   const { profile, user } = await requireAccount()
   if (profile.role === 'admin') redirect('/admin')
   const params = await searchParams
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('enrollments')
-    .select('id, status, enrolled_at, courses!inner(slug, title, status)')
-    .eq('student_id', user.id)
-    .order('enrolled_at', { ascending: false })
-  const enrollments = (data ?? []) as unknown as EnrollmentRow[]
+  const result = await getCurrentStudentEnrollments()
+  const enrollments = result.enrollments
+  const error = result.status === 'error'
   return (
     <AccountShell title={`Hola, ${profile.full_name}`} eyebrow="Panel del estudiante">
       {params['sin-permiso'] && <div role="alert" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">No tienes permisos para acceder al panel de administración.</div>}

@@ -49,6 +49,7 @@ import {
   type DiagnosticFix,
   type RuntimeDiagnostic,
 } from '@/lib/ide/diagnostics'
+import { applyDiagnosticMarkers, DiagnosticGeneration } from '@/lib/ide/diagnostic-state'
 import type { BuilderChange } from '@/lib/ide/layers'
 import { DEFAULT_SETTINGS, accentColor, derivedColors, quickInsertion, type AppearanceProfile, type QuickAction, type StudioSettings } from '@/lib/ide/personalization'
 import { deleteCustomBackground, loadCustomBackground, loadProfiles, loadSettings, saveCustomBackground, saveProfiles, saveSettings } from '@/lib/ide/personalization-storage'
@@ -88,6 +89,7 @@ export function IdeApp() {
   const [diagnostics, setDiagnostics] = useState<CodeDiagnostic[]>([])
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<RuntimeDiagnostic | null>(null)
   const [runtimeMarker, setRuntimeMarker] = useState<CodeDiagnostic | null>(null)
+  const [runtimeMarkerSource, setRuntimeMarkerSource] = useState('')
   const [problemsOpen, setProblemsOpen] = useState(false)
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_SETTINGS)
   const [profiles, setProfiles] = useState<AppearanceProfile[]>([])
@@ -105,6 +107,8 @@ export function IdeApp() {
   const editorRefs = useRef<Partial<Record<1 | 2, editor.IStandaloneCodeEditor>>>({})
   const monacoRef = useRef<Monaco | null>(null)
   const diagnosticsRef = useRef<CodeDiagnostic[]>([])
+  const diagnosticGeneration = useRef(new DiagnosticGeneration())
+  const restartPending = useRef(false)
   const projectRef = useRef(project)
   const pendingLocation = useRef<{ path: string; line: number; column: number } | null>(null)
   const pendingFix = useRef<DiagnosticFix | null>(null)
@@ -117,7 +121,11 @@ export function IdeApp() {
   const activeGroup = project?.activeEditorGroup === 2 && project.splitEnabled ? 2 : 1
   const activePath = activeGroup === 2 ? (project?.secondaryActive || project?.active || '') : (project?.active || '')
   const source = project?.entries.find((e) => e.path === activePath)?.content ?? ''
-  const allDiagnostics = useMemo(() => runtimeMarker ? [...diagnostics, runtimeMarker] : diagnostics, [diagnostics, runtimeMarker])
+  const currentRuntimeMarker = runtimeMarker
+    && project?.entries.find((entry) => entry.path === runtimeMarker.path)?.content === runtimeMarkerSource
+    ? runtimeMarker
+    : null
+  const allDiagnostics = useMemo(() => currentRuntimeMarker ? [...diagnostics, currentRuntimeMarker] : diagnostics, [diagnostics, currentRuntimeMarker])
   useEffect(() => { projectRef.current = project }, [project])
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -201,7 +209,16 @@ export function IdeApp() {
   )
   useEffect(() => {
     const runner = new PythonRuntime({
-      state: setState,
+      state: (next) => {
+        setState(next)
+        if (next === 'ready' && restartPending.current) {
+          restartPending.current = false
+          setNotice('Entorno reiniciado correctamente.')
+        } else if (next === 'error' && restartPending.current) {
+          restartPending.current = false
+          setNotice('No se pudo reiniciar completamente el entorno.')
+        }
+      },
       output: append,
       error: (technical) => {
         setPythonError(technical)
@@ -210,6 +227,7 @@ export function IdeApp() {
         const path = explained.path ?? current?.active
         setRuntimeDiagnostic({ ...explained, path })
         if (path && explained.line) {
+          setRuntimeMarkerSource(current?.entries.find((entry) => entry.path === path)?.content ?? '')
           setRuntimeMarker({
             id: `runtime-${path}-${explained.line}`,
             path,
@@ -252,15 +270,16 @@ export function IdeApp() {
     if (!project || !activePath.endsWith('.py') || state !== 'ready') return
     let active = true
     let retry: ReturnType<typeof setTimeout>
+    const generation = diagnosticGeneration.current.begin()
     const analyze = () => {
       void runtime.current!.analyzeDiagnostics(project.entries).then(
         (result) => {
-          if (!active) return
+          if (!active || !diagnosticGeneration.current.isCurrent(generation)) return
           diagnosticsRef.current = result
           setDiagnostics(result)
         },
         (error) => {
-          if (active) {
+          if (active && diagnosticGeneration.current.isCurrent(generation)) {
             setNotice(`No se pudo completar Diagnósticos: ${(error as Error).message}`)
             retry = setTimeout(analyze, 180)
           }
@@ -275,21 +294,11 @@ export function IdeApp() {
     }
   }, [source, activePath, project, state])
   useEffect(() => {
-    const model = editorRef.current?.getModel()
     const monaco = monacoRef.current
-    if (!model || !monaco || !project) return
-    const visible = allDiagnostics.filter((item) => item.path === activePath)
+    if (!monaco || !project) return
     diagnosticsRef.current = allDiagnostics
-    monaco.editor.setModelMarkers(model, 'coa-diagnostics', visible.map((item) => ({
-      startLineNumber: item.line,
-      startColumn: item.column,
-      endLineNumber: item.endLine,
-      endColumn: item.endColumn,
-      message: `${item.message}\n\n${item.explanation}`,
-      severity: item.severity === 'error' ? monaco.MarkerSeverity.Error : item.severity === 'warning' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
-      source: item.origin === 'runtime' ? 'Ejecución COA' : 'Diagnósticos COA',
-    })))
-  }, [allDiagnostics, project, activePath])
+    applyDiagnosticMarkers(monaco, allDiagnostics)
+  }, [allDiagnostics, project])
   useEffect(() => {
     const target = pendingLocation.current
     if (!target || target.path !== activePath) return
@@ -372,8 +381,34 @@ export function IdeApp() {
     runtime.current?.stop()
     setGuiDialog(null)
     append(
-      '\nPrograma detenido. Pulsa Recargar Python para volver a ejecutar.\n',
+      '\nPrograma detenido. Pulsa Reiniciar entorno para volver a ejecutar.\n',
     )
+  }
+  async function restartEnvironment() {
+    if (restartPending.current) return
+    try {
+      await save()
+      diagnosticGeneration.current.invalidate()
+      cancelTests.current = true
+      restartPending.current = true
+      setPythonError('')
+      setRuntimeDiagnostic(null)
+      setRuntimeMarker(null)
+      setRuntimeMarkerSource('')
+      setDiagnostics([])
+      diagnosticsRef.current = []
+      setGuiPreview(null)
+      setGuiDialog(null)
+      setPreviewDialog(null)
+      setResults([])
+      setChecking(false)
+      setOutput('')
+      setNotice('Reiniciando entorno…')
+      runtime.current?.start()
+    } catch {
+      restartPending.current = false
+      setNotice('No se pudo reiniciar completamente el entorno.')
+    }
   }
   function open(path: string) {
     update((p) => p.activeEditorGroup === 2 && p.splitEnabled ? { ...p, secondaryActive: path, secondaryTabs: [...new Set([...(p.secondaryTabs ?? []), path])] } : { ...p, active: path, tabs: [...new Set([...p.tabs, path])] })
@@ -581,6 +616,7 @@ export function IdeApp() {
     editorRefs.current[group] = ed
     if (group === activeGroup) editorRef.current = ed
     monacoRef.current = monaco
+    applyDiagnosticMarkers(monaco, diagnosticsRef.current)
     if (!codeActions.current) codeActions.current = monaco.languages.registerCodeActionProvider('python', {
       provideCodeActions(model, range) {
         const path = decodeURIComponent(model.uri.path).replace(/^\//, '')
@@ -647,8 +683,7 @@ export function IdeApp() {
         onStop={stop}
         onDownload={(all) => void download(all)}
         onGithub={() => setPanel((p) => (p === 'github' ? null : 'github'))}
-        onRestart={() => runtime.current?.start()}
-        needsRestart={state === 'stopped' || state === 'error'}
+        onRestart={() => void restartEnvironment()}
         onSettings={() => setPanel((p) => p === 'settings' ? null : 'settings')}
         canExportTkinter={usesCoaGui(source)}
         onExportTkinter={() => {

@@ -213,6 +213,11 @@
   background: #44232e;
   border: 1px solid #693241;
 }
+.coa-ide .ide-restart {
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  border: 1px solid var(--palette-border);
+}
 .ide-back {
   display: flex;
   align-items: center;
@@ -1423,6 +1428,9 @@
     min-height: 30px;
   }
   .ide-toolbar-actions > button:last-of-type span {
+    display: none;
+  }
+  .ide-restart span {
     display: none;
   }
   .ide-download > summary {

@@ -43,7 +43,13 @@ test('Python, input, imports, persistence, builder, exercises and downloads', as
   await expect(
     page.getByText('Programa detenido', { exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Recargar Python' }).click()
+  await page.getByRole('button', { name: 'Reiniciar entorno' }).click()
+  await ready(page)
+  await expect(page.getByText('Entorno reiniciado correctamente.')).toBeVisible()
+  await expect(page.locator('.monaco-editor').first()).toContainText('while True:')
+  await edit(page, 'print("Entorno recuperado")')
+  await page.keyboard.press('Control+Enter')
+  await expect(page.getByTestId('python-output')).toContainText('Entorno recuperado')
   await ready(page)
   await page.getByRole('button', { name: 'Archivos', exact: true }).click()
   await page.locator('summary[aria-label="Crear elemento"]').click()
