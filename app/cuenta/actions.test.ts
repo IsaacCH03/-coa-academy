@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   signOut: vi.fn(),
   signUp: vi.fn(),
+  resend: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
   signInWithPassword: vi.fn(),
   getUser: vi.fn(),
   single: vi.fn(),
@@ -17,12 +19,12 @@ vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: mocks.cookieGet, set: mocks.cookieSet }) }))
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
-    auth: { signOut: mocks.signOut, signUp: mocks.signUp, signInWithPassword: mocks.signInWithPassword, getUser: mocks.getUser, updateUser: mocks.updateUser },
+    auth: { signOut: mocks.signOut, signUp: mocks.signUp, resend: mocks.resend, resetPasswordForEmail: mocks.resetPasswordForEmail, signInWithPassword: mocks.signInWithPassword, getUser: mocks.getUser, updateUser: mocks.updateUser },
     from: () => ({ select: () => ({ eq: () => ({ single: mocks.single }) }) }),
   }),
 }))
 
-import { signInAction, signOutAction, signUpAction, updatePasswordAction } from './actions'
+import { requestPasswordResetAction, resendConfirmationAction, signInAction, signOutAction, signUpAction, updatePasswordAction } from './actions'
 
 describe('acciones de sesión', () => {
   beforeEach(() => {
@@ -43,6 +45,45 @@ describe('acciones de sesión', () => {
     expect(mocks.signUp).toHaveBeenCalledWith(expect.objectContaining({
       options: expect.objectContaining({ emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2F' }),
     }))
+  })
+
+  it('reenvía una confirmación de signup con callback canónico y Turnstile', async () => {
+    mocks.resend.mockResolvedValue({ data: {}, error: null })
+    const form = new FormData()
+    form.set('email', 'ana@ejemplo.com')
+    form.set('cf-turnstile-response', 'captcha-token')
+    form.set('next', '/inscripcion/python-practico')
+    const state = await resendConfirmationAction(initialAuthState, form)
+    expect(mocks.resend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'ana@ejemplo.com',
+      options: {
+        emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2Finscripcion%2Fpython-practico',
+        captchaToken: 'captcha-token',
+      },
+    })
+    expect(state.message).toBe('Si existe una cuenta pendiente de confirmación con ese correo, recibirás un nuevo enlace.')
+    expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled()
+  })
+
+  it('bloquea next externo al reenviar confirmación', async () => {
+    mocks.resend.mockResolvedValue({ data: {}, error: null })
+    const form = new FormData()
+    form.set('email', 'ana@ejemplo.com')
+    form.set('next', 'https://evil.example')
+    await resendConfirmationAction(initialAuthState, form)
+    expect(mocks.resend).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({ emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2F' }),
+    }))
+  })
+
+  it('mantiene recuperación en resetPasswordForEmail y separada de resend', async () => {
+    mocks.resetPasswordForEmail.mockResolvedValue({ error: null })
+    const form = new FormData()
+    form.set('email', 'ana@ejemplo.com')
+    await requestPasswordResetAction(initialAuthState, form)
+    expect(mocks.resetPasswordForEmail).toHaveBeenCalledOnce()
+    expect(mocks.resend).not.toHaveBeenCalled()
   })
 
   it.each([['student', '/mi-coa'], ['admin', '/admin']])('redirige el rol %s a %s', async (role, destination) => {

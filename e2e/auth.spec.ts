@@ -37,6 +37,16 @@ test.describe('cuentas y rutas protegidas', () => {
     await expect(page.getByRole('heading', { name: 'Recupera tu contraseña' })).toBeVisible()
   })
 
+  test('un enlace de confirmación expirado ofrece reenviar confirmación', async ({ page }) => {
+    await page.goto('/cuenta/error?motivo=enlace-vencido&flujo=confirmacion&next=%2F')
+    const resend = page.getByRole('link', { name: 'Solicitar un nuevo enlace de confirmación' })
+    await expect(resend).toHaveAttribute('href', '/cuenta/reenviar-confirmacion?next=%2F')
+    await resend.click()
+    await expect(page.getByRole('heading', { name: 'Reenviar correo de confirmación' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Enviar nuevo enlace' })).toBeVisible()
+    await expect(page).not.toHaveURL(/\/cuenta\/recuperar/)
+  })
+
   test('valida el registro antes de contactar al proveedor', async ({ page }) => {
     await page.goto('/cuenta/registro')
     await page.getByLabel('Nombre completo').fill('Ana Estudiante')

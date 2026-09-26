@@ -4,7 +4,7 @@ import { getSupabaseConfig, getSupabaseCookieOptions } from './config'
 import { academicAccessAllowed, contentCourseSlug } from '@/lib/course-access'
 
 const protectedPaths = ['/mi-coa', '/admin', '/inscripcion']
-const guestPaths = ['/cuenta/iniciar-sesion', '/cuenta/registro']
+const guestPaths = ['/cuenta/iniciar-sesion', '/cuenta/registro', '/cuenta/reenviar-confirmacion']
 
 export function applyTransportSecurity(response: NextResponse, request: NextRequest) {
   const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim()

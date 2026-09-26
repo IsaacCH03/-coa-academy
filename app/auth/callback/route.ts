@@ -11,12 +11,14 @@ export async function GET(request: NextRequest) {
   const type = url.searchParams.get('type') as EmailOtpType | null
   const expectedOrigin = new URL(getSiteUrl()).origin
   const next = safeAuthDestination(url.searchParams.get('next'), expectedOrigin, '/')
+  const errorFlow = next === '/cuenta/restablecer' ? 'recuperacion' : 'confirmacion'
+  const errorDestination = (reason: string) => `/cuenta/error?motivo=${reason}&flujo=${errorFlow}&next=${encodeURIComponent(next)}`
   const supabase = await createClient()
 
   const providerError = url.searchParams.get('error_code') || url.searchParams.get('error')
   if (providerError) {
     const reason = /expired/i.test(providerError) ? 'enlace-vencido' : 'enlace-utilizado-o-invalido'
-    return NextResponse.redirect(new URL(`/cuenta/error?motivo=${reason}`, expectedOrigin))
+    return NextResponse.redirect(new URL(errorDestination(reason), expectedOrigin))
   }
 
   let error = null
@@ -32,10 +34,10 @@ export async function GET(request: NextRequest) {
     error = result.error
     hasSession = Boolean(result.data.session)
     recoveryFlow = type === 'recovery'
-  } else return NextResponse.redirect(new URL('/cuenta/error?motivo=enlace-invalido', expectedOrigin))
+  } else return NextResponse.redirect(new URL(errorDestination('enlace-invalido'), expectedOrigin))
 
   const destination = error
-    ? `/cuenta/error?motivo=${/expired/i.test(`${error.code} ${error.message}`) ? 'enlace-vencido' : 'enlace-utilizado-o-invalido'}`
+    ? errorDestination(/expired/i.test(`${error.code} ${error.message}`) ? 'enlace-vencido' : 'enlace-utilizado-o-invalido')
     : !recoveryFlow && !hasSession
       ? '/cuenta/iniciar-sesion?confirmacion=correcta'
     : next

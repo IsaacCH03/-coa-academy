@@ -89,6 +89,25 @@ export async function requestPasswordResetAction(_: AuthActionState, formData: F
   return { status: 'success', message: 'Si el correo pertenece a una cuenta, recibirás un enlace para restablecer la contraseña.' }
 }
 
+export async function resendConfirmationAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  const email = normalizeEmail(formData.get('email'))
+  const next = authDestination(formData, '/')
+  if (!isValidEmail(email)) return errorState('Escribe un correo válido.', { email })
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: `${getSiteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+      captchaToken: captchaToken(formData),
+    },
+  })
+  if (error && /rate limit|security purposes/i.test(error.message)) {
+    return errorState('Espera unos minutos antes de volver a intentarlo.', { email })
+  }
+  return { status: 'success', message: 'Si existe una cuenta pendiente de confirmación con ese correo, recibirás un nuevo enlace.' }
+}
+
 export async function updatePasswordAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const cookieStore = await cookies()
   if (cookieStore.get('coa-password-recovery')?.value !== 'verified') {

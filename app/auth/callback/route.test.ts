@@ -40,6 +40,11 @@ describe('callback de autenticación', () => {
 
   it('distingue un enlace expirado informado por Supabase', async () => {
     const response = await GET(new NextRequest('https://www.cursoscoa.com/auth/callback?error=access_denied&error_code=otp_expired'))
-    expect(response.headers.get('location')).toBe('https://www.cursoscoa.com/cuenta/error?motivo=enlace-vencido')
+    expect(response.headers.get('location')).toBe('https://www.cursoscoa.com/cuenta/error?motivo=enlace-vencido&flujo=confirmacion&next=%2F')
+  })
+
+  it('mantiene separado un error de recuperación', async () => {
+    const response = await GET(new NextRequest('https://www.cursoscoa.com/auth/callback?next=/cuenta/restablecer&error=access_denied&error_code=otp_expired'))
+    expect(response.headers.get('location')).toContain('flujo=recuperacion')
   })
 })
