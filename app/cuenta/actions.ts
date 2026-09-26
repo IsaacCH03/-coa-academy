@@ -25,8 +25,8 @@ function captchaToken(formData: FormData) {
   return typeof value === 'string' && value ? value : undefined
 }
 
-function authDestination(formData: FormData) {
-  return safeAuthDestination(readText(formData.get('next')), new URL(getSiteUrl()).origin)
+function authDestination(formData: FormData, fallback = '/mi-coa') {
+  return safeAuthDestination(readText(formData.get('next')), new URL(getSiteUrl()).origin, fallback)
 }
 
 export async function signUpAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {
@@ -35,7 +35,7 @@ export async function signUpAction(_: AuthActionState, formData: FormData): Prom
   const password = String(formData.get('password') || '')
   const confirmation = String(formData.get('passwordConfirmation') || '')
   const fields = { fullName, email }
-  const next = authDestination(formData)
+  const next = authDestination(formData, '/')
   if (fullName.length < 2) return errorState('Escribe tu nombre completo.', fields)
   if (!isValidEmail(email)) return errorState('Escribe un correo válido.', fields)
   const passwordError = validatePassword(password)
@@ -54,7 +54,7 @@ export async function signUpAction(_: AuthActionState, formData: FormData): Prom
   })
   if (error) return errorState(friendlyAuthError(error.message, error.code), fields)
   if (data.session) redirect(next)
-  return { status: 'success', message: 'Cuenta creada. Revisa tu correo y abre el enlace de confirmación para activarla.' }
+  return { status: 'success', message: 'Cuenta creada. Revisa tu correo y pulsa el enlace de confirmación. Después volverás a COA con tu cuenta activada.' }
 }
 
 export async function signInAction(_: AuthActionState, formData: FormData): Promise<AuthActionState> {

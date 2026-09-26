@@ -4,7 +4,7 @@ import { safeAuthDestination } from './redirects'
 const origin = 'https://cursoscoa.com'
 
 describe('destinos seguros de autenticación', () => {
-  it.each(['/mi-coa', '/admin', '/cuenta/restablecer', '/inscripcion/python-practico', '/cursos/python-practico/curso', '/cursos/python-practico/curso/modulo-4'])('permite %s', (path) => {
+  it.each(['/', '/mi-coa', '/admin', '/cuenta/restablecer', '/inscripcion/python-practico', '/cursos/python-practico/curso', '/cursos/python-practico/curso/modulo-4'])('permite %s', (path) => {
     expect(safeAuthDestination(path, origin)).toBe(path)
   })
 
@@ -15,5 +15,9 @@ describe('destinos seguros de autenticación', () => {
     '/inscripcion/../../admin', '/inscripcion/%2e%2e/admin', '/inscripcion/curso?next=https://evil.example',
   ])('rechaza %s', (value) => {
     expect(safeAuthDestination(value, origin)).toBe('/mi-coa')
+  })
+
+  it('usa el fallback solicitado sin permitir destinos externos', () => {
+    expect(safeAuthDestination('https://evil.example', origin, '/')).toBe('/')
   })
 })

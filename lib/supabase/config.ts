@@ -10,7 +10,9 @@ export function getSupabaseConfig() {
 }
 
 export function getSiteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const configured = new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000')
+  if (configured.hostname === 'cursoscoa.com') configured.hostname = 'www.cursoscoa.com'
+  return configured.toString().replace(/\/$/, '')
 }
 
 export function getSupabaseCookieOptions() {

@@ -1,3 +1,5 @@
+import { createWhatsAppLink } from './site'
+
 export type Course = {
   slug: string
   title: string
@@ -595,4 +597,14 @@ export const courses: Course[] = [
 
 export function getCourse(slug: string) {
   return courses.find((c) => c.slug === slug)
+}
+
+export function usesWhatsAppEnrollment(course: Course) {
+  return Boolean(course.whatsappMessage)
+}
+
+export function courseEnrollmentHref(course: Course) {
+  return course.whatsappMessage
+    ? createWhatsAppLink(course.whatsappMessage)
+    : `/inscripcion/${course.slug}`
 }

@@ -4,6 +4,7 @@ import { initialAuthState } from '@/lib/auth/types'
 const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   signOut: vi.fn(),
+  signUp: vi.fn(),
   signInWithPassword: vi.fn(),
   getUser: vi.fn(),
   single: vi.fn(),
@@ -16,18 +17,32 @@ vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: mocks.cookieGet, set: mocks.cookieSet }) }))
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
-    auth: { signOut: mocks.signOut, signInWithPassword: mocks.signInWithPassword, getUser: mocks.getUser, updateUser: mocks.updateUser },
+    auth: { signOut: mocks.signOut, signUp: mocks.signUp, signInWithPassword: mocks.signInWithPassword, getUser: mocks.getUser, updateUser: mocks.updateUser },
     from: () => ({ select: () => ({ eq: () => ({ single: mocks.single }) }) }),
   }),
 }))
 
-import { signInAction, signOutAction, updatePasswordAction } from './actions'
+import { signInAction, signOutAction, signUpAction, updatePasswordAction } from './actions'
 
 describe('acciones de sesión', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.signInWithPassword.mockResolvedValue({ error: null })
     mocks.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  })
+
+  it('registra con callback al inicio canónico cuando no existe next', async () => {
+    mocks.signUp.mockResolvedValue({ data: { session: null }, error: null })
+    const form = new FormData()
+    form.set('fullName', 'Ana Estudiante')
+    form.set('email', 'ana@ejemplo.com')
+    form.set('password', 'segura123')
+    form.set('passwordConfirmation', 'segura123')
+    const state = await signUpAction(initialAuthState, form)
+    expect(state.status).toBe('success')
+    expect(mocks.signUp).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({ emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2F' }),
+    }))
   })
 
   it.each([['student', '/mi-coa'], ['admin', '/admin']])('redirige el rol %s a %s', async (role, destination) => {

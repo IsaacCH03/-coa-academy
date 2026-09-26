@@ -9,6 +9,14 @@ test.describe('Fase 2 pública y protección de rutas', () => {
     await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion\?next=%2Finscripcion%2Fpython-practico$/)
   })
 
+  test('un curso pago abre WhatsApp y no una inscripción interna inexistente', async ({ page }) => {
+    await page.goto('/cursos/python-nivel-1')
+    const enrollment = page.getByRole('link', { name: 'Inscribirme' })
+    await expect(enrollment).toHaveAttribute('href', /https:\/\/wa\.me\/50660045660\?text=/)
+    await expect(enrollment).toHaveAttribute('href', /Python%20Nivel%201/)
+    await expect(enrollment).not.toHaveAttribute('href', /\/inscripcion\//)
+  })
+
   test('un visitante no abre inscripción ni contenido académico privado', async ({ page }) => {
     await page.goto('/inscripcion/python-practico')
     await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion\?next=%2Finscripcion%2Fpython-practico$/)

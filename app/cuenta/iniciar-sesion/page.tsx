@@ -6,12 +6,13 @@ import { getSiteUrl } from '@/lib/supabase/config'
 
 export const metadata = { title: 'Iniciar sesión | C.O.A' }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; confirmacion?: string }> }) {
   const params = await searchParams
   const next = safeAuthDestination(params.next ?? null, new URL(getSiteUrl()).origin)
   const nextQuery = next === '/mi-coa' ? '' : `?next=${encodeURIComponent(next)}`
   return (
     <AuthShell title="Inicia sesión" description="Accede a tu espacio personal de Cursos Online Avanzados.">
+      {params.confirmacion === 'correcta' && <p role="status" className="mb-5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">Tu correo fue confirmado correctamente. Ya puedes iniciar sesión.</p>}
       <AuthForm
         action={signInAction}
         fields={[

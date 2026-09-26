@@ -8,8 +8,8 @@ export const metadata = { title: 'Crear cuenta | C.O.A' }
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const params = await searchParams
-  const next = safeAuthDestination(params.next ?? null, new URL(getSiteUrl()).origin)
-  const nextQuery = next === '/mi-coa' ? '' : `?next=${encodeURIComponent(next)}`
+  const next = safeAuthDestination(params.next ?? null, new URL(getSiteUrl()).origin, '/')
+  const nextQuery = next === '/' ? '' : `?next=${encodeURIComponent(next)}`
   return (
     <AuthShell title="Crea tu cuenta" description="Regístrate como estudiante. Te enviaremos un enlace para confirmar tu correo.">
       <AuthForm

@@ -16,7 +16,7 @@ import { SiteFooter } from '@/components/site-footer'
 import { WhatsAppFloat } from '@/components/whatsapp-float'
 import { getCurrentAccount } from '@/lib/auth/session'
 import { courseContentPath } from '@/lib/course-access'
-import { courses, getCourse } from '@/lib/courses'
+import { courseEnrollmentHref, courses, getCourse, usesWhatsAppEnrollment } from '@/lib/courses'
 
 export function generateStaticParams() {
   return courses.map((course) => ({ slug: course.slug }))
@@ -67,6 +67,8 @@ export default async function CoursePage({
   const account = await getCurrentAccount()
   const contentPath = courseContentPath(slug)
   const adminContentPath = account?.profile.role === 'admin' ? contentPath : null
+  const whatsappEnrollment = usesWhatsAppEnrollment(course)
+  const enrollmentHref = courseEnrollmentHref(course)
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -224,9 +226,9 @@ export default async function CoursePage({
                   size="lg"
                   className="w-full gap-2 bg-accent font-semibold text-accent-foreground hover:bg-accent/90"
                 >
-                  <Link href={adminContentPath ?? `/inscripcion/${course.slug}`}>{adminContentPath ? 'Ver curso' : 'Inscribirme'}</Link>
+                  <Link href={adminContentPath ?? enrollmentHref} target={!adminContentPath && whatsappEnrollment ? '_blank' : undefined} rel={!adminContentPath && whatsappEnrollment ? 'noopener noreferrer' : undefined}>{adminContentPath ? 'Ver curso' : 'Inscribirme'}</Link>
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">{adminContentPath ? 'Acceso de inspección administrativa.' : 'Inicia sesión o crea tu cuenta para continuar.'}</p>
+                <p className="text-center text-xs text-muted-foreground">{adminContentPath ? 'Acceso de inspección administrativa.' : whatsappEnrollment ? 'Coordina tu inscripción directamente con COA por WhatsApp.' : 'Inicia sesión o crea tu cuenta para continuar.'}</p>
               </div>
             </aside>
           </div>

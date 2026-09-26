@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getSupabaseCookieOptions } from './config'
+import { getSiteUrl, getSupabaseCookieOptions } from './config'
 
 afterEach(() => vi.unstubAllEnvs())
 
 describe('cookies de Supabase', () => {
+  it('normaliza el dominio de producción al host público canónico', () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://cursoscoa.com/')
+    expect(getSiteUrl()).toBe('https://www.cursoscoa.com')
+  })
+
   it('usa Secure en producción', () => {
     vi.stubEnv('NODE_ENV', 'production')
     expect(getSupabaseCookieOptions()).toMatchObject({ secure: true, sameSite: 'lax', path: '/' })
