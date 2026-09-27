@@ -151,6 +151,8 @@ export function normalizeV2Design(value: unknown): { design: V2Design; issues: s
   }
   const byId = new Map(widgets.map(widget => [widget.id, widget]))
   for (const widget of widgets) {
+    const parent=widget.parentId?byId.get(widget.parentId):undefined
+    if(parent?.type==='Notebook'){const tabs=parent.tabs??[],fallback=parent.activeTabId??tabs[0]?.id;if(!widget.parentTabId||!tabs.some(tab=>tab.id===widget.parentTabId)){widget.parentTabId=fallback;issues.push(`${widget.name}: se recuperó su pestaña contenedora.`)}}else if(widget.parentTabId)widget.parentTabId=undefined
     const path = new Set<string>([widget.id]); let parentId = widget.parentId
     while (parentId) {
       if (path.has(parentId)) { issues.push(`${widget.name}: se rompió un ciclo de contenedores.`); widget.parentId = null; break }
@@ -220,16 +222,22 @@ function widgetClass(widget: V2Widget, target: DesignerTarget) {
   if (['Canvas','Text'].includes(widget.type)) return `tk.${widget.type}`
   return `ttk.${widget.type}`
 }
+type ConstructorCapability = 'font' | 'foreground' | 'background'
+const TK_CONSTRUCTOR_CAPABILITIES: Partial<Record<V2WidgetType, readonly ConstructorCapability[]>> = { Label:['font','foreground','background'],Entry:['font','foreground','background'],Button:['font','foreground','background'],Frame:['background'],Canvas:['background'],Text:['font','foreground','background'] }
+const TTK_CONSTRUCTOR_CAPABILITIES: Partial<Record<V2WidgetType, readonly ConstructorCapability[]>> = {}
+export function constructorCapabilities(target:DesignerTarget,widget:V2Widget){if(target==='coa')return new Set<ConstructorCapability>(['font','foreground','background']);return new Set(widgetClass(widget,target).startsWith('tk.')?TK_CONSTRUCTOR_CAPABILITIES[widget.type]??[]:TTK_CONSTRUCTOR_CAPABILITIES[widget.type]??[])}
 function constructorArgs(widget: V2Widget, target: DesignerTarget, mode: ExportMode) {
   const args: string[] = []
+  const capabilities=constructorCapabilities(target,widget)
   if (widget.text !== undefined && !['Entry','Text','Treeview','Combobox'].includes(widget.type)) args.push(`text=${py(widget.text)}`)
   if (widget.values) args.push(`values=${py(widget.values)}`)
   if (widget.state) args.push(`state=${py(widget.state)}`)
-  if (widget.fontFamily || widget.fontSize || widget.bold || widget.italic) args.push(`font=(${py(widget.fontFamily ?? 'Arial')}, ${widget.fontSize ?? 13}, ${py([widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' '))})`)
+  if (capabilities.has('font') && (widget.fontFamily || widget.fontSize || widget.bold || widget.italic)) args.push(`font=(${py(widget.fontFamily ?? 'Arial')}, ${widget.fontSize ?? 13}${widget.bold||widget.italic?`, ${py([widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' '))}`:''})`)
   if (widget.anchor) args.push(`anchor=${py(widget.anchor)}`)
   if (widget.showChar && widget.type === 'Entry') args.push(`show=${py(widget.showChar)}`)
   if (widget.wrap && widget.type === 'Text') args.push(`wrap=${py(widget.wrap)}`)
-  if (target !== 'ttkbootstrap') { if (widget.foreground) args.push(`foreground=${py(widget.foreground)}`); if (widget.background) args.push(`background=${py(widget.background)}`) }
+  if (capabilities.has('foreground') && widget.foreground) args.push(`foreground=${py(widget.foreground)}`)
+  if (capabilities.has('background') && widget.background) args.push(`background=${py(widget.background)}`)
   if (widget.orient) args.push(`orient=${py(widget.orient)}`)
   if (widget.mode) args.push(`mode=${py(widget.mode)}`)
   if (widget.tkWidth !== undefined && ['Entry','Combobox','Spinbox','Text'].includes(widget.type)) args.push(`width=${widget.tkWidth}`)
@@ -248,8 +256,8 @@ function constructorArgs(widget: V2Widget, target: DesignerTarget, mode: ExportM
 function layoutLine(widget: V2Widget, mode: ExportMode) {
   const item = ref(widget, mode), layout = widget.layout
   if (layout.manager === 'place') return `${item}.place(x=${layout.x}, y=${layout.y}, width=${layout.width}, height=${layout.height})`
-  if (layout.manager === 'pack') return `${item}.pack(side=${py(layout.side ?? 'top')}, fill=${py(layout.fill ?? 'none')}, expand=${layout.expand ? 'True' : 'False'}, padx=${layout.padx ?? 0}, pady=${layout.pady ?? 0})`
-  return `${item}.grid(row=${layout.row ?? 0}, column=${layout.column ?? 0}, rowspan=${layout.rowspan ?? 1}, columnspan=${layout.columnspan ?? 1}, sticky=${py(layout.sticky ?? '')}, padx=${layout.padx ?? 0}, pady=${layout.pady ?? 0})`
+  if (layout.manager === 'pack') { const args:string[]=[];if(layout.side&&layout.side!=='top')args.push(`side=${py(layout.side)}`);if(layout.fill&&layout.fill!=='none')args.push(`fill=${py(layout.fill)}`);if(layout.expand)args.push('expand=True');if(layout.padx)args.push(`padx=${layout.padx}`);if(layout.pady)args.push(`pady=${layout.pady}`);return `${item}.pack(${args.join(', ')})` }
+  const args=[`row=${layout.row??0}`,`column=${layout.column??0}`];if((layout.rowspan??1)!==1)args.push(`rowspan=${layout.rowspan}`);if((layout.columnspan??1)!==1)args.push(`columnspan=${layout.columnspan}`);if(layout.sticky)args.push(`sticky=${py(layout.sticky)}`);if(layout.padx)args.push(`padx=${layout.padx}`);if(layout.pady)args.push(`pady=${layout.pady}`);return `${item}.grid(${args.join(', ')})`
 }
 
 export function generateV2Code(design: V2Design, target = design.window.framework, mode = design.window.exportMode) {
@@ -270,7 +278,6 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
   const ordered: V2Widget[] = []
   const visited = new Set<string>()
   const visit = (parent: string | null) => childrenOf(design, parent)
-    .sort((left, right) => Number(!!WIDGET_REGISTRY[right.type].container) - Number(!!WIDGET_REGISTRY[left.type].container))
     .forEach((item) => { if (visited.has(item.id)) return; visited.add(item.id); ordered.push(item); visit(item.id) })
   visit(null)
   const events = new Map<string, boolean>()
@@ -284,6 +291,8 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
     }
     const extra = widget.type === 'Image' ? `, image=${mode === 'class' ? 'self.' : ''}${widget.name}_image` : constructorArgs(widget, target, mode)
     out.push(`${indent}${ref(widget, mode)} = ${widgetClass(widget, target)}(${parentExpression(widget, mode, byId)}${extra})`)
+    const capabilities=constructorCapabilities(target,widget),styleOptions:string[]=[]
+    if(target!=='coa'&&widgetClass(widget,target).startsWith('ttk.')){if(!capabilities.has('font')&&(widget.fontFamily||widget.fontSize||widget.bold||widget.italic))styleOptions.push(`font=(${py(widget.fontFamily??'Arial')}, ${widget.fontSize??13}${widget.bold||widget.italic?`, ${py([widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' '))}`:''})`);if(!capabilities.has('foreground')&&widget.foreground)styleOptions.push(`foreground=${py(widget.foreground)}`);if(!capabilities.has('background')&&widget.background)styleOptions.push(`background=${py(widget.background)}`);if(styleOptions.length)out.push(`${indent}ttk.Style().configure(${ref(widget,mode)}.cget("style") or ${ref(widget,mode)}.winfo_class(), ${styleOptions.join(', ')})`)}
     if (widget.type === 'Notebook') for (const tab of widget.tabs ?? []) {
       const tabRef = `${ref(widget, mode)}_${tab.id.replace(/[^A-Za-z0-9_]/g, '_')}`
       out.push(`${indent}${tabRef} = ttk.Frame(${ref(widget, mode)})`, `${indent}${ref(widget, mode)}.add(${tabRef}, text=${py(tab.text)})`)
@@ -371,16 +380,20 @@ export function importGeneratedGui(source: string): V2Design | null {
     if (values !== undefined) widget.values = [...values.matchAll(/(['"])(.*?)\1/g)].map(value => value[2])
     const state = create.args.match(/\bstate\s*=\s*(['"])([\s\S]*?)\1/)?.[2]
     if (state && ['normal', 'disabled', 'readonly'].includes(state)) widget.state = state as V2Widget['state']
+    const orient=create.args.match(/\borient\s*=\s*(?:['"](horizontal|vertical)['"]|(HORIZONTAL|VERTICAL))/);if(orient)widget.orient=(orient[1]??orient[2].toLowerCase()) as 'horizontal'|'vertical'
+    const mode=create.args.match(/\bmode\s*=\s*['"](determinate|indeterminate)['"]/);if(mode)widget.mode=mode[1] as V2Widget['mode']
+    const show=create.args.match(/\bshow\s*=\s*['"](headings|tree|tree headings)['"]/);if(show&&widget.type==='Treeview')widget.show=show[1] as V2Widget['show']
     const numericValue=create.args.match(/\bvalue\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(numericValue)widget.value=Number(numericValue)
-    const maximum=create.args.match(/\bmaximum\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(maximum)widget.maximum=Number(maximum)
+    const maximum=create.args.match(/\b(?:maximum|to)\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(maximum)widget.maximum=Number(maximum)
     const tkWidth=create.args.match(/\bwidth\s*=\s*(\d+)/)?.[1];if(tkWidth)widget.tkWidth=Number(tkWidth)
     const tkHeight=create.args.match(/\bheight\s*=\s*(\d+)/)?.[1];if(tkHeight)widget.tkHeight=Number(tkHeight)
     const length=create.args.match(/\blength\s*=\s*(\d+)/)?.[1];if(length)widget.length=Number(length)
-    const padding=create.args.match(/\bpadding\s*=\s*(\d+)/)?.[1];if(padding)widget.padding=Number(padding)
+    const padding=create.args.match(/\bpadding\s*=\s*(?:\d+|\(([^)]*)\))/)?.[0];if(padding){const values=[...padding.matchAll(/\d+/g)].map(value=>Number(value[0]));widget.padding=Math.max(...values)}
     const layout = source.match(new RegExp(`(?:self\\.)?${widget.name}\\.(place|pack|grid)\\(([^\\n]*)\\)`))
     if (layout) {
       widget.layout.manager = layout[1] as LayoutManager
-      for (const key of ['x','y','width','height','row','column','rowspan','columnspan','padx','pady'] as const) { const value = layout[2].match(new RegExp(`${key}\\s*=\\s*(\\d+)`)); if (value) (widget.layout as Record<string, unknown>)[key] = Number(value[1]) }
+      for (const key of ['x','y','width','height','row','column','rowspan','columnspan'] as const) { const value = layout[2].match(new RegExp(`${key}\\s*=\\s*(\\d+)`)); if (value) (widget.layout as Record<string, unknown>)[key] = Number(value[1]) }
+      for(const key of ['padx','pady'] as const){const value=layout[2].match(new RegExp(`${key}\\s*=\\s*(?:\\d+|\\(([^)]*)\\))`))?.[0];if(value){const values=[...value.matchAll(/\d+/g)].map(item=>Number(item[0]));widget.layout[key]=Math.max(...values)}}
       const side = layout[2].match(/\bside\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (side) widget.layout.side = (side[1] ?? side[2].toLowerCase()) as NonNullable<V2Widget['layout']['side']>
       const fill = layout[2].match(/\bfill\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (fill) widget.layout.fill = (fill[1] ?? fill[2].toLowerCase()) as NonNullable<V2Widget['layout']['fill']>
       const sticky = layout[2].match(/\bsticky\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (sticky) widget.layout.sticky = (sticky[1] ?? sticky[2]).toLowerCase()
@@ -394,9 +407,17 @@ export function importGeneratedGui(source: string): V2Design | null {
     if (parentName && !['root', 'ventana', 'window', 'app'].includes(parentName)) widget.parentId = byName.get(parentName)?.id ?? null
     if(widget.type==='Treeview'){
       const headings=[...source.matchAll(new RegExp(`(?:self\\.)?${widget.name}\\.heading\\(\\s*['"]([^'"]+)['"]\\s*,\\s*text\\s*=\\s*['"]([^'"]+)['"]\\s*\\)`,'g'))]
-      widget.columns=headings.map(match=>{const line=source.match(new RegExp(`(?:self\\.)?${widget.name}\\.column\\(\\s*['"]${match[1]}['"]([^\\n]*)`))?.[1]??'',width=line.match(/width\s*=\s*(\d+)/)?.[1],anchor=line.match(/anchor\s*=\s*['"](w|center|e)['"]/)?.[1] as 'w'|'center'|'e'|undefined;return{id:match[1],heading:match[2],width:Number(width)||100,anchor:anchor??'w',stretch:!(/stretch\s*=\s*(?:False|0)/.test(line))}})
+      widget.columns=headings.map(match=>{const line=source.match(new RegExp(`(?:self\\.)?${widget.name}\\.column\\(\\s*['"]${match[1]}['"]([^\\n]*)`))?.[1]??'',width=line.match(/width\s*=\s*(\d+)/)?.[1],anchorMatch=line.match(/anchor\s*=\s*(?:['"](w|center|e)['"]|(W|CENTER|E))/),anchor=(anchorMatch?.[1]??anchorMatch?.[2]?.toLowerCase()) as 'w'|'center'|'e'|undefined;return{id:match[1],heading:match[2],width:Number(width)||100,anchor:anchor??'w',stretch:!(/stretch\s*=\s*(?:False|0)/.test(line))}})
     }
+    const rows=[...source.matchAll(new RegExp(`(?:self\\.)?${widget.name}\\.rowconfigure\\(\\s*(\\d+)\\s*,\\s*weight\\s*=\\s*(\\d+)`,'g'))],columns=[...source.matchAll(new RegExp(`(?:self\\.)?${widget.name}\\.columnconfigure\\(\\s*(\\d+)\\s*,\\s*weight\\s*=\\s*(\\d+)`,'g'))]
+    const serializeWeights=(matches:RegExpMatchArray[])=>{const result:number[]=[];for(const match of matches)result[Number(match[1])]=Number(match[2]);return result.length?Array.from({length:result.length},(_,index)=>result[index]??0).join(', '):undefined}
+    widget.rowWeights=serializeWeights(rows)??widget.rowWeights;widget.columnWeights=serializeWeights(columns)??widget.columnWeights
   }
+  const tabFrames=new Set<string>()
+  for(const notebook of design.widgets.filter(widget=>widget.type==='Notebook')){const additions=[...source.matchAll(new RegExp(`(?:self\\.)?${notebook.name}\\.add\\(\\s*(?:self\\.)?(\\w+)\\s*,\\s*text\\s*=\\s*['"]([^'"]+)['"]`,'g'))];if(!additions.length)continue;notebook.tabs=additions.map((match,index)=>({id:`tab-${index+1}`,text:match[2]}));notebook.activeTabId=notebook.tabs[0]?.id;for(const [index,addition] of additions.entries()){const tabFrame=byName.get(addition[1]);if(!tabFrame)continue;tabFrames.add(tabFrame.id);for(const child of design.widgets.filter(widget=>widget.parentId===tabFrame.id)){child.parentId=notebook.id;child.parentTabId=notebook.tabs[index].id}}}
+  if(tabFrames.size)design.widgets=design.widgets.filter(widget=>!tabFrames.has(widget.id))
+  const geometryOrder=(widget:V2Widget)=>{const match=new RegExp(`(?:self\\.)?${widget.name}\\.(?:place|pack|grid)\\s*\\(`).exec(source);return match?.index??Number.MAX_SAFE_INTEGER}
+  design.widgets=design.widgets.map((widget,index)=>({widget,index})).sort((left,right)=>geometryOrder(left.widget)-geometryOrder(right.widget)||left.index-right.index).map(item=>item.widget)
   return design.widgets.length || geometry || title ? normalizeV2Design(design).design : null
 }
 

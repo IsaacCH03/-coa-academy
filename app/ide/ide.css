@@ -1699,11 +1699,11 @@
 .gui-notebook { padding-top:32px;background:var(--gui-bg) }.gui-notebook>span { position:absolute;top:4px;left:5px;display:flex;background:var(--gui-surface);border:1px solid var(--gui-border) }.gui-notebook>span>button { border:0;border-right:1px solid var(--gui-border);padding:7px 12px;background:transparent;color:inherit }.gui-notebook>span>button.active { background:var(--gui-primary);color:#fff }
 .gui-image img { display:block;max-width:100%;max-height:100% }
 .gui-layout-note { margin:4px 0 10px;color:var(--ide-muted);font-size:12px }
-.gui-separator { background:var(--gui-border);min-height:2px }.gui-separator[style*='height: 8px'] { height:2px!important }
-.gui-scrollbar { background:var(--gui-surface);border-color:var(--gui-border);position:absolute }.gui-scrollbar:after { content:'';position:absolute;background:var(--gui-secondary);border-radius:8px;inset:20% 3px 45% }
+.gui-separator { background:var(--gui-border) }.gui-separator[data-orient='horizontal']{min-height:2px}.gui-separator[data-orient='vertical']{min-width:2px}
+.gui-scrollbar { background:var(--gui-surface);border-color:var(--gui-border);position:absolute }.gui-scrollbar:after { content:'';position:absolute;background:var(--gui-secondary);border-radius:8px;inset:20% 3px 45% }.gui-scrollbar[data-orient='horizontal']:after{inset:3px 45% 3px 20%}
 .gui-canvas.gui-control { background:var(--gui-input);border:2px inset var(--gui-border) }.gui-canvas.gui-control>small { opacity:.6 }
 .gui-text:before { content:'Texto de ejemplo…\A\A';white-space:pre;color:var(--gui-muted) }
-.gui-scale { background:linear-gradient(var(--gui-border),var(--gui-border)) center/100% 4px no-repeat }.gui-scale:after { content:'';width:16px;height:16px;border-radius:50%;background:var(--gui-primary) }
+.gui-scale { background:linear-gradient(var(--gui-border),var(--gui-border)) center/100% 4px no-repeat }.gui-scale[data-orient='vertical']{background-size:4px 100%}.gui-scale:after { content:'';width:16px;height:16px;border-radius:50%;background:var(--gui-primary) }
 .gui-spinbox:after { content:'▲\A▼';white-space:pre;position:absolute;right:4px;font-size:8px }.gui-checkbutton,.gui-radiobutton { gap:6px }
 .gui-resize { position:absolute!important;z-index:20;background:#fff;border:2px solid #3478f6;width:9px;height:9px;border-radius:2px }.gui-resize.e{right:-6px;top:calc(50% - 5px);cursor:ew-resize}.gui-resize.s{bottom:-6px;left:calc(50% - 5px);cursor:ns-resize}.gui-resize.se{right:-6px;bottom:-6px;cursor:nwse-resize}
 .gui-control.layout-pack,.gui-control.layout-grid { outline-style:dashed }.gui-control.layout-pack.selected:after,.gui-control.layout-grid.selected:after { content:'Posición controlada por ' attr(class);position:absolute;top:-24px;left:0;background:#15243b;color:#fff;padding:3px 6px;font-size:10px;white-space:nowrap }
