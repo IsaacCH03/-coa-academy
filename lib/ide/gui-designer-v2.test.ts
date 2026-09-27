@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, restoreV2Design, validateV2Design, WIDGET_REGISTRY } from './gui-designer-v2'
+import { readFileSync } from 'node:fs'
+import { childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, normalizeV2Design, restoreV2Design, validateV2Design, WIDGET_REGISTRY } from './gui-designer-v2'
 
 describe('COA Designer V2', () => {
   it('migrates a V1 flat design without losing controls', () => {
@@ -83,5 +84,34 @@ describe('COA Designer V2', () => {
   it('keeps COA GUI safe by refusing unsupported widgets instead of emitting broken code', () => {
     const design = newV2Design(); design.widgets = [nextV2Widget('Treeview', [])]
     expect(() => generateV2Code(design, 'coa')).toThrow(/todavía no admite: Treeview/)
+  })
+
+  it('imports the reported multiline ttkbootstrap interface with an acyclic hierarchy', () => {
+    const source = readFileSync(new URL('./fixtures/ttkbootstrap-designer-regression.py', import.meta.url), 'utf8')
+    const design = importGeneratedGui(source)
+    expect(design?.widgets).toHaveLength(11)
+    const byName = new Map(design!.widgets.map(widget => [widget.name, widget]))
+    expect(byName.get('frame_principal')?.parentId).toBeNull()
+    expect(byName.get('titulo')?.parentId).toBe(byName.get('frame_principal')?.id)
+    expect(byName.get('frame_formulario')?.parentId).toBe(byName.get('frame_principal')?.id)
+    expect(byName.get('combo_seccion')?.parentId).toBe(byName.get('frame_formulario')?.id)
+    expect(byName.get('btn_eliminar')?.parentId).toBe(byName.get('frame_botones')?.id)
+    expect(descendantsOf(design!, byName.get('frame_principal')!.id)).toHaveLength(10)
+    expect(() => generateV2Code(design!, 'ttkbootstrap', 'class')).not.toThrow()
+    expect(() => restoreV2Design(structuredClone(design))).not.toThrow()
+  })
+
+  it('repairs self-parent, cycles, missing parents and duplicate IDs without recursion', () => {
+    const base = newV2Design()
+    const a = nextV2Widget('Frame', []), b = nextV2Widget('Frame', [a]), missing = nextV2Widget('Button', [a, b])
+    a.id = 'a'; a.parentId = 'b'; b.id = 'b'; b.parentId = 'a'; missing.id = 'missing'; missing.parentId = 'does-not-exist'
+    const self = nextV2Widget('Frame', [a, b, missing]); self.id = 'self'; self.parentId = 'self'
+    const duplicate = nextV2Widget('Label', [a, b, missing, self]); duplicate.id = 'a'
+    const recovered = normalizeV2Design({ ...base, widgets: [a, b, missing, self, duplicate] })
+    expect(recovered.issues.join(' ')).toMatch(/duplicado|autorreferencia|no existe|ciclo/)
+    expect(new Set(recovered.design.widgets.map(widget => widget.id)).size).toBe(5)
+    for (const widget of recovered.design.widgets) expect(() => descendantsOf(recovered.design, widget.id)).not.toThrow()
+    expect(() => validateV2Design(recovered.design)).not.toThrow()
+    expect(() => generateV2Code(recovered.design, 'tkinter', 'simple')).not.toThrow()
   })
 })

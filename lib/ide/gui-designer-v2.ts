@@ -112,22 +112,58 @@ export function restoreV2Design(value: unknown): V2Design {
     if (!legacy.window || !Array.isArray(legacy.controls)) return newV2Design()
     return { schemaVersion: 2, window: { title: legacy.window.title, width: legacy.window.width, height: legacy.window.height, framework: 'tkinter', theme: 'flatly', background: '#ffffff', exportMode: 'simple' }, widgets: legacy.controls.map(migratedWidget), importedSource: legacy.importedSource }
   }
-  const design = raw as unknown as V2Design
-  const base = newV2Design()
-  const widgets = Array.isArray(design.widgets) ? design.widgets.filter((widget) => widget && WIDGET_REGISTRY[widget.type] && typeof widget.id === 'string' && typeof widget.name === 'string').map((widget) => ({ ...widget, parentId: widget.parentId ?? null, layout: { ...place(120, 32), ...widget.layout } })) : []
-  const ids = new Set(widgets.map((widget) => widget.id))
-  return { schemaVersion: 2, window: { ...base.window, ...design.window, width: Math.max(320, Math.min(1200, Number(design.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(design.window?.height) || base.window.height)) }, widgets: widgets.map((widget) => ({ ...widget, parentId: widget.parentId && ids.has(widget.parentId) ? widget.parentId : null })), importedSource: design.importedSource }
+  return normalizeV2Design(raw).design
+}
+
+export function normalizeV2Design(value: unknown): { design: V2Design; issues: string[] } {
+  const raw = value && typeof value === 'object' ? value as Partial<V2Design> : {}
+  const base = newV2Design(), issues: string[] = [], usedIds = new Set<string>()
+  const widgets: V2Widget[] = []
+  const source = Array.isArray(raw.widgets) ? raw.widgets : []
+  source.forEach((candidate, index) => {
+    if (!candidate || typeof candidate !== 'object' || !(candidate.type in WIDGET_REGISTRY)) { issues.push(`Componente ${index + 1} omitido: tipo no reconocido.`); return }
+    const defaults = structuredClone(WIDGET_REGISTRY[candidate.type].defaults)
+    let id = typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : `recovered-${index + 1}`
+    if (usedIds.has(id)) { issues.push(`ID duplicado ${id}; se asignó uno nuevo.`); id = `recovered-${index + 1}-${id}` }
+    while (usedIds.has(id)) id += '-copy'
+    usedIds.add(id)
+    widgets.push({ ...defaults, ...candidate, id, name: typeof candidate.name === 'string' ? candidate.name : `${candidate.type.toLowerCase()}${index + 1}`, parentId: typeof candidate.parentId === 'string' ? candidate.parentId : null, layout: { ...defaults.layout, ...(candidate.layout ?? {}) } } as V2Widget)
+  })
+  const ids = new Set(widgets.map(widget => widget.id))
+  for (const widget of widgets) {
+    if (widget.parentId === widget.id) { issues.push(`${widget.name}: se eliminó una autorreferencia.`); widget.parentId = null }
+    else if (widget.parentId && !ids.has(widget.parentId)) { issues.push(`${widget.name}: el contenedor no existe; se movió a la ventana.`); widget.parentId = null }
+    if (widget.targetId && !ids.has(widget.targetId)) { issues.push(`${widget.name}: se eliminó una conexión inexistente.`); widget.targetId = undefined }
+  }
+  const byId = new Map(widgets.map(widget => [widget.id, widget]))
+  for (const widget of widgets) {
+    const path = new Set<string>([widget.id]); let parentId = widget.parentId
+    while (parentId) {
+      if (path.has(parentId)) { issues.push(`${widget.name}: se rompió un ciclo de contenedores.`); widget.parentId = null; break }
+      path.add(parentId); parentId = byId.get(parentId)?.parentId ?? null
+    }
+  }
+  return { design: { schemaVersion: 2, window: { ...base.window, ...raw.window, width: Math.max(320, Math.min(1200, Number(raw.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(raw.window?.height) || base.window.height)) }, widgets, importedSource: raw.importedSource }, issues }
 }
 
 export function nextV2Widget(type: V2WidgetType, widgets: V2Widget[], parentId: string | null = null): V2Widget {
   const prefix: Record<V2WidgetType, string> = { Label:'label',Entry:'entry',Button:'button',Frame:'frame',Labelframe:'group',Combobox:'combo',Checkbutton:'check',Radiobutton:'radio',Spinbox:'spin',Scale:'scale',Treeview:'tree',Progressbar:'progress',Notebook:'notebook',Separator:'separator',Canvas:'canvas',Scrollbar:'scroll',Text:'text',Image:'image' }
   let index = 1
-  while (widgets.some((item) => item.name === `${prefix[type]}${index}`)) index++
-  return { id: `${type.toLowerCase()}-${Date.now()}-${index}`, type, name: `${prefix[type]}${index}`, parentId, ...structuredClone(WIDGET_REGISTRY[type].defaults) } as V2Widget
+  const timestamp = Date.now()
+  while (widgets.some((item) => item.name === `${prefix[type]}${index}` || item.id === `${type.toLowerCase()}-${timestamp}-${index}`)) index++
+  return { id: `${type.toLowerCase()}-${timestamp}-${index}`, type, name: `${prefix[type]}${index}`, parentId, ...structuredClone(WIDGET_REGISTRY[type].defaults) } as V2Widget
 }
 
 export function childrenOf(design: V2Design, parentId: string | null) { return design.widgets.filter((widget) => widget.parentId === parentId) }
-export function descendantsOf(design: V2Design, id: string): string[] { const direct = childrenOf(design, id); return direct.flatMap((item) => [item.id, ...descendantsOf(design, item.id)]) }
+export function descendantsOf(design: V2Design, id: string): string[] {
+  const result: string[] = [], visited = new Set<string>([id]), pending = [...childrenOf(design, id)]
+  while (pending.length) {
+    const item = pending.shift()!
+    if (visited.has(item.id)) continue
+    visited.add(item.id); result.push(item.id); pending.push(...childrenOf(design, item.id))
+  }
+  return result
+}
 
 export function validateV2Design(design: V2Design) {
   const errors: string[] = []
@@ -209,9 +245,10 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
   lines.push('')
   const byId = new Map(design.widgets.map((widget) => [widget.id, widget]))
   const ordered: V2Widget[] = []
+  const visited = new Set<string>()
   const visit = (parent: string | null) => childrenOf(design, parent)
     .sort((left, right) => Number(!!WIDGET_REGISTRY[right.type].container) - Number(!!WIDGET_REGISTRY[left.type].container))
-    .forEach((item) => { ordered.push(item); visit(item.id) })
+    .forEach((item) => { if (visited.has(item.id)) return; visited.add(item.id); ordered.push(item); visit(item.id) })
   visit(null)
   const events = new Map<string, boolean>()
   const declaredVariables = new Set<string>()
@@ -253,12 +290,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
   } else if (mode === 'functions') {
     for (const [handler, receivesEvent] of events) lines.push(`def ${handler}(${receivesEvent ? 'event' : ''}):`, '    pass', '')
     const roots = childrenOf(design, null)
-    const subtree = (id: string): V2Widget[] => {
-      const result: V2Widget[] = []
-      const collect = (parentId: string) => childrenOf(design, parentId).forEach((item) => { result.push(item); collect(item.id) })
-      collect(id)
-      return result
-    }
+    const subtree = (id: string): V2Widget[] => descendantsOf(design, id).map(childId => byId.get(childId)).filter((widget): widget is V2Widget => Boolean(widget))
     for (const rootWidget of roots) {
       declaredVariables.clear()
       lines.push(`def crear_${rootWidget.name}(root):`)
@@ -286,23 +318,48 @@ export function importGeneratedGui(source: string): V2Design | null {
   design.window.exportMode = /class\s+\w+/.test(source) ? 'class' : 'simple'
   const title = source.match(/\.title\((['"])(.*?)\1\)/)?.[2]; if (title) design.window.title = title
   const geometry = source.match(/\.geometry\((['"])(\d+)x(\d+)\1\)/); if (geometry) { design.window.width = Number(geometry[2]); design.window.height = Number(geometry[3]) }
-  const creates = [...source.matchAll(/(?:self\.)?(\w+)\s*=\s*(?:tk|ttk|gui)\.(Label|Entry|Button|Frame|Labelframe|Combobox|Checkbutton|Radiobutton|Spinbox|Scale|Treeview|Progressbar|Notebook|Separator|Canvas|Scrollbar|Text)\(([^\n]*)\)/g)]
-  for (const match of creates) {
-    const type = match[2] as V2WidgetType
+  const constructor = /(?:self\.)?(\w+)\s*=\s*(?:tk|ttk|gui)\.(Label|Entry|Button|Frame|Labelframe|Combobox|Checkbutton|Radiobutton|Spinbox|Scale|Treeview|Progressbar|Notebook|Separator|Canvas|Scrollbar|Text)\s*\(/g
+  const creates: Array<{ name: string; type: V2WidgetType; args: string }> = []
+  for (const match of source.matchAll(constructor)) {
+    const open = (match.index ?? 0) + match[0].length - 1
+    let depth = 1, quote = '', escaped = false, end = open + 1
+    for (; end < source.length && depth > 0; end++) {
+      const character = source[end]
+      if (quote) { if (escaped) escaped = false; else if (character === '\\') escaped = true; else if (character === quote) quote = ''; continue }
+      if (character === '"' || character === "'") quote = character
+      else if (character === '(' || character === '[' || character === '{') depth++
+      else if (character === ')' || character === ']' || character === '}') depth--
+    }
+    if (depth === 0) creates.push({ name: match[1], type: match[2] as V2WidgetType, args: source.slice(open + 1, end - 1) })
+  }
+  const pendingParents = new Map<string, string>()
+  for (const create of creates) {
+    const type = create.type
     const widget = nextV2Widget(type, design.widgets)
-    widget.name = match[1]
-    const parentName = match[3].split(',')[0].trim().replace(/^self\./, '')
-    if (parentName && !['root', 'self.root', 'ventana', 'window', 'app'].includes(parentName)) widget.parentId = design.widgets.find((item) => item.name === parentName)?.id ?? null
-    widget.text = match[3].match(/text\s*=\s*(['"])(.*?)\1/)?.[2] ?? widget.text
-    widget.bootstyle = match[3].match(/bootstyle\s*=\s*(['"])(.*?)\1/)?.[2] ?? widget.bootstyle
+    widget.name = create.name
+    pendingParents.set(widget.id, create.args.split(',')[0].trim().replace(/^self\./, ''))
+    widget.text = create.args.match(/\btext\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.text
+    widget.bootstyle = create.args.match(/\bbootstyle\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.bootstyle
+    const values = create.args.match(/\bvalues\s*=\s*\[([^\]]*)\]/)?.[1]
+    if (values !== undefined) widget.values = [...values.matchAll(/(['"])(.*?)\1/g)].map(value => value[2])
+    const state = create.args.match(/\bstate\s*=\s*(['"])([\s\S]*?)\1/)?.[2]
+    if (state && ['normal', 'disabled', 'readonly'].includes(state)) widget.state = state as V2Widget['state']
     const layout = source.match(new RegExp(`(?:self\\.)?${widget.name}\\.(place|pack|grid)\\(([^\\n]*)\\)`))
     if (layout) {
       widget.layout.manager = layout[1] as LayoutManager
       for (const key of ['x','y','width','height','row','column','rowspan','columnspan','padx','pady'] as const) { const value = layout[2].match(new RegExp(`${key}\\s*=\\s*(\\d+)`)); if (value) (widget.layout as Record<string, unknown>)[key] = Number(value[1]) }
+      const side = layout[2].match(/\bside\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (side) widget.layout.side = (side[1] ?? side[2].toLowerCase()) as NonNullable<V2Widget['layout']['side']>
+      const fill = layout[2].match(/\bfill\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (fill) widget.layout.fill = (fill[1] ?? fill[2].toLowerCase()) as NonNullable<V2Widget['layout']['fill']>
+      widget.layout.expand = /\bexpand\s*=\s*(?:True|YES|1)/.test(layout[2])
     }
     design.widgets.push(widget)
   }
-  return design.widgets.length || geometry || title ? design : null
+  const byName = new Map(design.widgets.map(widget => [widget.name, widget]))
+  for (const widget of design.widgets) {
+    const parentName = pendingParents.get(widget.id)
+    if (parentName && !['root', 'ventana', 'window', 'app'].includes(parentName)) widget.parentId = byName.get(parentName)?.id ?? null
+  }
+  return design.widgets.length || geometry || title ? normalizeV2Design(design).design : null
 }
 
 export type { GuiImportResult }

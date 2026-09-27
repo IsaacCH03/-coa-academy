@@ -1,5 +1,29 @@
 import { expect, test } from '@playwright/test'
 
+test('Designer V2 recovers a persisted cyclic hierarchy without clearing browser data', async ({ page }) => {
+  await page.goto('/ide')
+  const welcome = page.getByRole('button', { name: 'Comenzar', exact: true })
+  if (await welcome.isVisible()) await welcome.click()
+  await expect(page.getByRole('button', { name: 'Diseñador', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Diseñador', exact: true }).click()
+  await page.locator('.gui-palette').getByRole('button', { name: 'Frame', exact: true }).click()
+  await page.getByRole('button', { name: 'Guardar diseño' }).click()
+  await page.waitForTimeout(300)
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request=indexedDB.open('coa-python-ide',1);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error) })
+    const project = await new Promise<Record<string, unknown>>((resolve, reject) => { const request=db.transaction('workspace').objectStore('workspace').get('project');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error) })
+    project.guiDesign = { schemaVersion:2, window:{title:'Corrupto',width:500,height:400,framework:'ttkbootstrap',theme:'darkly',background:'#222222',exportMode:'class'}, widgets:[{id:'a',type:'Frame',name:'a',parentId:'b',layout:{manager:'place',x:0,y:0,width:100,height:100}},{id:'b',type:'Frame',name:'b',parentId:'a',layout:{manager:'place',x:0,y:0,width:100,height:100}}] }
+    await new Promise<void>((resolve, reject) => { const transaction=db.transaction('workspace','readwrite');transaction.objectStore('workspace').put(project,'project');transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error) })
+    db.close()
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Diseñador', exact: true }).click()
+  await expect(page.getByLabel('Área de diseño')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Limpiar diseño' })).toBeVisible()
+  await page.getByRole('button', { name: 'Exportar a ttkbootstrap' }).click()
+  await expect(page.getByTestId('gui-code')).toContainText('ttk.Window')
+})
+
 test('Designer V2 builds hierarchy, configures widgets and round-trips ttkbootstrap', async ({ page }) => {
   await page.goto('/ide')
   const welcome = page.getByRole('button', { name: 'Comenzar', exact: true })

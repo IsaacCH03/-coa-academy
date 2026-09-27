@@ -1,23 +1,39 @@
 'use client'
-import { useRef, useState, type PointerEvent } from 'react'
+import { Component, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, FileCode2, Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 import type { GuiImportResult } from '@/lib/ide/gui-designer'
-import { BOOTSTYLES, TTK_THEMES, WIDGET_REGISTRY, childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, restoreV2Design, validateV2Design, type ExportMode, type LayoutManager, type V2Design, type V2Widget, type V2WidgetType } from '@/lib/ide/gui-designer-v2'
+import { BOOTSTYLES, TTK_THEMES, WIDGET_REGISTRY, childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, normalizeV2Design, validateV2Design, type ExportMode, type LayoutManager, type V2Design, type V2Widget, type V2WidgetType } from '@/lib/ide/gui-designer-v2'
 import { ConfirmDialog } from './confirm-dialog'
 import { GeneratedCodePanel } from './generated-code-panel'
 
 const categories = ['Básicos', 'Entrada', 'Datos', 'Contenedores', 'Texto', 'Multimedia'] as const
 const eventNames = ['', 'command', '<KeyRelease>', '<Return>', '<<ComboboxSelected>>', '<<TreeviewSelect>>', '<Double-1>'] as const
+type DesignerProps = { design: V2Design; onChange: (design: V2Design) => void; onSave: () => Promise<void>; onAnalyze: (source: string) => Promise<GuiImportResult> }
 
-function TreeNode({ design, widget, selected, expanded, select, toggle }: { design: V2Design; widget: V2Widget; selected: string | null; expanded: Set<string>; select: (id: string) => void; toggle: (id: string) => void }) {
-  const children = childrenOf(design, widget.id)
-  return <li><div className={selected === widget.id ? 'selected' : ''}>{children.length ? <button aria-label={`${expanded.has(widget.id) ? 'Contraer' : 'Expandir'} ${widget.name}`} onClick={() => toggle(widget.id)}>{expanded.has(widget.id) ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}</button> : <span className="gui-tree-spacer"/>}<button onClick={() => select(widget.id)}>{widget.type} — {widget.name}</button></div>{children.length > 0 && expanded.has(widget.id) && <ul>{children.map((child) => <TreeNode key={child.id} design={design} widget={child} selected={selected} expanded={expanded} select={select} toggle={toggle}/>)}</ul>}</li>
+class DesignerBoundary extends Component<{ children: ReactNode; design: V2Design; recover: (design: V2Design) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() {
+    if (this.state.failed) return <section className="gui-designer-error" role="alert"><h2>No se pudo representar el diseño.</h2><p>La estructura guardada puede contener relaciones inválidas. Puedes recuperarla sin borrar el proyecto ni los demás datos del Studio.</p><button className="ide-primary" onClick={() => { this.props.recover(normalizeV2Design(this.props.design).design); this.setState({ failed: false }) }}>Recuperar estructura</button></section>
+    return this.props.children
+  }
 }
 
-export function GuiDesigner({ design: rawDesign, onChange, onSave, onAnalyze }: { design: V2Design; onChange: (design: V2Design) => void; onSave: () => Promise<void>; onAnalyze: (source: string) => Promise<GuiImportResult> }) {
-  const design = restoreV2Design(rawDesign), { window: win, widgets } = design
+export function GuiDesigner(props: DesignerProps) {
+  return <DesignerBoundary design={props.design} recover={props.onChange}><GuiDesignerContent {...props}/></DesignerBoundary>
+}
+
+function TreeNode({ design, widget, selected, expanded, select, toggle, ancestors = new Set() }: { design: V2Design; widget: V2Widget; selected: string | null; expanded: Set<string>; select: (id: string) => void; toggle: (id: string) => void; ancestors?: Set<string> }) {
+  if (ancestors.has(widget.id)) return null
+  const path = new Set(ancestors).add(widget.id)
+  const children = childrenOf(design, widget.id)
+  return <li><div className={selected === widget.id ? 'selected' : ''}>{children.length ? <button aria-label={`${expanded.has(widget.id) ? 'Contraer' : 'Expandir'} ${widget.name}`} onClick={() => toggle(widget.id)}>{expanded.has(widget.id) ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}</button> : <span className="gui-tree-spacer"/>}<button onClick={() => select(widget.id)}>{widget.type} — {widget.name}</button></div>{children.length > 0 && expanded.has(widget.id) && <ul>{children.map((child) => <TreeNode key={child.id} design={design} widget={child} selected={selected} expanded={expanded} select={select} toggle={toggle} ancestors={path}/>)}</ul>}</li>
+}
+
+function GuiDesignerContent({ design: rawDesign, onChange, onSave, onAnalyze }: DesignerProps) {
+  const recovery = normalizeV2Design(rawDesign), design = recovery.design, { window: win, widgets } = design
   const [selected, setSelected] = useState<string | null>(null)
-  const [generated, setGenerated] = useState(''), [notice, setNotice] = useState('')
+  const [generated, setGenerated] = useState(''), [notice, setNotice] = useState(() => recovery.issues.length ? `Se recuperó el diseño guardado: ${recovery.issues.join(' ')}` : '')
   const [confirmClear, setConfirmClear] = useState(false), [importOpen, setImportOpen] = useState(false)
   const [importSource, setImportSource] = useState(''), [importError, setImportError] = useState('')
   const [pendingImport, setPendingImport] = useState<V2Design | null>(null)
@@ -47,21 +63,23 @@ export function GuiDesigner({ design: rawDesign, onChange, onSave, onAnalyze }: 
   function move(event: PointerEvent) {
     const bounds = canvas.current?.getBoundingClientRect(), moving = drag.current; if (!bounds || !moving) return
     const widget = widgets.find(item => item.id === moving.id); let parentX=0, parentY=0, parentId=widget?.parentId
-    while(parentId){const parent=widgets.find(item=>item.id===parentId);if(!parent)break;parentX+=parent.layout.x;parentY+=parent.layout.y;parentId=parent.parentId}
+    const visited = new Set<string>()
+    while(parentId&&!visited.has(parentId)){visited.add(parentId);const parent=widgets.find(item=>item.id===parentId);if(!parent)break;parentX+=parent.layout.x;parentY+=parent.layout.y;parentId=parent.parentId}
     const x = Math.max(0, Math.round((event.clientX - bounds.left) * win.width / bounds.width - moving.dx - parentX)), y = Math.max(0, Math.round((event.clientY - bounds.top) * win.height / bounds.height - moving.dy - parentY))
     onChange({ ...design, widgets: widgets.map(item => item.id === moving.id ? { ...item, layout: { ...item.layout, x, y } } : item) })
   }
   function createCode(target: V2Design['window']['framework']) { try { setGenerated(generateV2Code(design, target, win.exportMode)) } catch (error) { setNotice((error as Error).message) } }
-  async function applyImport(next: V2Design) { change(next); setImportOpen(false); setPendingImport(null); setSelected(null); await onSave() }
+  async function applyImport(candidate: V2Design) { const normalized=normalizeV2Design(candidate);const candidateErrors=validateV2Design(normalized.design);if(candidateErrors.length){setPendingImport(null);setImportError(`No se pudo importar completamente la interfaz. ${candidateErrors.join(' ')}`);return}change(normalized.design);setImportOpen(false);setPendingImport(null);setSelected(null);if(normalized.issues.length)setNotice(`La importación se normalizó: ${normalized.issues.join(' ')}`);await onSave() }
   async function loadImport() {
     setImportError(''); const parsed = importSource.includes('coa_gui') ? null : importGeneratedGui(importSource)
     if (parsed) { if (widgets.length) setPendingImport(parsed); else await applyImport(parsed); return }
-    try { const result = await onAnalyze(importSource); if (!result.ok) setImportError(result.reason === 'syntax' ? 'No se pudo importar el código porque contiene un error de sintaxis.' : 'No se encontró una interfaz COA GUI compatible.'); else { const next=restoreV2Design(result.design); if(widgets.length)setPendingImport(next);else await applyImport(next) } } catch { setImportError('No se pudo analizar el código de forma segura.') }
+    try { const result = await onAnalyze(importSource); if (!result.ok) setImportError(result.reason === 'syntax' ? 'No se pudo importar el código porque contiene un error de sintaxis.' : 'No se encontró una interfaz COA GUI compatible.'); else { const next=normalizeV2Design(result.design).design; if(widgets.length)setPendingImport(next);else await applyImport(next) } } catch { setImportError('No se pudo analizar el código de forma segura.') }
   }
   function canvasStyle(widget: V2Widget) {
     if (widget.layout.manager !== 'place') return { position: 'relative' as const, width: widget.layout.width, height: widget.layout.height }
     let left = widget.layout.x, top = widget.layout.y, parentId = widget.parentId
-    while (parentId) { const parent = widgets.find(item => item.id === parentId); if (!parent) break; left += parent.layout.x; top += parent.layout.y; parentId = parent.parentId }
+    const visited = new Set<string>()
+    while (parentId && !visited.has(parentId)) { visited.add(parentId); const parent = widgets.find(item => item.id === parentId); if (!parent) break; left += parent.layout.x; top += parent.layout.y; parentId = parent.parentId }
     return { left, top, width: widget.layout.width, height: widget.layout.height }
   }
   const themeDark = ['darkly','superhero','solar','cyborg','vapor'].includes(win.theme)
