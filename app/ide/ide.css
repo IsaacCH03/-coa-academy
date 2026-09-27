@@ -1682,3 +1682,27 @@
 .theme-onlinegdb .ide-editor-area { background:#2b2d31 !important; }
 .theme-onlinegdb .ide-console { background:#fff !important;color:#151515 !important; }.theme-onlinegdb .ide-console header { background:#ededed !important;color:#222 !important; }.theme-onlinegdb .ide-console pre { color:#151515 !important; }
 .gui-designer-error { margin:24px;padding:24px;border:1px solid #ef4444;border-radius:12px;background:#171b2a;color:#eef2ff; }
+.gui-canvas { color:var(--gui-fg);background:var(--gui-bg); }
+.gui-window-title { background:var(--gui-surface);color:var(--gui-fg);border-color:var(--gui-border);font-size:12px; }
+.gui-control { color:var(--gui-fg);border-color:var(--gui-border); }
+.gui-control:not(.gui-frame):not(.gui-labelframe):not(.gui-canvas):not(.gui-notebook) { z-index:3; }
+.gui-entry,.gui-combobox,.gui-spinbox,.gui-text,.gui-treeview { background:var(--gui-input);color:var(--gui-inputFg);border-color:var(--gui-border); }
+.gui-button { background:var(--gui-primary);color:#fff;border-color:color-mix(in srgb,var(--gui-primary),#000 25%);padding:5px 12px; }
+.gui-button[data-bootstyle^='secondary'] { background:var(--gui-secondary); }.gui-button[data-bootstyle^='success'] { background:var(--gui-success); }.gui-button[data-bootstyle^='info'] { background:var(--gui-info); }.gui-button[data-bootstyle^='warning'] { background:var(--gui-warning);color:#171717 }.gui-button[data-bootstyle^='danger'] { background:var(--gui-danger); }
+.gui-button[data-bootstyle*='outline'] { background:transparent;color:var(--gui-secondary);border-width:2px; }
+.gui-frame { background:var(--gui-surface);border-color:transparent; }.gui-frame.selected { border-color:var(--gui-primary); }
+.gui-frame>small { opacity:0;position:absolute;top:3px;left:5px;font-size:10px }.gui-frame:is(:hover,.selected)>small { opacity:.72; }
+.gui-labelframe { background:var(--gui-bg);border-color:var(--gui-border);color:var(--gui-fg); }
+.gui-labelframe>small { position:absolute;top:-9px;left:10px;background:var(--gui-bg);padding:0 5px; }
+.gui-progressbar { background:var(--gui-surface);border-color:var(--gui-border) }.gui-progressbar>span { background:var(--gui-success) }
+.gui-treeview { padding:0;display:block;overflow:hidden }.gui-treeview>span { display:block;width:100%;padding:8px;background:var(--gui-surface);border-bottom:1px solid var(--gui-border);word-spacing:20px }
+.gui-notebook { padding-top:32px;background:var(--gui-bg) }.gui-notebook>span { position:absolute;top:4px;left:5px;background:var(--gui-surface);padding:7px 12px;border:1px solid var(--gui-border) }
+.gui-separator { background:var(--gui-border);min-height:2px }.gui-separator[style*='height: 8px'] { height:2px!important }
+.gui-scrollbar { background:var(--gui-surface);border-color:var(--gui-border);position:absolute }.gui-scrollbar:after { content:'';position:absolute;background:var(--gui-secondary);border-radius:8px;inset:20% 3px 45% }
+.gui-canvas.gui-control { background:var(--gui-input);border:2px inset var(--gui-border) }.gui-canvas.gui-control>small { opacity:.6 }
+.gui-text:before { content:'Texto de ejemplo…\A\A';white-space:pre;color:var(--gui-muted) }
+.gui-scale { background:linear-gradient(var(--gui-border),var(--gui-border)) center/100% 4px no-repeat }.gui-scale:after { content:'';width:16px;height:16px;border-radius:50%;background:var(--gui-primary) }
+.gui-spinbox:after { content:'▲\A▼';white-space:pre;position:absolute;right:4px;font-size:8px }.gui-checkbutton,.gui-radiobutton { gap:6px }
+.gui-resize { position:absolute!important;z-index:20;background:#fff;border:2px solid #3478f6;width:9px;height:9px;border-radius:2px }.gui-resize.e{right:-6px;top:calc(50% - 5px);cursor:ew-resize}.gui-resize.s{bottom:-6px;left:calc(50% - 5px);cursor:ns-resize}.gui-resize.se{right:-6px;bottom:-6px;cursor:nwse-resize}
+.gui-control.layout-pack,.gui-control.layout-grid { outline-style:dashed }.gui-control.layout-pack.selected:after,.gui-control.layout-grid.selected:after { content:'Posición controlada por ' attr(class);position:absolute;top:-24px;left:0;background:#15243b;color:#fff;padding:3px 6px;font-size:10px;white-space:nowrap }
+.gui-list-editor { border:1px solid var(--ide-border);padding:8px;margin:8px 0 }.gui-list-editor>div{display:flex;gap:5px;margin:5px 0}.gui-list-editor>div input{min-width:0}.gui-list-editor button{padding:5px 8px}

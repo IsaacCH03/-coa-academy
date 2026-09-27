@@ -48,6 +48,16 @@ export type V2Widget = {
   rowWeights?: string
   columnWeights?: string
   sourceKey?: string
+  fontFamily?: string
+  fontSize?: number
+  bold?: boolean
+  italic?: boolean
+  foreground?: string
+  background?: string
+  anchor?: 'w' | 'center' | 'e'
+  showChar?: string
+  wrap?: 'none' | 'char' | 'word'
+  imageFit?: 'contain' | 'original' | 'stretch'
 }
 
 export type ThemeColors = Record<'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'danger' | 'light' | 'dark' | 'bg' | 'fg', string>
@@ -72,9 +82,9 @@ export type WidgetDefinition = {
 
 const place = (width: number, height: number): LayoutConfig => ({ manager: 'place', x: 20, y: 45, width, height, padx: 4, pady: 4 })
 export const WIDGET_REGISTRY: Record<V2WidgetType, WidgetDefinition> = {
-  Label: { type: 'Label', label: 'Label', category: 'Básicos', coa: true, defaults: { layout: place(150, 30), text: 'Etiqueta' } },
-  Entry: { type: 'Entry', label: 'Entry', category: 'Básicos', coa: true, defaults: { layout: place(180, 32) } },
-  Button: { type: 'Button', label: 'Button', category: 'Básicos', coa: true, defaults: { layout: place(120, 36), text: 'Botón', bootstyle: 'primary' } },
+  Label: { type: 'Label', label: 'Label', category: 'Básicos', coa: true, defaults: { layout: place(150, 30), text: 'Etiqueta',fontFamily:'Arial',fontSize:13,anchor:'w' } },
+  Entry: { type: 'Entry', label: 'Entry', category: 'Básicos', coa: true, defaults: { layout: place(180, 32),fontFamily:'Arial',fontSize:13 } },
+  Button: { type: 'Button', label: 'Button', category: 'Básicos', coa: true, defaults: { layout: place(120, 36), text: 'Botón', bootstyle: 'primary',fontFamily:'Arial',fontSize:13 } },
   Frame: { type: 'Frame', label: 'Frame', category: 'Contenedores', container: true, coa: true, defaults: { layout: place(260, 160) } },
   Labelframe: { type: 'Labelframe', label: 'Labelframe', category: 'Contenedores', container: true, coa: false, defaults: { layout: place(260, 160), text: 'Sección' } },
   Combobox: { type: 'Combobox', label: 'Combobox', category: 'Entrada', coa: false, defaults: { layout: place(180, 32), values: ['Opción 1', 'Opción 2'], state: 'readonly' } },
@@ -88,8 +98,8 @@ export const WIDGET_REGISTRY: Record<V2WidgetType, WidgetDefinition> = {
   Separator: { type: 'Separator', label: 'Separador', category: 'Contenedores', coa: false, defaults: { layout: place(200, 8), orient: 'horizontal' } },
   Canvas: { type: 'Canvas', label: 'Canvas', category: 'Contenedores', container: true, coa: false, defaults: { layout: place(280, 180) } },
   Scrollbar: { type: 'Scrollbar', label: 'Scrollbar', category: 'Contenedores', coa: false, defaults: { layout: place(18, 160), orient: 'vertical' } },
-  Text: { type: 'Text', label: 'Texto multilínea', category: 'Texto', coa: false, defaults: { layout: place(260, 120) } },
-  Image: { type: 'Image', label: 'Imagen', category: 'Multimedia', coa: false, defaults: { layout: place(160, 100), text: 'Imagen', assetPath: 'assets/imagen.png' } },
+  Text: { type: 'Text', label: 'Texto multilínea', category: 'Texto', coa: false, defaults: { layout: place(260, 120),fontFamily:'Courier New',fontSize:13,wrap:'word' } },
+  Image: { type: 'Image', label: 'Imagen', category: 'Multimedia', coa: false, defaults: { layout: place(160, 100), text: 'Imagen', assetPath: 'assets/imagen.png',imageFit:'contain' } },
 }
 
 export const TTK_THEMES = ['cosmo', 'flatly', 'litera', 'minty', 'lumen', 'sandstone', 'yeti', 'pulse', 'united', 'journal', 'morph', 'simplex', 'cerculean', 'darkly', 'superhero', 'solar', 'cyborg', 'vapor'] as const
@@ -211,6 +221,11 @@ function constructorArgs(widget: V2Widget, target: DesignerTarget, mode: ExportM
   if (widget.text !== undefined && !['Entry','Text','Treeview','Combobox'].includes(widget.type)) args.push(`text=${py(widget.text)}`)
   if (widget.values) args.push(`values=${py(widget.values)}`)
   if (widget.state) args.push(`state=${py(widget.state)}`)
+  if (widget.fontFamily || widget.fontSize || widget.bold || widget.italic) args.push(`font=${py([widget.fontFamily ?? 'Arial', widget.fontSize ?? 13, [widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' ')])}`)
+  if (widget.anchor) args.push(`anchor=${py(widget.anchor)}`)
+  if (widget.showChar && widget.type === 'Entry') args.push(`show=${py(widget.showChar)}`)
+  if (widget.wrap && widget.type === 'Text') args.push(`wrap=${py(widget.wrap)}`)
+  if (target !== 'ttkbootstrap') { if (widget.foreground) args.push(`foreground=${py(widget.foreground)}`); if (widget.background) args.push(`background=${py(widget.background)}`) }
   if (widget.orient) args.push(`orient=${py(widget.orient)}`)
   if (widget.mode) args.push(`mode=${py(widget.mode)}`)
   if (widget.maximum !== undefined && widget.type === 'Progressbar') args.push(`maximum=${widget.maximum}`)
@@ -315,6 +330,8 @@ export function importGeneratedGui(source: string): V2Design | null {
   if (!/^\s*(?:import tkinter|from tkinter|import ttkbootstrap|import coa_gui)/m.test(source)) return null
   const design = newV2Design()
   design.window.framework = source.includes('ttkbootstrap') ? 'ttkbootstrap' : source.includes('coa_gui') ? 'coa' : 'tkinter'
+  const importedTheme = source.match(/ttk\.Window\([\s\S]*?themename\s*=\s*(['"])(.*?)\1[\s\S]*?\)/)?.[2]
+  if (importedTheme && TTK_THEMES.includes(importedTheme as typeof TTK_THEMES[number])) design.window.theme = importedTheme
   design.window.exportMode = /class\s+\w+/.test(source) ? 'class' : 'simple'
   const title = source.match(/\.title\((['"])(.*?)\1\)/)?.[2]; if (title) design.window.title = title
   const geometry = source.match(/\.geometry\((['"])(\d+)x(\d+)\1\)/); if (geometry) { design.window.width = Number(geometry[2]); design.window.height = Number(geometry[3]) }
@@ -340,16 +357,21 @@ export function importGeneratedGui(source: string): V2Design | null {
     pendingParents.set(widget.id, create.args.split(',')[0].trim().replace(/^self\./, ''))
     widget.text = create.args.match(/\btext\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.text
     widget.bootstyle = create.args.match(/\bbootstyle\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.bootstyle
-    const values = create.args.match(/\bvalues\s*=\s*\[([^\]]*)\]/)?.[1]
+    const font = create.args.match(/\bfont\s*=\s*\(\s*(['"])(.*?)\1\s*,\s*(\d+)([\s\S]*?)\)/)
+    if (font) { widget.fontFamily=font[2];widget.fontSize=Number(font[3]);widget.bold=/bold/.test(font[4]);widget.italic=/italic/.test(font[4]) }
+    const values = create.args.match(/\bvalues\s*=\s*[\[(]([^\])]*?)[\])]/)?.[1]
     if (values !== undefined) widget.values = [...values.matchAll(/(['"])(.*?)\1/g)].map(value => value[2])
     const state = create.args.match(/\bstate\s*=\s*(['"])([\s\S]*?)\1/)?.[2]
     if (state && ['normal', 'disabled', 'readonly'].includes(state)) widget.state = state as V2Widget['state']
+    const numericValue=create.args.match(/\bvalue\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(numericValue)widget.value=Number(numericValue)
+    const maximum=create.args.match(/\bmaximum\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(maximum)widget.maximum=Number(maximum)
     const layout = source.match(new RegExp(`(?:self\\.)?${widget.name}\\.(place|pack|grid)\\(([^\\n]*)\\)`))
     if (layout) {
       widget.layout.manager = layout[1] as LayoutManager
       for (const key of ['x','y','width','height','row','column','rowspan','columnspan','padx','pady'] as const) { const value = layout[2].match(new RegExp(`${key}\\s*=\\s*(\\d+)`)); if (value) (widget.layout as Record<string, unknown>)[key] = Number(value[1]) }
       const side = layout[2].match(/\bside\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (side) widget.layout.side = (side[1] ?? side[2].toLowerCase()) as NonNullable<V2Widget['layout']['side']>
       const fill = layout[2].match(/\bfill\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (fill) widget.layout.fill = (fill[1] ?? fill[2].toLowerCase()) as NonNullable<V2Widget['layout']['fill']>
+      const sticky = layout[2].match(/\bsticky\s*=\s*(?:['"]([^'"]+)['"]|([A-Z]+))/); if (sticky) widget.layout.sticky = (sticky[1] ?? sticky[2]).toLowerCase()
       widget.layout.expand = /\bexpand\s*=\s*(?:True|YES|1)/.test(layout[2])
     }
     design.widgets.push(widget)
@@ -358,6 +380,10 @@ export function importGeneratedGui(source: string): V2Design | null {
   for (const widget of design.widgets) {
     const parentName = pendingParents.get(widget.id)
     if (parentName && !['root', 'ventana', 'window', 'app'].includes(parentName)) widget.parentId = byName.get(parentName)?.id ?? null
+    if(widget.type==='Treeview'){
+      const headings=[...source.matchAll(new RegExp(`(?:self\\.)?${widget.name}\\.heading\\(\\s*['"]([^'"]+)['"]\\s*,\\s*text\\s*=\\s*['"]([^'"]+)['"]\\s*\\)`,'g'))]
+      widget.columns=headings.map(match=>{const width=source.match(new RegExp(`(?:self\\.)?${widget.name}\\.column\\(\\s*['"]${match[1]}['"][^\\n]*?width\\s*=\\s*(\\d+)`))?.[1];return{id:match[1],heading:match[2],width:Number(width)||100,anchor:'w'}})
+    }
   }
   return design.widgets.length || geometry || title ? normalizeV2Design(design).design : null
 }
