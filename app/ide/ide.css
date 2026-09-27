@@ -1263,7 +1263,7 @@
 .gui-image { background:#eef1f5;border:1px dashed #8794a5;color:#59677a;padding:5px; }
 .gui-theme-dark { color:#f4f6f8; }
 .gui-theme-dark .gui-window-title { background:#30343a;color:#f4f6f8;border-color:#111; }
-.gui-control.layout-pack,.gui-control.layout-grid { margin:34px 6px 6px;display:inline-flex;vertical-align:top;cursor:default; }
+.gui-control.layout-pack,.gui-control.layout-grid { margin:0;display:flex;cursor:default; }
 .gui-delete {
   width: 100%;
   margin-top: 18px;
@@ -1695,8 +1695,10 @@
 .gui-labelframe { background:var(--gui-bg);border-color:var(--gui-border);color:var(--gui-fg); }
 .gui-labelframe>small { position:absolute;top:-9px;left:10px;background:var(--gui-bg);padding:0 5px; }
 .gui-progressbar { background:var(--gui-surface);border-color:var(--gui-border) }.gui-progressbar>span { background:var(--gui-success) }
-.gui-treeview { padding:0;display:block;overflow:hidden }.gui-treeview>span { display:block;width:100%;padding:8px;background:var(--gui-surface);border-bottom:1px solid var(--gui-border);word-spacing:20px }
-.gui-notebook { padding-top:32px;background:var(--gui-bg) }.gui-notebook>span { position:absolute;top:4px;left:5px;background:var(--gui-surface);padding:7px 12px;border:1px solid var(--gui-border) }
+.gui-treeview { padding:0;display:block;overflow:hidden }.gui-treeview>span { display:flex;width:100%;padding:0;background:var(--gui-surface);border-bottom:1px solid var(--gui-border) }.gui-treeview>span>b { flex:0 0 auto;padding:8px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-right:1px solid var(--gui-border);font-weight:600 }
+.gui-notebook { padding-top:32px;background:var(--gui-bg) }.gui-notebook>span { position:absolute;top:4px;left:5px;display:flex;background:var(--gui-surface);border:1px solid var(--gui-border) }.gui-notebook>span>button { border:0;border-right:1px solid var(--gui-border);padding:7px 12px;background:transparent;color:inherit }.gui-notebook>span>button.active { background:var(--gui-primary);color:#fff }
+.gui-image img { display:block;max-width:100%;max-height:100% }
+.gui-layout-note { margin:4px 0 10px;color:var(--ide-muted);font-size:12px }
 .gui-separator { background:var(--gui-border);min-height:2px }.gui-separator[style*='height: 8px'] { height:2px!important }
 .gui-scrollbar { background:var(--gui-surface);border-color:var(--gui-border);position:absolute }.gui-scrollbar:after { content:'';position:absolute;background:var(--gui-secondary);border-radius:8px;inset:20% 3px 45% }
 .gui-canvas.gui-control { background:var(--gui-input);border:2px inset var(--gui-border) }.gui-canvas.gui-control>small { opacity:.6 }

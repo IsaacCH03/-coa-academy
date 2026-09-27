@@ -845,6 +845,7 @@ export function IdeApp() {
         {panel === 'designer' && (
           <GuiDesigner
             design={project.guiDesign}
+            entries={project.entries}
             onChange={(guiDesign) => update((p) => ({ ...p, guiDesign }))}
             onSave={save}
             onAnalyze={(source) => runtime.current!.analyzeGui(source)}

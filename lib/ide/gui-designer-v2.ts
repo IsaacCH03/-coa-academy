@@ -20,7 +20,7 @@ export type LayoutConfig = {
 }
 
 export type WidgetEvent = { event: 'command' | '<KeyRelease>' | '<Return>' | '<<ComboboxSelected>>' | '<<TreeviewSelect>>' | '<Double-1>'; handler: string }
-export type TreeColumn = { id: string; heading: string; width: number; anchor: 'w' | 'center' | 'e' }
+export type TreeColumn = { id: string; heading: string; width: number; anchor: 'w' | 'center' | 'e'; stretch?:boolean }
 export type V2Widget = {
   id: string
   type: V2WidgetType
@@ -58,6 +58,10 @@ export type V2Widget = {
   showChar?: string
   wrap?: 'none' | 'char' | 'word'
   imageFit?: 'contain' | 'original' | 'stretch'
+  tkWidth?: number
+  tkHeight?: number
+  length?: number
+  padding?: number
 }
 
 export type ThemeColors = Record<'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'danger' | 'light' | 'dark' | 'bg' | 'fg', string>
@@ -221,13 +225,17 @@ function constructorArgs(widget: V2Widget, target: DesignerTarget, mode: ExportM
   if (widget.text !== undefined && !['Entry','Text','Treeview','Combobox'].includes(widget.type)) args.push(`text=${py(widget.text)}`)
   if (widget.values) args.push(`values=${py(widget.values)}`)
   if (widget.state) args.push(`state=${py(widget.state)}`)
-  if (widget.fontFamily || widget.fontSize || widget.bold || widget.italic) args.push(`font=${py([widget.fontFamily ?? 'Arial', widget.fontSize ?? 13, [widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' ')])}`)
+  if (widget.fontFamily || widget.fontSize || widget.bold || widget.italic) args.push(`font=(${py(widget.fontFamily ?? 'Arial')}, ${widget.fontSize ?? 13}, ${py([widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' '))})`)
   if (widget.anchor) args.push(`anchor=${py(widget.anchor)}`)
   if (widget.showChar && widget.type === 'Entry') args.push(`show=${py(widget.showChar)}`)
   if (widget.wrap && widget.type === 'Text') args.push(`wrap=${py(widget.wrap)}`)
   if (target !== 'ttkbootstrap') { if (widget.foreground) args.push(`foreground=${py(widget.foreground)}`); if (widget.background) args.push(`background=${py(widget.background)}`) }
   if (widget.orient) args.push(`orient=${py(widget.orient)}`)
   if (widget.mode) args.push(`mode=${py(widget.mode)}`)
+  if (widget.tkWidth !== undefined && ['Entry','Combobox','Spinbox','Text'].includes(widget.type)) args.push(`width=${widget.tkWidth}`)
+  if (widget.tkHeight !== undefined && ['Text','Treeview'].includes(widget.type)) args.push(`height=${widget.tkHeight}`)
+  if (widget.length !== undefined && ['Scale','Progressbar'].includes(widget.type)) args.push(`length=${widget.length}`)
+  if (widget.padding !== undefined && ['Frame','Labelframe'].includes(widget.type)) args.push(`padding=${widget.padding}`)
   if (widget.maximum !== undefined && widget.type === 'Progressbar') args.push(`maximum=${widget.maximum}`)
   if (widget.maximum !== undefined && widget.type === 'Scale') args.push(`to=${widget.maximum}`)
   if (widget.maximum !== undefined && widget.type === 'Spinbox') args.push('from_=0', `to=${widget.maximum}`)
@@ -280,7 +288,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
       const tabRef = `${ref(widget, mode)}_${tab.id.replace(/[^A-Za-z0-9_]/g, '_')}`
       out.push(`${indent}${tabRef} = ttk.Frame(${ref(widget, mode)})`, `${indent}${ref(widget, mode)}.add(${tabRef}, text=${py(tab.text)})`)
     }
-    if (widget.type === 'Treeview') for (const column of widget.columns ?? []) out.push(`${indent}${ref(widget, mode)}.heading(${py(column.id)}, text=${py(column.heading)})`, `${indent}${ref(widget, mode)}.column(${py(column.id)}, width=${column.width}, anchor=${py(column.anchor)})`)
+    if (widget.type === 'Treeview') for (const column of widget.columns ?? []) out.push(`${indent}${ref(widget, mode)}.heading(${py(column.id)}, text=${py(column.heading)})`, `${indent}${ref(widget, mode)}.column(${py(column.id)}, width=${column.width}, anchor=${py(column.anchor)}, stretch=${column.stretch === false ? 'False' : 'True'})`)
     if (widget.rowWeights) for (const [index, weight] of widget.rowWeights.split(',').map(Number).entries()) if (Number.isFinite(weight)) out.push(`${indent}${ref(widget, mode)}.rowconfigure(${index}, weight=${weight})`)
     if (widget.columnWeights) for (const [index, weight] of widget.columnWeights.split(',').map(Number).entries()) if (Number.isFinite(weight)) out.push(`${indent}${ref(widget, mode)}.columnconfigure(${index}, weight=${weight})`)
     out.push(`${indent}${layoutLine(widget, mode)}`)
@@ -357,7 +365,7 @@ export function importGeneratedGui(source: string): V2Design | null {
     pendingParents.set(widget.id, create.args.split(',')[0].trim().replace(/^self\./, ''))
     widget.text = create.args.match(/\btext\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.text
     widget.bootstyle = create.args.match(/\bbootstyle\s*=\s*(['"])([\s\S]*?)\1/)?.[2] ?? widget.bootstyle
-    const font = create.args.match(/\bfont\s*=\s*\(\s*(['"])(.*?)\1\s*,\s*(\d+)([\s\S]*?)\)/)
+    const font = create.args.match(/\bfont\s*=\s*[\[(]\s*(['"])(.*?)\1\s*,\s*(\d+)([\s\S]*?)[\])]/)
     if (font) { widget.fontFamily=font[2];widget.fontSize=Number(font[3]);widget.bold=/bold/.test(font[4]);widget.italic=/italic/.test(font[4]) }
     const values = create.args.match(/\bvalues\s*=\s*[\[(]([^\])]*?)[\])]/)?.[1]
     if (values !== undefined) widget.values = [...values.matchAll(/(['"])(.*?)\1/g)].map(value => value[2])
@@ -365,6 +373,10 @@ export function importGeneratedGui(source: string): V2Design | null {
     if (state && ['normal', 'disabled', 'readonly'].includes(state)) widget.state = state as V2Widget['state']
     const numericValue=create.args.match(/\bvalue\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(numericValue)widget.value=Number(numericValue)
     const maximum=create.args.match(/\bmaximum\s*=\s*(\d+(?:\.\d+)?)/)?.[1];if(maximum)widget.maximum=Number(maximum)
+    const tkWidth=create.args.match(/\bwidth\s*=\s*(\d+)/)?.[1];if(tkWidth)widget.tkWidth=Number(tkWidth)
+    const tkHeight=create.args.match(/\bheight\s*=\s*(\d+)/)?.[1];if(tkHeight)widget.tkHeight=Number(tkHeight)
+    const length=create.args.match(/\blength\s*=\s*(\d+)/)?.[1];if(length)widget.length=Number(length)
+    const padding=create.args.match(/\bpadding\s*=\s*(\d+)/)?.[1];if(padding)widget.padding=Number(padding)
     const layout = source.match(new RegExp(`(?:self\\.)?${widget.name}\\.(place|pack|grid)\\(([^\\n]*)\\)`))
     if (layout) {
       widget.layout.manager = layout[1] as LayoutManager
@@ -382,7 +394,7 @@ export function importGeneratedGui(source: string): V2Design | null {
     if (parentName && !['root', 'ventana', 'window', 'app'].includes(parentName)) widget.parentId = byName.get(parentName)?.id ?? null
     if(widget.type==='Treeview'){
       const headings=[...source.matchAll(new RegExp(`(?:self\\.)?${widget.name}\\.heading\\(\\s*['"]([^'"]+)['"]\\s*,\\s*text\\s*=\\s*['"]([^'"]+)['"]\\s*\\)`,'g'))]
-      widget.columns=headings.map(match=>{const width=source.match(new RegExp(`(?:self\\.)?${widget.name}\\.column\\(\\s*['"]${match[1]}['"][^\\n]*?width\\s*=\\s*(\\d+)`))?.[1];return{id:match[1],heading:match[2],width:Number(width)||100,anchor:'w'}})
+      widget.columns=headings.map(match=>{const line=source.match(new RegExp(`(?:self\\.)?${widget.name}\\.column\\(\\s*['"]${match[1]}['"]([^\\n]*)`))?.[1]??'',width=line.match(/width\s*=\s*(\d+)/)?.[1],anchor=line.match(/anchor\s*=\s*['"](w|center|e)['"]/)?.[1] as 'w'|'center'|'e'|undefined;return{id:match[1],heading:match[2],width:Number(width)||100,anchor:anchor??'w',stretch:!(/stretch\s*=\s*(?:False|0)/.test(line))}})
     }
   }
   return design.widgets.length || geometry || title ? normalizeV2Design(design).design : null
