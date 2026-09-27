@@ -1,313 +1,93 @@
 'use client'
 import { useRef, useState, type PointerEvent } from 'react'
-import { FileCode2, Save, Trash2 } from 'lucide-react'
-import {
-  clampControl,
-  generateGuiCode,
-  newGuiDesign,
-  nextControl,
-  restoreGuiDesign,
-  validControls,
-  type GuiControl,
-  type GuiControlType,
-  type GuiDesign,
-  type GuiImportResult,
-  type GuiWindow,
-} from '@/lib/ide/gui-designer'
+import { ChevronDown, ChevronRight, Copy, FileCode2, Redo2, Save, Trash2, Undo2 } from 'lucide-react'
+import type { GuiImportResult } from '@/lib/ide/gui-designer'
+import { BOOTSTYLES, TTK_THEMES, WIDGET_REGISTRY, childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, restoreV2Design, validateV2Design, type ExportMode, type LayoutManager, type V2Design, type V2Widget, type V2WidgetType } from '@/lib/ide/gui-designer-v2'
 import { ConfirmDialog } from './confirm-dialog'
 import { GeneratedCodePanel } from './generated-code-panel'
 
-const types: GuiControlType[] = ['Label', 'Entry', 'Button', 'Frame']
+const categories = ['Básicos', 'Entrada', 'Datos', 'Contenedores', 'Texto', 'Multimedia'] as const
+const eventNames = ['', 'command', '<KeyRelease>', '<Return>', '<<ComboboxSelected>>', '<<TreeviewSelect>>', '<Double-1>'] as const
 
-export function GuiDesigner({
-  design,
-  onChange,
-  onSave,
-  onAnalyze,
-}: {
-  design: GuiDesign
-  onChange: (design: GuiDesign) => void
-  onSave: () => Promise<void>
-  onAnalyze: (source: string) => Promise<GuiImportResult>
-}) {
-  const { window: windowConfig, controls } = design
+function TreeNode({ design, widget, selected, expanded, select, toggle }: { design: V2Design; widget: V2Widget; selected: string | null; expanded: Set<string>; select: (id: string) => void; toggle: (id: string) => void }) {
+  const children = childrenOf(design, widget.id)
+  return <li><div className={selected === widget.id ? 'selected' : ''}>{children.length ? <button aria-label={`${expanded.has(widget.id) ? 'Contraer' : 'Expandir'} ${widget.name}`} onClick={() => toggle(widget.id)}>{expanded.has(widget.id) ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}</button> : <span className="gui-tree-spacer"/>}<button onClick={() => select(widget.id)}>{widget.type} — {widget.name}</button></div>{children.length > 0 && expanded.has(widget.id) && <ul>{children.map((child) => <TreeNode key={child.id} design={design} widget={child} selected={selected} expanded={expanded} select={select} toggle={toggle}/>)}</ul>}</li>
+}
+
+export function GuiDesigner({ design: rawDesign, onChange, onSave, onAnalyze }: { design: V2Design; onChange: (design: V2Design) => void; onSave: () => Promise<void>; onAnalyze: (source: string) => Promise<GuiImportResult> }) {
+  const design = restoreV2Design(rawDesign), { window: win, widgets } = design
   const [selected, setSelected] = useState<string | null>(null)
-  const [generated, setGenerated] = useState('')
-  const [saved, setSaved] = useState(false)
-  const [confirmClear, setConfirmClear] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [importSource, setImportSource] = useState('')
-  const [importError, setImportError] = useState('')
-  const [importing, setImporting] = useState(false)
-  const [pendingImport, setPendingImport] = useState<GuiDesign | null>(null)
-  const canvas = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
-  const current = controls.find((control) => control.id === selected)
-
-  function change(next: GuiDesign) {
-    onChange(next)
-    setSaved(false)
+  const [generated, setGenerated] = useState(''), [notice, setNotice] = useState('')
+  const [confirmClear, setConfirmClear] = useState(false), [importOpen, setImportOpen] = useState(false)
+  const [importSource, setImportSource] = useState(''), [importError, setImportError] = useState('')
+  const [pendingImport, setPendingImport] = useState<V2Design | null>(null)
+  const [expanded, setExpanded] = useState(() => new Set<string>()), [history, setHistory] = useState<V2Design[]>([]), [future, setFuture] = useState<V2Design[]>([])
+  const canvas = useRef<HTMLDivElement>(null), drag = useRef<{ id: string; dx: number; dy: number } | null>(null)
+  const current = widgets.find((widget) => widget.id === selected) ?? null, errors = validateV2Design(design)
+  const change = (next: V2Design, remember = true) => { if (remember) { setHistory(items => [...items.slice(-39), design]); setFuture([]) } onChange(next); setGenerated(''); setNotice('') }
+  const updateWindow = (value: Partial<V2Design['window']>) => change({ ...design, window: { ...win, ...value } })
+  const updateWidget = (value: Partial<V2Widget>) => current && change({ ...design, widgets: widgets.map(item => item.id === current.id ? { ...item, ...value } : item) })
+  const updateLayout = (value: Partial<V2Widget['layout']>) => current && updateWidget({ layout: { ...current.layout, ...value } })
+  function add(type: V2WidgetType, x = 28, y = 52) {
+    const parentId = current && WIDGET_REGISTRY[current.type].container ? current.id : current?.parentId ?? null
+    const widget = nextV2Widget(type, widgets, parentId); widget.layout = { ...widget.layout, x, y }
+    const parent = widgets.find(item => item.id === parentId)
+    if (parent?.type === 'Notebook') widget.parentTabId = parent.activeTabId ?? parent.tabs?.[0]?.id
+    if (parent?.layout.manager === 'place') widget.layout = { ...widget.layout, x: Math.max(0, x - parent.layout.x), y: Math.max(0, y - parent.layout.y) }
+    change({ ...design, widgets: [...widgets, widget] }); setSelected(widget.id)
+    if (parentId) setExpanded(items => new Set(items).add(parentId))
   }
-
-  function add(type: GuiControlType, clientX: number, clientY: number) {
-    const bounds = canvas.current?.getBoundingClientRect()
-    if (!bounds) return
-    const x = ((clientX - bounds.left) * windowConfig.width) / bounds.width
-    const y = ((clientY - bounds.top) * windowConfig.height) / bounds.height
-    const control = nextControl(type, controls, x, y, windowConfig)
-    change({ ...design, controls: [...controls, control] })
-    setSelected(control.id)
-    setGenerated('')
+  function startMove(event: PointerEvent, widget: V2Widget) {
+    if (widget.layout.manager !== 'place') return
+    const bounds = canvas.current?.getBoundingClientRect(); if (!bounds) return
+    const visual = canvasStyle(widget)
+    drag.current = { id: widget.id, dx: (event.clientX - bounds.left) * win.width / bounds.width - (('left' in visual ? visual.left : undefined) ?? widget.layout.x), dy: (event.clientY - bounds.top) * win.height / bounds.height - (('top' in visual ? visual.top : undefined) ?? widget.layout.y) }
+    event.currentTarget.setPointerCapture(event.pointerId); setSelected(widget.id)
   }
-
-  function updateControl(update: Partial<GuiControl>) {
-    change({
-      ...design,
-      controls: controls.map((control) =>
-        control.id === selected
-          ? clampControl({ ...control, ...update }, windowConfig)
-          : control,
-      ),
-    })
-    setGenerated('')
-  }
-
-  function resizeWindow(update: Partial<GuiWindow>) {
-    const next = { ...windowConfig, ...update }
-    change({
-      window: next,
-      controls: controls.map((control) => clampControl(control, next)),
-    })
-    setGenerated('')
-  }
-
-  function startMove(event: PointerEvent, control: GuiControl) {
-    const bounds = canvas.current?.getBoundingClientRect()
-    if (!bounds) return
-    const x = ((event.clientX - bounds.left) * windowConfig.width) / bounds.width
-    const y = ((event.clientY - bounds.top) * windowConfig.height) / bounds.height
-    drag.current = { id: control.id, offsetX: x - control.x, offsetY: y - control.y }
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setSelected(control.id)
-  }
-
   function move(event: PointerEvent) {
-    const bounds = canvas.current?.getBoundingClientRect()
-    const moving = drag.current
-    if (!bounds || !moving) return
-    const x = ((event.clientX - bounds.left) * windowConfig.width) / bounds.width
-    const y = ((event.clientY - bounds.top) * windowConfig.height) / bounds.height
-    change({
-      ...design,
-      controls: controls.map((control) =>
-        control.id === moving.id
-          ? clampControl(
-              { ...control, x: x - moving.offsetX, y: y - moving.offsetY },
-              windowConfig,
-            )
-          : control,
-      ),
-    })
-    setGenerated('')
+    const bounds = canvas.current?.getBoundingClientRect(), moving = drag.current; if (!bounds || !moving) return
+    const widget = widgets.find(item => item.id === moving.id); let parentX=0, parentY=0, parentId=widget?.parentId
+    while(parentId){const parent=widgets.find(item=>item.id===parentId);if(!parent)break;parentX+=parent.layout.x;parentY+=parent.layout.y;parentId=parent.parentId}
+    const x = Math.max(0, Math.round((event.clientX - bounds.left) * win.width / bounds.width - moving.dx - parentX)), y = Math.max(0, Math.round((event.clientY - bounds.top) * win.height / bounds.height - moving.dy - parentY))
+    onChange({ ...design, widgets: widgets.map(item => item.id === moving.id ? { ...item, layout: { ...item.layout, x, y } } : item) })
   }
-
-  function createCode(target: 'coa' | 'tkinter') {
-    setGenerated(
-      generateGuiCode(windowConfig, controls, target, design.importedSource),
-    )
+  function createCode(target: V2Design['window']['framework']) { try { setGenerated(generateV2Code(design, target, win.exportMode)) } catch (error) { setNotice((error as Error).message) } }
+  async function applyImport(next: V2Design) { change(next); setImportOpen(false); setPendingImport(null); setSelected(null); await onSave() }
+  async function loadImport() {
+    setImportError(''); const parsed = importSource.includes('coa_gui') ? null : importGeneratedGui(importSource)
+    if (parsed) { if (widgets.length) setPendingImport(parsed); else await applyImport(parsed); return }
+    try { const result = await onAnalyze(importSource); if (!result.ok) setImportError(result.reason === 'syntax' ? 'No se pudo importar el código porque contiene un error de sintaxis.' : 'No se encontró una interfaz COA GUI compatible.'); else { const next=restoreV2Design(result.design); if(widgets.length)setPendingImport(next);else await applyImport(next) } } catch { setImportError('No se pudo analizar el código de forma segura.') }
   }
-
-  function applyImport(next: GuiDesign) {
-    change(restoreGuiDesign(next))
-    setSelected(null)
-    setGenerated('')
-    setImportOpen(false)
-    setPendingImport(null)
-    void onSave()
+  function canvasStyle(widget: V2Widget) {
+    if (widget.layout.manager !== 'place') return { position: 'relative' as const, width: widget.layout.width, height: widget.layout.height }
+    let left = widget.layout.x, top = widget.layout.y, parentId = widget.parentId
+    while (parentId) { const parent = widgets.find(item => item.id === parentId); if (!parent) break; left += parent.layout.x; top += parent.layout.y; parentId = parent.parentId }
+    return { left, top, width: widget.layout.width, height: widget.layout.height }
   }
+  const themeDark = ['darkly','superhero','solar','cyborg','vapor'].includes(win.theme)
 
-  return (
-    <section className="gui-designer" aria-label="Diseñador visual">
-      <aside className="gui-palette">
-        <p className="ide-eyebrow">COMPONENTES</p>
-        <h2>Diseñador</h2>
-        <p className="ide-muted">Arrastra un componente hacia la ventana.</p>
-        <div className="gui-design-actions">
-          <button
-            onClick={async () => {
-              await onSave()
-              setSaved(true)
-            }}
-          >
-            <Save size={15} /> Guardar diseño
-          </button>
-          <button onClick={() => setConfirmClear(true)}>
-            <Trash2 size={15} /> Limpiar diseño
-          </button>
-          <button
-            onClick={() => {
-              setImportError('')
-              setImportOpen(true)
-            }}
-          >
-            <FileCode2 size={15} /> Importar código COA GUI
-          </button>
-        </div>
-        {saved && <small role="status">Diseño guardado</small>}
-        {types.map((type) => (
-          <button
-            key={type}
-            draggable
-            onDragStart={(event) => event.dataTransfer.setData('text/coa-control', type)}
-          >
-            {type}
-          </button>
-        ))}
-        <div className="gui-window-fields">
-          <h3>Ventana</h3>
-          <label>Título<input value={windowConfig.title} onChange={(e) => resizeWindow({ title: e.target.value })} /></label>
-          <label>Ancho<input type="number" min="240" max="900" value={windowConfig.width} onChange={(e) => resizeWindow({ width: Math.max(240, Math.min(900, Number(e.target.value) || 240)) })} /></label>
-          <label>Alto<input type="number" min="200" max="700" value={windowConfig.height} onChange={(e) => resizeWindow({ height: Math.max(200, Math.min(700, Number(e.target.value) || 200)) })} /></label>
-        </div>
-      </aside>
+  return <section className="gui-designer gui-designer-v2" aria-label="Diseñador visual">
+    <aside className="gui-palette"><p className="ide-eyebrow">COA DESIGNER V2</p><h2>Componentes</h2>
+      <div className="gui-design-actions"><button onClick={async()=>{await onSave();setNotice('Diseño guardado')}}><Save size={15}/> Guardar diseño</button><button disabled={!history.length} onClick={()=>{const previous=history.at(-1);if(previous){setFuture(items=>[design,...items]);setHistory(items=>items.slice(0,-1));onChange(previous)}}}><Undo2 size={15}/> Deshacer</button><button disabled={!future.length} onClick={()=>{const next=future[0];if(next){setHistory(items=>[...items,design]);setFuture(items=>items.slice(1));onChange(next)}}}><Redo2 size={15}/> Rehacer</button><button onClick={()=>setConfirmClear(true)}><Trash2 size={15}/> Limpiar diseño</button><button onClick={()=>{setImportError('');setImportOpen(true)}}><FileCode2 size={15}/> Importar código COA GUI / Tkinter</button></div>
+      {notice&&<p className="ide-warning" role="status">{notice}</p>}
+      {categories.map(category=><details key={category} open={category==='Básicos'||category==='Contenedores'}><summary>{category}</summary><div className="gui-widget-grid">{Object.values(WIDGET_REGISTRY).filter(item=>item.category===category).map(definition=><button key={definition.type} draggable onDragStart={event=>event.dataTransfer.setData('text/coa-control',definition.type)} onClick={()=>add(definition.type)}>{definition.label}</button>)}</div></details>)}
+      <div className="gui-structure"><h3>Estructura</h3><ul><li><div className={!selected?'selected':''}><span className="gui-tree-spacer"/><button onClick={()=>setSelected(null)}>Ventana — root</button></div><ul>{childrenOf(design,null).map(widget=><TreeNode key={widget.id} design={design} widget={widget} selected={selected} expanded={expanded} select={setSelected} toggle={id=>setExpanded(items=>{const next=new Set(items);if(next.has(id))next.delete(id);else next.add(id);return next})}/>)}</ul></li></ul></div><div className="gui-window-fields"><WindowProperties design={design} update={updateWindow}/></div>
+    </aside>
+    <div className="gui-stage"><div className="gui-stage-header"><strong>ÁREA DE DISEÑO</strong><div><button className="ide-primary" disabled={!!errors.length} onClick={()=>createCode('coa')}>Generar código COA GUI</button><button disabled={!!errors.length} onClick={()=>createCode('tkinter')}>Exportar a Tkinter</button><button disabled={!!errors.length} onClick={()=>createCode('ttkbootstrap')}>Exportar a ttkbootstrap</button></div></div>
+      {errors.length>0&&<p className="ide-warning" role="status">{errors[0]}</p>}
+      <div className="gui-canvas-scroll"><div ref={canvas} className={`gui-canvas gui-theme-${themeDark?'dark':'light'}`} aria-label="Área de diseño" style={{width:win.width,height:win.height,background:win.background}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const type=event.dataTransfer.getData('text/coa-control') as V2WidgetType,bounds=canvas.current?.getBoundingClientRect();if(WIDGET_REGISTRY[type]&&bounds)add(type,(event.clientX-bounds.left)*win.width/bounds.width,(event.clientY-bounds.top)*win.height/bounds.height)}} onPointerMove={move} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} onClick={event=>{if(event.target===event.currentTarget)setSelected(null)}}>
+        <div className="gui-window-title">{win.title} · {win.framework==='ttkbootstrap'?win.theme:'Tkinter'}</div>
+        {widgets.map(widget=><div key={widget.id} role="button" tabIndex={0} aria-label={`${widget.type} ${widget.name}`} data-parent={widget.parentId??'root'} className={`gui-control gui-${widget.type.toLowerCase()} ${selected===widget.id?'selected':''} layout-${widget.layout.manager}`} style={canvasStyle(widget)} onPointerDown={event=>startMove(event,widget)} onClick={event=>{event.stopPropagation();setSelected(widget.id)}}>{widget.type==='Entry'?<span/>:widget.type==='Combobox'?<span>{widget.values?.[0]??'Seleccionar'}⌄</span>:widget.type==='Checkbutton'?<span>☐ {widget.text}</span>:widget.type==='Radiobutton'?<span>○ {widget.text}</span>:widget.type==='Treeview'?<span>{widget.columns?.map(column=>column.heading).join(' | ')}</span>:widget.type==='Progressbar'?<span style={{width:`${Number(widget.value)||0}%`}}/>:widget.type==='Notebook'?<span>{widget.tabs?.map(tab=>tab.text).join(' · ')}</span>:widget.type==='Image'?<span>🖼 {widget.assetPath}</span>:['Frame','Labelframe','Canvas'].includes(widget.type)?<small>{widget.text??widget.name}</small>:widget.text??widget.name}</div>)}
+      </div></div>{generated&&<GeneratedCodePanel code={generated} title="CÓDIGO GENERADO" onClose={()=>setGenerated('')}/>}</div>
+    <aside className="gui-properties"><p className="ide-eyebrow">PROPIEDADES</p>{!current?<WindowProperties design={design} update={updateWindow}/>:<WidgetProperties design={design} widget={current} update={updateWidget} updateLayout={updateLayout} remove={()=>{const ids=new Set([current.id,...descendantsOf(design,current.id)]);change({...design,widgets:widgets.filter(item=>!ids.has(item.id))});setSelected(null)}} duplicate={()=>{const copy=nextV2Widget(current.type,widgets,current.parentId);Object.assign(copy,structuredClone(current),{id:copy.id,name:copy.name,layout:{...current.layout,x:current.layout.x+16,y:current.layout.y+16}});change({...design,widgets:[...widgets,copy]});setSelected(copy.id)}}/>}</aside>
+    {importOpen&&<section className="gui-import-dialog" role="dialog" aria-label="Importar código COA GUI"><h2>Importar COA GUI, Tkinter o ttkbootstrap</h2><p>El código se analiza como texto; nunca se ejecuta.</p><textarea aria-label="Código COA GUI" value={importSource} onChange={event=>setImportSource(event.target.value)} autoFocus/>{importError&&<p className="ide-warning" role="status">{importError}</p>}<div className="ide-row"><button onClick={()=>setImportOpen(false)}>Cancelar</button><button className="ide-primary" disabled={!importSource.trim()} onClick={()=>void loadImport()}>Cargar en diseñador</button></div></section>}
+    {pendingImport&&<ConfirmDialog title="Reemplazar diseño actual" confirmLabel="Importar" onCancel={()=>setPendingImport(null)} onConfirm={()=>void applyImport(pendingImport)}><p>Importar este código reemplazará el diseño actual.</p></ConfirmDialog>}
+    {confirmClear&&<ConfirmDialog title="Limpiar diseño" confirmLabel="Limpiar" onCancel={()=>setConfirmClear(false)} onConfirm={()=>{change(newV2Design());setSelected(null);setConfirmClear(false);void onSave()}}><p>Se eliminarán todos los componentes del diseño visual.</p></ConfirmDialog>}
+  </section>
+}
 
-      <div className="gui-stage">
-        <div className="gui-stage-header">
-          <strong>ÁREA DE DISEÑO</strong>
-          <div>
-            <button className="ide-primary" disabled={!validControls(controls)} onClick={() => createCode('coa')}>Generar código COA GUI</button>
-            <button disabled={!validControls(controls)} onClick={() => createCode('tkinter')}>Exportar a Tkinter</button>
-          </div>
-        </div>
-        <div className="gui-canvas-scroll">
-          <div
-            ref={canvas}
-            className="gui-canvas"
-            aria-label="Área de diseño"
-            style={{ width: windowConfig.width, height: windowConfig.height }}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault()
-              const type = event.dataTransfer.getData('text/coa-control') as GuiControlType
-              if (types.includes(type)) add(type, event.clientX, event.clientY)
-            }}
-            onPointerMove={move}
-            onPointerUp={() => (drag.current = null)}
-            onPointerCancel={() => (drag.current = null)}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) setSelected(null)
-            }}
-          >
-            <div className="gui-window-title">{windowConfig.title}</div>
-            {controls.map((control) => (
-              <div
-                key={control.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`${control.type} ${control.variableName}`}
-                className={`gui-control gui-${control.type.toLowerCase()} ${selected === control.id ? 'selected' : ''}`}
-                style={{ left: control.x, top: control.y, width: control.width, height: control.height }}
-                onPointerDown={(event) => startMove(event, control)}
-                onClick={(event) => { event.stopPropagation(); setSelected(control.id) }}
-              >
-                {control.type === 'Entry' ? <span /> : control.type === 'Frame' ? null : control.text}
-              </div>
-            ))}
-          </div>
-        </div>
-        {generated && <GeneratedCodePanel code={generated} title="CÓDIGO GENERADO" onClose={() => setGenerated('')} />}
-      </div>
+function WindowProperties({ design, update }: { design: V2Design; update: (value: Partial<V2Design['window']>) => void }) { const win=design.window; return <><h2>Ventana</h2><label>Título<input value={win.title} onChange={e=>update({title:e.target.value})}/></label><label>Framework<select value={win.framework} onChange={e=>update({framework:e.target.value as V2Design['window']['framework']})}><option value="coa">COA GUI</option><option value="tkinter">Tkinter clásico</option><option value="ttkbootstrap">ttkbootstrap</option></select></label>{win.framework==='ttkbootstrap'&&<label>Tema<select value={win.theme} onChange={e=>update({theme:e.target.value})}>{TTK_THEMES.map(theme=><option key={theme}>{theme}</option>)}</select></label>}<label>Fondo<input type="color" value={win.background} onChange={e=>update({background:e.target.value})}/></label><label>Estructura<select value={win.exportMode} onChange={e=>update({exportMode:e.target.value as ExportMode})}><option value="simple">Código sencillo</option><option value="functions">Organizado por funciones</option><option value="class">Clase de interfaz</option></select></label><label>Ancho<input type="number" min="320" max="1200" value={win.width} onChange={e=>update({width:Number(e.target.value)})}/></label><label>Alto<input type="number" min="240" max="900" value={win.height} onChange={e=>update({height:Number(e.target.value)})}/></label></> }
 
-      <aside className="gui-properties">
-        <p className="ide-eyebrow">PROPIEDADES</p>
-        {current ? (
-          <>
-            <h2>{current.type}</h2>
-            <label>Nombre de variable<input value={current.variableName} aria-invalid={!/^[A-Za-z_][A-Za-z0-9_]*$/.test(current.variableName)} onChange={(e) => updateControl({ variableName: e.target.value })} /></label>
-            {(current.type === 'Label' || current.type === 'Button') && <label>Texto<input value={current.text ?? ''} onChange={(e) => updateControl({ text: e.target.value })} /></label>}
-            {(['x', 'y', 'width', 'height'] as const).map((property) => (
-              <label key={property}>{property === 'x' ? 'Posición X' : property === 'y' ? 'Posición Y' : property === 'width' ? 'Ancho' : 'Alto'}<input type="number" min={property === 'width' || property === 'height' ? 20 : 0} value={current[property]} onChange={(e) => updateControl({ [property]: Number(e.target.value) || 0 })} /></label>
-            ))}
-            <button className="gui-delete" onClick={() => { change({ ...design, controls: controls.filter((control) => control.id !== current.id) }); setSelected(null); setGenerated('') }}><Trash2 size={16} /> Eliminar componente</button>
-          </>
-        ) : <p className="ide-muted">Selecciona un componente para editarlo.</p>}
-        {!validControls(controls) && <p className="ide-warning" role="status">Usa nombres válidos, únicos y no vacíos.</p>}
-        {design.importedSource?.warning && (
-          <p className="ide-warning" role="status">
-            Algunas instrucciones no pueden editarse visualmente y se conservarán en el código.
-          </p>
-        )}
-      </aside>
-      {importOpen && (
-        <section className="gui-import-dialog" role="dialog" aria-label="Importar código COA GUI">
-          <h2>Importar código COA GUI</h2>
-          <p>Pega el código que quieres cargar en el Diseñador.</p>
-          <textarea
-            aria-label="Código COA GUI"
-            value={importSource}
-            onChange={(event) => {
-              setImportSource(event.target.value)
-              setImportError('')
-            }}
-            autoFocus
-          />
-          {importError && <p className="ide-warning" role="status">{importError}</p>}
-          <div className="ide-row">
-            <button onClick={() => setImportOpen(false)}>Cancelar</button>
-            <button
-              className="ide-primary"
-              disabled={importing || !importSource.trim()}
-              onClick={async () => {
-                setImporting(true)
-                try {
-                  const result = await onAnalyze(importSource)
-                  if (!result.ok) {
-                    setImportError(
-                      result.reason === 'syntax'
-                        ? 'No se pudo importar el código porque contiene un error de sintaxis.'
-                        : 'No se encontró una interfaz COA GUI compatible.',
-                    )
-                  } else if (controls.length) {
-                    setPendingImport(result.design)
-                  } else applyImport(result.design)
-                } catch {
-                  setImportError('No se pudo analizar el código. Inténtalo de nuevo.')
-                } finally {
-                  setImporting(false)
-                }
-              }}
-            >
-              Cargar en diseñador
-            </button>
-          </div>
-        </section>
-      )}
-      {pendingImport && (
-        <ConfirmDialog
-          title="Reemplazar diseño actual"
-          confirmLabel="Importar"
-          onCancel={() => setPendingImport(null)}
-          onConfirm={() => applyImport(pendingImport)}
-        >
-          <p>Importar este código reemplazará el diseño actual.</p>
-        </ConfirmDialog>
-      )}
-      {confirmClear && (
-        <ConfirmDialog
-          title="Limpiar diseño"
-          onCancel={() => setConfirmClear(false)}
-          confirmLabel="Limpiar"
-          onConfirm={() => {
-            change(newGuiDesign())
-            setSelected(null)
-            setGenerated('')
-            setConfirmClear(false)
-            void onSave()
-          }}
-        >
-          <p>¿Deseas limpiar el diseño? Se eliminarán todos los componentes.</p>
-        </ConfirmDialog>
-      )}
-    </section>
-  )
+function WidgetProperties({ design, widget, update, updateLayout, remove, duplicate }: { design: V2Design; widget: V2Widget; update: (value: Partial<V2Widget>) => void; updateLayout: (value: Partial<V2Widget['layout']>) => void; remove: () => void; duplicate: () => void }) {
+  return <><div className="gui-property-heading"><h2>{widget.type}</h2><button aria-label="Duplicar componente" onClick={duplicate}><Copy size={15}/></button></div><h3>General</h3><label>Nombre de variable<input value={widget.name} onChange={e=>update({name:e.target.value})}/></label><label>Contenedor<select value={widget.parentId??''} onChange={e=>update({parentId:e.target.value||null})}><option value="">Ventana</option>{design.widgets.filter(item=>WIDGET_REGISTRY[item.type].container&&item.id!==widget.id&&!descendantsOf(design,widget.id).includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{widget.text!==undefined&&<label>Texto<input value={widget.text} onChange={e=>update({text:e.target.value})}/></label>}{widget.values&&<label>Valores<input value={widget.values.join(', ')} onChange={e=>update({values:e.target.value.split(',').map(value=>value.trim()).filter(Boolean)})}/></label>}{widget.state!==undefined&&<label>Estado<select value={widget.state} onChange={e=>update({state:e.target.value as V2Widget['state']})}><option value="normal">normal</option><option value="disabled">disabled</option><option value="readonly">readonly</option></select></label>}{widget.orient&&<label>Orientación<select value={widget.orient} onChange={e=>update({orient:e.target.value as 'horizontal'|'vertical'})}><option value="horizontal">horizontal</option><option value="vertical">vertical</option></select></label>}{widget.maximum!==undefined&&<label>Máximo<input type="number" value={widget.maximum} onChange={e=>update({maximum:Number(e.target.value)})}/></label>}{typeof widget.value==='number'&&<label>Valor<input type="number" value={widget.value} onChange={e=>update({value:Number(e.target.value)})}/></label>}{widget.type==='Checkbutton'&&<label><input type="checkbox" checked={Boolean(widget.value)} onChange={e=>update({value:e.target.checked})}/> Valor inicial</label>}{WIDGET_REGISTRY[widget.type].container&&<><label>Pesos de filas<input value={widget.rowWeights??''} placeholder="1, 1, 0" onChange={e=>update({rowWeights:e.target.value})}/></label><label>Pesos de columnas<input value={widget.columnWeights??''} placeholder="1, 2" onChange={e=>update({columnWeights:e.target.value})}/></label></>}{widget.type==='Scrollbar'&&<label>Conectar a<select value={widget.targetId??''} onChange={e=>update({targetId:e.target.value||undefined})}><option value="">Sin conexión</option>{design.widgets.filter(item=>['Canvas','Text','Treeview'].includes(item.type)).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{widget.parentId&&design.widgets.find(item=>item.id===widget.parentId)?.type==='Notebook'&&<label>Pestaña<select value={widget.parentTabId??''} onChange={e=>update({parentTabId:e.target.value})}>{design.widgets.find(item=>item.id===widget.parentId)?.tabs?.map(tab=><option key={tab.id} value={tab.id}>{tab.text}</option>)}</select></label>}{widget.columns&&<label>Columnas<textarea value={widget.columns.map(c=>`${c.id}|${c.heading}|${c.width}|${c.anchor}`).join('\n')} onChange={e=>update({columns:e.target.value.split('\n').map((line,index)=>{const [id,heading,width,anchor]=line.split('|');return{id:id||`col${index+1}`,heading:heading||id||`Columna ${index+1}`,width:Number(width)||100,anchor:(['w','center','e'].includes(anchor)?anchor:'w') as 'w'}})})}/><small>id|título|ancho|w/center/e</small></label>}{widget.tabs&&<label>Pestañas<input value={widget.tabs.map(tab=>tab.text).join(', ')} onChange={e=>update({tabs:e.target.value.split(',').map((text,index)=>({id:`tab-${index+1}`,text:text.trim()||`Pestaña ${index+1}`}))})}/></label>}{widget.assetPath!==undefined&&<label>Asset relativo<input value={widget.assetPath} onChange={e=>update({assetPath:e.target.value.replace(/^\/+/, '')})}/></label>}<h3>Apariencia</h3>{!['Canvas','Text','Image'].includes(widget.type)&&<label>Bootstyle<select value={widget.bootstyle??'default'} onChange={e=>update({bootstyle:e.target.value})}>{BOOTSTYLES.map(style=><option key={style}>{style}</option>)}</select></label>}<h3>Layout</h3><label>Gestor<select value={widget.layout.manager} onChange={e=>updateLayout({manager:e.target.value as LayoutManager})}><option value="place">place</option><option value="pack">pack</option><option value="grid">grid</option></select></label>{widget.layout.manager==='place'&&(['x','y','width','height'] as const).map(key=><label key={key}>{key==='x'?'Posición X':key==='y'?'Posición Y':key==='width'?'Ancho':'Alto'}<input type="number" value={widget.layout[key]} onChange={e=>updateLayout({[key]:Number(e.target.value)})}/></label>)}{widget.layout.manager==='pack'&&<><label>Side<select value={widget.layout.side??'top'} onChange={e=>updateLayout({side:e.target.value as 'top'})}>{['top','bottom','left','right'].map(value=><option key={value}>{value}</option>)}</select></label><label>Fill<select value={widget.layout.fill??'none'} onChange={e=>updateLayout({fill:e.target.value as 'none'})}>{['none','x','y','both'].map(value=><option key={value}>{value}</option>)}</select></label><label><input type="checkbox" checked={!!widget.layout.expand} onChange={e=>updateLayout({expand:e.target.checked})}/> Expand</label></>}{widget.layout.manager==='grid'&&(['row','column','rowspan','columnspan'] as const).map(key=><label key={key}>{key}<input type="number" min="0" value={widget.layout[key]??(key.includes('span')?1:0)} onChange={e=>updateLayout({[key]:Number(e.target.value)})}/></label>)}<h3>Eventos</h3><label>Evento<select value={widget.event?.event??''} onChange={e=>update({event:e.target.value?{event:e.target.value as NonNullable<V2Widget['event']>['event'],handler:widget.event?.handler??'manejar_evento'}:undefined})}>{eventNames.map(value=><option key={value} value={value}>{value||'Sin evento'}</option>)}</select></label>{widget.event&&<label>Método<input value={widget.event.handler} onChange={e=>update({event:{...widget.event!,handler:e.target.value}})}/></label>}<button className="gui-delete" onClick={remove}><Trash2 size={16}/> Eliminar componente y sus hijos</button></>
 }

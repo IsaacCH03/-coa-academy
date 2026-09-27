@@ -1,8 +1,4 @@
-import {
-  newGuiDesign,
-  restoreGuiDesign,
-  type GuiDesign,
-} from './gui-designer'
+import { newV2Design, restoreV2Design, type V2Design } from './gui-designer-v2'
 
 export type HelpMode = 'guided' | 'assisted' | 'free'
 export type ProjectEntry = {
@@ -19,7 +15,7 @@ export type Project = {
   consoleHeight: number
   consoleCollapsed: boolean
   helpMode: HelpMode
-  guiDesign: GuiDesign
+  guiDesign: V2Design
   explorerExpanded: string[]
   selectedFolder: string
   splitEnabled?: boolean
@@ -53,7 +49,7 @@ export function newProject(): Project {
     consoleHeight: 240,
     consoleCollapsed: false,
     helpMode: 'guided',
-    guiDesign: newGuiDesign(),
+    guiDesign: newV2Design(),
     explorerExpanded: [],
     selectedFolder: '',
     splitEnabled: false,
@@ -248,7 +244,7 @@ export function restoreProject(value: unknown): Project {
       p.helpMode && ['guided', 'assisted', 'free'].includes(p.helpMode)
         ? p.helpMode
         : 'guided',
-    guiDesign: restoreGuiDesign(p.guiDesign),
+    guiDesign: restoreV2Design(p.guiDesign),
     explorerExpanded: Array.isArray(p.explorerExpanded)
       ? p.explorerExpanded.filter(
           (path): path is string =>

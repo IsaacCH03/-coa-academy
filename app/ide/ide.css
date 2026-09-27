@@ -1142,6 +1142,30 @@
 .gui-properties input[aria-invalid='true'] {
   border-color: #ef7a7a;
 }
+.gui-properties select,
+.gui-properties textarea {
+  width: 100%;
+  background: #0d1828;
+  color: #f0f5ff;
+  border: 1px solid #3a506e;
+  border-radius: 6px;
+  padding: 8px;
+}
+.gui-properties textarea { min-height: 90px; resize: vertical; font: 11px ui-monospace, monospace; }
+.gui-properties h3 { margin: 18px 0 7px; padding-bottom: 5px; border-bottom: 1px solid var(--ide-border); color: #91acd2; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.gui-property-heading { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.gui-palette details { margin:8px 0;border:1px solid var(--ide-border);border-radius:6px;background:#132238; }
+.gui-palette details summary { cursor:pointer;padding:8px 10px;color:#bbcee8;font-size:11px;font-weight:700; }
+.gui-widget-grid { display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 7px 8px; }
+.gui-widget-grid button { min-width:0;padding:7px 5px;font-size:10px;justify-content:flex-start; }
+.gui-structure { margin-top:16px;padding-top:12px;border-top:1px solid var(--ide-border); }
+.gui-structure h3 { margin-bottom:7px;font-size:12px; }
+.gui-structure ul { list-style:none;margin:0;padding-left:12px; }
+.gui-structure>ul { padding-left:0; }
+.gui-structure li>div { display:flex;align-items:center;min-width:0;border-radius:4px; }
+.gui-structure li>div.selected { background:#29466d; }
+.gui-structure button { min-width:0;padding:4px;border:0;background:transparent;text-align:left;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.gui-tree-spacer { display:inline-block;width:21px;flex:none; }
 .gui-stage {
   display: flex;
   flex-direction: column;
@@ -1228,6 +1252,18 @@
   border: 1px solid #9da5ae;
   background: #e9ebee80;
 }
+.gui-labelframe,.gui-canvas,.gui-notebook { z-index:1;border:1px solid #8997a9;background:#dfe5ed80;align-items:flex-start;justify-content:flex-start;padding:7px;color:#435064; }
+.gui-combobox,.gui-spinbox,.gui-text { background:#fff;border:1px solid #8693a4;justify-content:flex-start;padding:5px; }
+.gui-checkbutton,.gui-radiobutton { justify-content:flex-start; }
+.gui-treeview { background:#fff;border:1px solid #8794a5;padding:8px;align-items:flex-start;justify-content:flex-start; }
+.gui-progressbar { justify-content:flex-start;background:#d4dbe5;border:1px solid #9aa5b3;overflow:hidden; }
+.gui-progressbar>span { height:100%;background:#20a875; }
+.gui-separator { background:#8794a5; }
+.gui-scrollbar { background:linear-gradient(90deg,#dce2e9,#9ba6b3);border:1px solid #87919e; }
+.gui-image { background:#eef1f5;border:1px dashed #8794a5;color:#59677a;padding:5px; }
+.gui-theme-dark { color:#f4f6f8; }
+.gui-theme-dark .gui-window-title { background:#30343a;color:#f4f6f8;border-color:#111; }
+.gui-control.layout-pack,.gui-control.layout-grid { margin:34px 6px 6px;display:inline-flex;vertical-align:top;cursor:default; }
 .gui-delete {
   width: 100%;
   margin-top: 18px;
@@ -1396,6 +1432,13 @@
   .ide-welcome .ide-text-button {
     display: none;
   }
+}
+@media (max-width: 767px) {
+  .gui-designer { display:flex;flex-direction:column;overflow:auto; }
+  .gui-palette,.gui-properties { flex:none;max-height:44vh;border:0;border-bottom:1px solid var(--ide-border); }
+  .gui-stage { flex:none;min-height:520px; }
+  .gui-stage-header { align-items:flex-start;flex-direction:column; }
+  .gui-stage-header>div { overflow-x:auto;max-width:100%; }
 }
 @media (max-width: 767px) {
   .ide-writing-shortcuts.desktop{display:none}
