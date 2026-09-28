@@ -1,4 +1,5 @@
 import { generateGuiCode as generateLegacyGuiCode, type GuiControl, type GuiDesign as LegacyGuiDesign, type GuiImportResult, type ImportedGuiSource } from './gui-designer'
+import { compileLayoutForExport, resolvePreviewLayoutDetailed } from './gui-layout'
 
 export type DesignerTarget = 'coa' | 'tkinter' | 'ttkbootstrap'
 export type ExportMode = 'simple' | 'functions' | 'class'
@@ -27,6 +28,8 @@ export type V2Widget = {
   name: string
   parentId: string | null
   layout: LayoutConfig
+  /** Geometría local de autoría. Independiente del gestor Tk de runtime. */
+  authoring?: { x:number; y:number; width:number; height:number }
   text?: string
   bootstyle?: string
   state?: 'normal' | 'disabled' | 'readonly'
@@ -72,6 +75,7 @@ export type V2Window = {
   background: string
   customColors?: Partial<ThemeColors>
   exportMode: ExportMode
+  layoutExport?: 'faithful' | 'adaptive'
 }
 export type V2Design = { schemaVersion: 2; window: V2Window; widgets: V2Widget[]; importedSource?: ImportedGuiSource }
 
@@ -111,7 +115,7 @@ export const BOOTSTYLES = ['default', 'primary', 'secondary', 'success', 'info',
 const reserved = new Set(['False','None','True','and','as','assert','async','await','break','class','continue','def','del','elif','else','except','finally','for','from','global','if','import','in','is','lambda','nonlocal','not','or','pass','raise','return','try','while','with','yield'])
 
 export function newV2Design(): V2Design {
-  return { schemaVersion: 2, window: { title: 'Mi interfaz', width: 500, height: 400, framework: 'ttkbootstrap', theme: 'darkly', background: '#222222', exportMode: 'class' }, widgets: [] }
+  return { schemaVersion: 2, window: { title: 'Mi interfaz', width: 500, height: 400, framework: 'ttkbootstrap', theme: 'darkly', background: '#222222', exportMode: 'class', layoutExport:'faithful' }, widgets: [] }
 }
 
 function migratedWidget(control: LegacyGuiDesign['controls'][number]): V2Widget {
@@ -141,7 +145,8 @@ export function normalizeV2Design(value: unknown): { design: V2Design; issues: s
     if (usedIds.has(id)) { issues.push(`ID duplicado ${id}; se asignó uno nuevo.`); id = `recovered-${index + 1}-${id}` }
     while (usedIds.has(id)) id += '-copy'
     usedIds.add(id)
-    widgets.push({ ...defaults, ...candidate, id, name: typeof candidate.name === 'string' ? candidate.name : `${candidate.type.toLowerCase()}${index + 1}`, parentId: typeof candidate.parentId === 'string' ? candidate.parentId : null, layout: { ...defaults.layout, ...(candidate.layout ?? {}) } } as V2Widget)
+    const authoring=candidate.authoring&&typeof candidate.authoring==='object'?candidate.authoring:undefined
+    widgets.push({ ...defaults, ...candidate, id, name: typeof candidate.name === 'string' ? candidate.name : `${candidate.type.toLowerCase()}${index + 1}`, parentId: typeof candidate.parentId === 'string' ? candidate.parentId : null, layout: { ...defaults.layout, ...(candidate.layout ?? {}) },authoring:authoring?{x:Number(authoring.x)||0,y:Number(authoring.y)||0,width:Math.max(1,Number(authoring.width)||defaults.layout.width),height:Math.max(1,Number(authoring.height)||defaults.layout.height)}:undefined } as V2Widget)
   })
   const ids = new Set(widgets.map(widget => widget.id))
   for (const widget of widgets) {
@@ -159,7 +164,7 @@ export function normalizeV2Design(value: unknown): { design: V2Design; issues: s
       path.add(parentId); parentId = byId.get(parentId)?.parentId ?? null
     }
   }
-  return { design: { schemaVersion: 2, window: { ...base.window, ...raw.window, width: Math.max(320, Math.min(1200, Number(raw.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(raw.window?.height) || base.window.height)) }, widgets, importedSource: raw.importedSource }, issues }
+  return { design: { schemaVersion: 2, window: { ...base.window, ...raw.window, width: Math.max(320, Math.min(1200, Number(raw.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(raw.window?.height) || base.window.height)),layoutExport:Object.prototype.hasOwnProperty.call(raw.window??{},'layoutExport')?raw.window?.layoutExport:undefined }, widgets, importedSource: raw.importedSource }, issues }
 }
 
 export function nextV2Widget(type: V2WidgetType, widgets: V2Widget[], parentId: string | null = null): V2Widget {
@@ -225,15 +230,15 @@ function widgetClass(widget: V2Widget, target: DesignerTarget) {
 type ConstructorCapability = 'font' | 'foreground' | 'background'
 const TK_CONSTRUCTOR_CAPABILITIES: Partial<Record<V2WidgetType, readonly ConstructorCapability[]>> = { Label:['font','foreground','background'],Entry:['font','foreground','background'],Button:['font','foreground','background'],Frame:['background'],Canvas:['background'],Text:['font','foreground','background'] }
 const TTK_CONSTRUCTOR_CAPABILITIES: Partial<Record<V2WidgetType, readonly ConstructorCapability[]>> = {}
-export function constructorCapabilities(target:DesignerTarget,widget:V2Widget){if(target==='coa')return new Set<ConstructorCapability>(['font','foreground','background']);return new Set(widgetClass(widget,target).startsWith('tk.')?TK_CONSTRUCTOR_CAPABILITIES[widget.type]??[]:TTK_CONSTRUCTOR_CAPABILITIES[widget.type]??[])}
+export function constructorCapabilities(target:DesignerTarget,widget:V2Widget){if(target==='coa')return new Set<ConstructorCapability>();return new Set(widgetClass(widget,target).startsWith('tk.')?TK_CONSTRUCTOR_CAPABILITIES[widget.type]??[]:TTK_CONSTRUCTOR_CAPABILITIES[widget.type]??[])}
 function constructorArgs(widget: V2Widget, target: DesignerTarget, mode: ExportMode) {
   const args: string[] = []
   const capabilities=constructorCapabilities(target,widget)
   if (widget.text !== undefined && !['Entry','Text','Treeview','Combobox'].includes(widget.type)) args.push(`text=${py(widget.text)}`)
   if (widget.values) args.push(`values=${py(widget.values)}`)
-  if (widget.state) args.push(`state=${py(widget.state)}`)
+  if (widget.state && target !== 'coa') args.push(`state=${py(widget.state)}`)
   if (capabilities.has('font') && (widget.fontFamily || widget.fontSize || widget.bold || widget.italic)) args.push(`font=(${py(widget.fontFamily ?? 'Arial')}, ${widget.fontSize ?? 13}${widget.bold||widget.italic?`, ${py([widget.bold?'bold':'',widget.italic?'italic':''].filter(Boolean).join(' '))}`:''})`)
-  if (widget.anchor) args.push(`anchor=${py(widget.anchor)}`)
+  if (widget.anchor && target !== 'coa') args.push(`anchor=${py(widget.anchor)}`)
   if (widget.showChar && widget.type === 'Entry') args.push(`show=${py(widget.showChar)}`)
   if (widget.wrap && widget.type === 'Text') args.push(`wrap=${py(widget.wrap)}`)
   if (capabilities.has('foreground') && widget.foreground) args.push(`foreground=${py(widget.foreground)}`)
@@ -272,6 +277,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
     const unsupported = design.widgets.filter((widget) => !WIDGET_REGISTRY[widget.type].coa)
     if (unsupported.length) throw new Error(`COA GUI todavía no admite: ${[...new Set(unsupported.map((item) => item.type))].join(', ')}.`)
   }
+  if(design.window.layoutExport)design=compileLayoutForExport(design,design.window.layoutExport)
   const lines = target === 'coa' ? ['import coa_gui as gui'] : target === 'ttkbootstrap' ? ['import tkinter as tk', 'from pathlib import Path', 'import ttkbootstrap as ttk'] : ['import tkinter as tk', 'from tkinter import ttk', 'from pathlib import Path']
   lines.push('')
   const byId = new Map(design.widgets.map((widget) => [widget.id, widget]))
@@ -346,6 +352,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
 export function importGeneratedGui(source: string): V2Design | null {
   if (!/^\s*(?:import tkinter|from tkinter|import ttkbootstrap|import coa_gui)/m.test(source)) return null
   const design = newV2Design()
+  design.window.layoutExport=undefined
   design.window.framework = source.includes('ttkbootstrap') ? 'ttkbootstrap' : source.includes('coa_gui') ? 'coa' : 'tkinter'
   const importedTheme = source.match(/ttk\.Window\([\s\S]*?themename\s*=\s*(['"])(.*?)\1[\s\S]*?\)/)?.[2]
   if (importedTheme && TTK_THEMES.includes(importedTheme as typeof TTK_THEMES[number])) design.window.theme = importedTheme
@@ -418,7 +425,10 @@ export function importGeneratedGui(source: string): V2Design | null {
   if(tabFrames.size)design.widgets=design.widgets.filter(widget=>!tabFrames.has(widget.id))
   const geometryOrder=(widget:V2Widget)=>{const match=new RegExp(`(?:self\\.)?${widget.name}\\.(?:place|pack|grid)\\s*\\(`).exec(source);return match?.index??Number.MAX_SAFE_INTEGER}
   design.widgets=design.widgets.map((widget,index)=>({widget,index})).sort((left,right)=>geometryOrder(left.widget)-geometryOrder(right.widget)||left.index-right.index).map(item=>item.widget)
-  return design.widgets.length || geometry || title ? normalizeV2Design(design).design : null
+  if(!(design.widgets.length||geometry||title))return null
+  const normalized=normalizeV2Design(design).design,layout=resolvePreviewLayoutDetailed(normalized)
+  normalized.widgets=normalized.widgets.map(widget=>({...widget,authoring:layout.local.get(widget.id)}))
+  return normalized
 }
 
 export type { GuiImportResult }

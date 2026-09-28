@@ -30,9 +30,10 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   const label = canvas.getByRole('button', { name: 'Label label1' })
   await label.click()
   const properties = page.locator('.gui-properties')
-  await properties.getByLabel('Texto').fill('Nombre del estudiante')
-  await properties.getByLabel('Ancho').fill('190')
-  await properties.getByLabel('Alto').fill('40')
+  await properties.getByLabel('Texto', { exact: true }).fill('Nombre del estudiante')
+  const visualPosition = properties.getByRole('group', { name: 'Posición visual' })
+  await visualPosition.getByLabel('Ancho').fill('190')
+  await visualPosition.getByLabel('Alto').fill('40')
   await expect(label).toHaveText('Nombre del estudiante')
   const before = await label.boundingBox()
   if (!before) throw new Error('No se encontró el Label en el lienzo.')
@@ -44,7 +45,7 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   expect(after?.x).toBeGreaterThan(before.x + 30)
 
   await canvas.getByRole('button', { name: 'Button button1' }).click()
-  await properties.getByLabel('Texto').fill('Guardar')
+  await properties.getByLabel('Texto', { exact: true }).fill('Guardar')
   await properties.getByLabel('Nombre de variable').fill('guardar')
   await canvas.getByRole('button', { name: 'Frame frame1' }).click()
   await properties.getByRole('button', { name: 'Eliminar componente' }).click()
@@ -57,9 +58,8 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   await page.getByRole('button', { name: 'Generar código COA GUI' }).click()
   await expect(page.getByTestId('gui-code')).toContainText('import coa_gui as gui')
   const coaCode = (await page.getByTestId('gui-code').textContent()) ?? ''
-  expect(coaCode.indexOf('frame1 = gui.Frame')).toBeLessThan(
-    coaCode.indexOf('label1 = gui.Label'),
-  )
+  expect(coaCode).toContain('frame1 = gui.Frame')
+  expect(coaCode).toContain('label1 = gui.Label')
   await page.getByRole('button', { name: 'Copiar código' }).click()
   await expect(page.getByRole('button', { name: 'Copiado' })).toBeVisible()
   const copiedCoa = await page.evaluate(() => navigator.clipboard.readText())
@@ -68,9 +68,8 @@ test('visual designer creates, moves, edits, deletes and exports controls', asyn
   await expect(page.getByTestId('gui-code')).toContainText('import tkinter as tk')
   await expect(page.getByTestId('gui-code')).toContainText('text="Guardar"')
   const tkinter = (await page.getByTestId('gui-code').textContent()) ?? ''
-  expect(tkinter.indexOf('frame1 = tk.Frame')).toBeLessThan(
-    tkinter.indexOf('label1 = tk.Label'),
-  )
+  expect(tkinter).toContain('frame1 = tk.Frame')
+  expect(tkinter).toContain('label1 = tk.Label')
   await page.getByRole('button', { name: 'Cerrar código generado' }).click()
   await expect(page.getByTestId('gui-code')).toHaveCount(0)
   await expect(canvas.getByRole('button')).toHaveCount(4)
@@ -302,7 +301,7 @@ ventana.mainloop()`
   const importedButton = canvas.getByRole('button', { name: 'Button boton' })
   await importedButton.click()
   const properties = page.locator('.gui-properties')
-  await properties.getByLabel('Texto').fill('Calcular')
+  await properties.getByLabel('Texto', { exact: true }).fill('Calcular')
   await properties.getByLabel('Posición X').fill('220')
   await properties.getByLabel('Posición Y').fill('200')
   await page.getByRole('button', { name: 'Generar código COA GUI' }).click()

@@ -86,6 +86,15 @@ describe('COA Designer V2', () => {
     expect(() => generateV2Code(design, 'coa')).toThrow(/todavía no admite: Treeview/)
   })
 
+  it('emits only constructor options supported by the local COA GUI runtime', () => {
+    const design = newV2Design(), label = nextV2Widget('Label', [])
+    label.text = 'Nombre'; label.fontFamily = 'Arial'; label.fontSize = 18; label.anchor = 'w'
+    design.widgets = [label]
+    const code = generateV2Code(design, 'coa', 'simple')
+    expect(code).toContain('label1 = gui.Label(root, text="Nombre")')
+    expect(code).not.toMatch(/gui\.Label\([^\n]*(?:font|anchor)=/)
+  })
+
   it('imports the reported multiline ttkbootstrap interface with an acyclic hierarchy', () => {
     const source = readFileSync(new URL('./fixtures/ttkbootstrap-designer-regression.py', import.meta.url), 'utf8')
     const design = importGeneratedGui(source)

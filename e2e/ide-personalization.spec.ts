@@ -264,8 +264,8 @@ test('profiles keep independent GIF assets and restore the correct one', async (
   await expect(page.getByText('El fondo personalizado de este perfil ya no está disponible.')).toBeHidden()
 })
 
-test('COA logo uses the larger toolbar size and dedicated mobile icon', async ({ page }) => {
+test('COA logo uses the larger toolbar size and current site icon', async ({ page }) => {
   await openStudio(page)
   await expect(page.locator('.ide-brand img')).toHaveAttribute('width', '40')
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /coa-app-icon\.png/)
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /coa-logo\.png/)
 })
