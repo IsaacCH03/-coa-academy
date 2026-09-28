@@ -278,6 +278,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
     if (unsupported.length) throw new Error(`COA GUI todavía no admite: ${[...new Set(unsupported.map((item) => item.type))].join(', ')}.`)
   }
   if(design.window.layoutExport)design=compileLayoutForExport(design,design.window.layoutExport)
+  else if(design.widgets.length&&design.widgets.every(widget=>widget.layout.manager==='place'))design=compileLayoutForExport(design,'faithful')
   const lines = target === 'coa' ? ['import coa_gui as gui'] : target === 'ttkbootstrap' ? ['import tkinter as tk', 'from pathlib import Path', 'import ttkbootstrap as ttk'] : ['import tkinter as tk', 'from tkinter import ttk', 'from pathlib import Path']
   lines.push('')
   const byId = new Map(design.widgets.map((widget) => [widget.id, widget]))

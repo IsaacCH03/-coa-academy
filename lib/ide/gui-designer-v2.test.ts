@@ -95,6 +95,18 @@ describe('COA Designer V2', () => {
     expect(code).not.toMatch(/gui\.Label\([^\n]*(?:font|anchor)=/)
   })
 
+  it('exports stale absolute place metadata from older designs using current local authoring geometry', () => {
+    const design = newV2Design(), frame = nextV2Widget('Frame', []), combo = nextV2Widget('Combobox', [frame], frame.id)
+    design.window.layoutExport = undefined
+    frame.name = 'frame1'; frame.layout = { ...frame.layout, x: 35, y: 137, width: 1017, height: 175 }; frame.authoring = { x: 35, y: 137, width: 1017, height: 175 }
+    combo.name = 'combo1'; combo.layout = { ...combo.layout, x: 255, y: 240, width: 180, height: 32 }; combo.authoring = { x: 220, y: 103, width: 180, height: 32 }
+    design.widgets = [frame, combo]
+    const code = generateV2Code(design, 'ttkbootstrap', 'class')
+    expect(code).toContain('self.frame1.place(x=35, y=137, width=1017, height=175)')
+    expect(code).toContain('self.combo1.place(x=220, y=103, width=180, height=32)')
+    expect(code).not.toContain('self.combo1.place(x=255, y=240')
+  })
+
   it('imports the reported multiline ttkbootstrap interface with an acyclic hierarchy', () => {
     const source = readFileSync(new URL('./fixtures/ttkbootstrap-designer-regression.py', import.meta.url), 'utf8')
     const design = importGeneratedGui(source)
