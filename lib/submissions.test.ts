@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { MAX_SUBMISSION_BYTES, MAX_SUBMISSION_FILES, submissionExtension, submissionStoragePath, validateSubmissionFile, validateSubmissionFiles } from './submissions'
 
 describe('submission files', () => {
+  it('applies configurable per-file limits for live assignments', () => {
+    expect(validateSubmissionFiles([{ name: 'a.pdf', size: 6 * 1024 * 1024 }], 3, 5 * 1024 * 1024, true)).toContain('Cada archivo')
+    expect(validateSubmissionFiles([{ name: 'a.pdf', size: 4 * 1024 * 1024 }, { name: 'b.pdf', size: 4 * 1024 * 1024 }], 3, 5 * 1024 * 1024, true)).toBeNull()
+  })
   it('creates a stable private path without exposing the original filename', () => {
     const path = submissionStoragePath('11111111-1111-4111-8111-111111111111', 'python-practico-m1-proyecto', '22222222-2222-4222-8222-222222222222')
     expect(path).toBe('11111111-1111-4111-8111-111111111111/python-practico-m1-proyecto/22222222-2222-4222-8222-222222222222')

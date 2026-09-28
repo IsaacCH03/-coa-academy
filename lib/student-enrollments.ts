@@ -6,12 +6,12 @@ export type StudentEnrollment = {
   id: string
   status: EnrollmentStatus
   enrolled_at: string
-  courses: { slug: string; title: string; status: string } | null
+  courses: { slug: string; title: string; status: string; delivery_mode?: 'self_paced' | 'live_group' } | null
 }
 
 export type StudentEnrollmentResult =
   | { status: 'guest' | 'not-student' | 'error'; enrollments: [] }
-  | { status: 'success'; enrollments: StudentEnrollment[] }
+  | { status: 'success'; enrollments: StudentEnrollment[]; userId?: string }
 
 export async function getCurrentStudentEnrollments(): Promise<StudentEnrollmentResult> {
   const account = await getCurrentAccount()
@@ -21,16 +21,18 @@ export async function getCurrentStudentEnrollments(): Promise<StudentEnrollmentR
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('enrollments')
-    .select('id, status, enrolled_at, courses!inner(slug, title, status)')
+    .select('id, status, enrolled_at, courses!inner(slug, title, status, delivery_mode)')
     .eq('student_id', account.user.id)
     .order('enrolled_at', { ascending: false })
 
   if (error) return { status: 'error', enrollments: [] }
-  return { status: 'success', enrollments: (data ?? []) as unknown as StudentEnrollment[] }
+  return { status: 'success', enrollments: (data ?? []) as unknown as StudentEnrollment[], userId: account.user.id }
 }
 
 export function accessibleEnrollments(enrollments: StudentEnrollment[]) {
   return enrollments.filter((enrollment) =>
-    enrollment.status === 'active' && enrollment.courses?.status === 'published',
+    enrollment.status === 'active' &&
+    enrollment.courses?.status === 'published' &&
+    enrollment.courses.delivery_mode !== 'live_group',
   )
 }

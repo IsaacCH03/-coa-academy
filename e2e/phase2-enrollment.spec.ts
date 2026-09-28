@@ -9,12 +9,18 @@ test.describe('Fase 2 pública y protección de rutas', () => {
     await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion\?next=%2Finscripcion%2Fpython-practico$/)
   })
 
-  test('un curso pago abre WhatsApp y no una inscripción interna inexistente', async ({ page }) => {
+  test('un curso en vivo inicia la inscripción interna antes de asignar un grupo', async ({ page }) => {
     await page.goto('/cursos/python-nivel-1')
     const enrollment = page.getByRole('link', { name: 'Inscribirme' })
-    await expect(enrollment).toHaveAttribute('href', /https:\/\/wa\.me\/50660045660\?text=/)
-    await expect(enrollment).toHaveAttribute('href', /Python%20Nivel%201/)
-    await expect(enrollment).not.toHaveAttribute('href', /\/inscripcion\//)
+    await expect(enrollment).toHaveAttribute('href', '/inscripcion/python-nivel-1')
+    await enrollment.click()
+    await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion\?next=%2Finscripcion%2Fpython-nivel-1$/)
+  })
+
+  test('Python Intermedio también inicia la inscripción interna', async ({ page }) => {
+    await page.goto('/cursos/python-intermedio')
+    const enrollment = page.getByRole('link', { name: 'Inscribirme' })
+    await expect(enrollment).toHaveAttribute('href', '/inscripcion/python-intermedio')
   })
 
   test('un visitante no abre inscripción ni contenido académico privado', async ({ page }) => {
@@ -31,6 +37,8 @@ test.describe('Fase 2 pública y protección de rutas', () => {
   test('un visitante no abre la administración de cursos', async ({ page }) => {
     await page.goto('/admin/cursos/python-practico')
     await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion\?next=%2Fadmin%2Fcursos%2Fpython-practico$/)
+    await page.goto('/admin/grupos/00000000-0000-0000-0000-000000000000/preview')
+    await expect(page).toHaveURL(/\/cuenta\/iniciar-sesion/)
   })
 
   test('el catálogo y certificados continúan públicos', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { MAX_SUBMISSION_BYTES, MAX_SUBMISSION_FILES, validateSubmissionFiles } from '@/lib/submissions'
+import { validateSubmissionFiles } from '@/lib/submissions'
 
 const bucket = 'academic-submissions'
 type UploadedMetadata = { storage_path: string; original_filename: string; stored_filename: string; size_bytes: number; mime_type: string }
@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ act
   if (!user) return NextResponse.json({ error: 'Debes iniciar sesión para consultar tu entrega.' }, { status: 401 })
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle<{ role: 'student' | 'admin' }>()
   if (profile?.role === 'admin') return NextResponse.json({ mode: 'admin', submission: null })
-  const { data: activity, error: activityError } = await supabase.from('activities').select('id').eq('id', activityId).maybeSingle()
+  const { data: activity, error: activityError } = await supabase.from('activities').select('id,max_files,max_file_size_bytes,due_at').eq('id', activityId).maybeSingle<{id:string;max_files:number;max_file_size_bytes:number;due_at:string|null}>()
   if (activityError) return NextResponse.json({ error: 'Las entregas internas todavía no están disponibles.' }, { status: 503 })
   if (!activity) return NextResponse.json({ error: 'Necesitas una matrícula activa para realizar esta entrega.' }, { status: 403 })
   const { data, error } = await supabase.from('submissions')
@@ -33,7 +33,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ act
   const { data: standaloneRecord } = data ? { data: null } : await supabase.from('student_activity_records').select('status, feedback, convalidation_note, reviewed_at').eq('student_id', user.id).eq('activity_id', activityId).maybeSingle()
   if (error) return NextResponse.json({ error: 'Las entregas internas todavía no están disponibles.' }, { status: 503 })
   const submission = data ? { ...data, files: (data.submission_files ?? []).filter((file: { file_deleted_at: string | null }) => !file.file_deleted_at), record: Array.isArray(data.student_activity_records) ? data.student_activity_records[0] : data.student_activity_records } : null
-  return NextResponse.json({ mode: 'student', submission, record: submission?.record ?? standaloneRecord, settings: { maxFiles: MAX_SUBMISSION_FILES, maxTotalBytes: MAX_SUBMISSION_BYTES } })
+  return NextResponse.json({ mode: 'student', submission, record: submission?.record ?? standaloneRecord, settings: { maxFiles: activity.max_files, maxFileBytes: activity.max_file_size_bytes, closed: !!activity.due_at&&new Date(activity.due_at)<new Date() } })
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ activityId: string }> }) {
@@ -43,7 +43,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   if (!user) return NextResponse.json({ error: 'Debes iniciar sesión para entregar una actividad.' }, { status: 401 })
   const formData = await request.formData()
   const files = formData.getAll('files').filter((item): item is File => item instanceof File)
-  const validationError = validateSubmissionFiles(files)
+  const {data:activity}=await supabase.from('activities').select('max_files,max_file_size_bytes,due_at').eq('id',activityId).maybeSingle<{max_files:number;max_file_size_bytes:number;due_at:string|null}>()
+  if(!activity)return NextResponse.json({error:'No tienes acceso a esta actividad.'},{status:403})
+  if(activity.due_at&&new Date(activity.due_at)<new Date())return NextResponse.json({error:'El plazo de entrega ha finalizado.'},{status:403})
+  const validationError = validateSubmissionFiles(files,activity.max_files,activity.max_file_size_bytes,true)
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
   const { data: preparedData, error: prepareError } = await supabase.rpc('prepare_activity_upload', {
     p_activity_id: activityId,

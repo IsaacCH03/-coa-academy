@@ -17,11 +17,12 @@ export default async function AcademicCoursePage({ params }: { params: Promise<{
   const supabase = await createClient()
   const { data: enrollment } = await supabase
     .from('enrollments')
-    .select('id, courses!inner(slug, status)')
+    .select('id, courses!inner(slug, status, delivery_mode)')
     .eq('student_id', user.id)
     .eq('status', 'active')
     .eq('courses.slug', slug)
     .eq('courses.status', 'published')
+    .eq('courses.delivery_mode', 'self_paced')
     .maybeSingle()
 
   if (!enrollment) redirect('/mi-coa?sin-acceso=curso')

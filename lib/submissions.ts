@@ -20,15 +20,16 @@ export function safeStoredFilename(fileId: string) {
   return fileId
 }
 
-export function validateSubmissionFiles(files: SubmissionFileLike[], maxFiles = MAX_SUBMISSION_FILES, maxBytes = MAX_SUBMISSION_BYTES) {
+export function validateSubmissionFiles(files: SubmissionFileLike[], maxFiles = MAX_SUBMISSION_FILES, maxBytes = MAX_SUBMISSION_BYTES, perFile = false) {
   if (files.length < 1) return 'Selecciona al menos un archivo.'
   if (files.length > maxFiles) return `Puedes entregar un máximo de ${maxFiles} archivos.`
   for (const file of files) {
     if (!file.name.trim()) return 'Todos los archivos deben tener nombre.'
     if (file.name.length > 255) return 'Uno de los nombres de archivo es demasiado largo.'
     if (file.size <= 0) return `El archivo ${file.name} está vacío.`
+    if (perFile && file.size > maxBytes) return `Cada archivo puede pesar como máximo ${Math.round(maxBytes / 1024 / 1024)} MB.`
   }
-  if (files.reduce((total, file) => total + file.size, 0) > maxBytes) return 'El peso combinado supera el límite de 10 MB.'
+  if (!perFile && files.reduce((total, file) => total + file.size, 0) > maxBytes) return 'El peso combinado supera el límite de 10 MB.'
   return null
 }
 

@@ -5,6 +5,7 @@ import { requireAccount } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { enrollmentStatusLabel } from '@/lib/academic'
 import { getCurrentStudentEnrollments } from '@/lib/student-enrollments'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Mi COA | C.O.A' }
 
@@ -15,6 +16,8 @@ export default async function StudentDashboard({ searchParams }: { searchParams:
   const result = await getCurrentStudentEnrollments()
   const enrollments = result.enrollments
   const error = result.status === 'error'
+  const supabase=await createClient()
+  const{data:groupMemberships}=await supabase.from('live_group_members').select('group_id,joined_at,live_groups!inner(slug,name,status,courses(title))').eq('student_id',user.id).in('live_groups.status',['active','finished']).order('joined_at',{ascending:false})
   return (
     <AccountShell title={`Hola, ${profile.full_name}`} eyebrow="Panel del estudiante">
       {params['sin-permiso'] && <div role="alert" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">No tienes permisos para acceder al panel de administración.</div>}
@@ -30,6 +33,7 @@ export default async function StudentDashboard({ searchParams }: { searchParams:
           {enrollments.map((enrollment) => enrollment.courses && <article key={enrollment.id} className="flex flex-col rounded-2xl border border-border bg-background p-6 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-primary">{enrollmentStatusLabel(enrollment.status)}</p><h3 className="mt-2 text-lg font-bold">{enrollment.courses.title}</h3><div className="mt-5 rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Progreso disponible próximamente</div><Link href={`/mi-coa/cursos/${enrollment.courses.slug}`} className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Ver curso</Link></article>)}
         </div>}
       </section>
+      <section className="mt-10" aria-labelledby="mis-grupos"><div className="flex items-center gap-3"><BookOpen className="h-7 w-7 text-primary"/><h2 id="mis-grupos" className="text-2xl font-extrabold">Mis grupos en vivo</h2></div>{!groupMemberships?.length?<p className="mt-5 rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">Todavía no perteneces a un grupo en vivo.</p>:<div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{groupMemberships.map(membership=>{const group=Array.isArray(membership.live_groups)?membership.live_groups[0]:membership.live_groups;return group&&<article key={membership.group_id} className="rounded-2xl border border-border bg-background p-6"><p className="text-xs font-bold uppercase text-primary">{group.courses?.[0]?.title??'Curso en vivo'}</p><h3 className="mt-2 text-lg font-bold">{group.name}</h3><Link href={`/mi-coa/grupos/${group.slug}`} className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Ver grupo</Link></article>})}</div>}</section>
     </AccountShell>
   )
 }

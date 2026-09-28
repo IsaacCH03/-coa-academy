@@ -8,13 +8,18 @@ describe('destino de inscripción de cursos', () => {
     expect(courseEnrollmentHref(course)).toBe('/inscripcion/python-practico')
   })
 
-  it('envía un curso pago a WhatsApp con su nombre y sin ruta interna', () => {
+  it('envía un curso en vivo al flujo interno sin conceder un grupo', () => {
     const course = getCourse('python-nivel-1')!
     const href = courseEnrollmentHref(course)
-    expect(usesWhatsAppEnrollment(course)).toBe(true)
-    expect(href).toMatch(/^https:\/\/wa\.me\/50660045660\?text=/)
-    expect(decodeURIComponent(href)).toContain('Python Nivel 1')
-    expect(href).not.toContain('/inscripcion/')
+    expect(usesWhatsAppEnrollment(course)).toBe(false)
+    expect(href).toBe('/inscripcion/python-nivel-1')
+  })
+
+  it('envía Python Intermedio al mismo flujo interno', () => {
+    const course = getCourse('python-intermedio')!
+    expect(course.deliveryMode).toBe('live_group')
+    expect(usesWhatsAppEnrollment(course)).toBe(false)
+    expect(courseEnrollmentHref(course)).toBe('/inscripcion/python-intermedio')
   })
 
   it('mantiene identificado el curso coming soon', () => {

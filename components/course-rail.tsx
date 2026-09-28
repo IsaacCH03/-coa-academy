@@ -10,6 +10,8 @@ export type CourseRailItem = {
   title: string
   category: string
   image: string
+  href?: string
+  subtitle?: string
 }
 
 export function CourseRail({ courses }: { courses: CourseRailItem[] }) {
@@ -53,7 +55,7 @@ export function CourseRail({ courses }: { courses: CourseRailItem[] }) {
         {courses.map((course) => (
           <Link
             key={course.slug}
-            href={`/mi-coa/cursos/${course.slug}`}
+            href={course.href ?? `/mi-coa/cursos/${course.slug}`}
             className="group w-[78vw] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:w-[300px] lg:w-[340px]"
           >
             <article>
@@ -69,6 +71,7 @@ export function CourseRail({ courses }: { courses: CourseRailItem[] }) {
               <div className="p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">{course.category}</p>
                 <h3 className="mt-2 line-clamp-2 text-lg font-bold text-card-foreground">{course.title}</h3>
+                {course.subtitle && <p className="mt-1 text-sm text-muted-foreground">{course.subtitle}</p>}
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-primary">
                   Continuar <ArrowRight className="h-4 w-4" />
                 </span>

@@ -26,7 +26,8 @@ export async function enrollInCourseAction(_: EnrollmentActionState, formData: F
     .eq('status', 'published')
     .maybeSingle<{ id: string; slug: string; status: string }>()
 
-  if (courseError || !course) return { status: 'error', message: 'No pudimos encontrar un curso disponible con esos datos.' }
+  if (courseError) console.error('[course-enrollment]', { operation: 'enroll-load-course', slug, code: courseError.code, message: courseError.message, details: courseError.details, hint: courseError.hint })
+  if (courseError || !course) return { status: 'error', message: 'No pudimos cargar este curso para matrícula. Inténtalo nuevamente.' }
 
   const { data: currentProfile, error: profileError } = await supabase
     .from('profiles')

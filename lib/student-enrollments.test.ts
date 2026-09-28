@@ -62,6 +62,7 @@ describe('current student enrollments', () => {
       enrollment('completed', 'published', 'sql-bases-datos'),
       enrollment('cancelled', 'published', 'desarrollo-web-django'),
       enrollment('active', 'draft', 'programacion-con-ia'),
+      { ...enrollment('active', 'published', 'python-nivel-1'), courses: { slug: 'python-nivel-1', title: 'Python en vivo', status: 'published', delivery_mode: 'live_group' as const } },
     ]
     expect(accessibleEnrollments(rows).map((row) => row.courses?.slug)).toEqual(['python-practico'])
   })

@@ -23,6 +23,7 @@ export type Course = {
   ctaLabel?: string
   ctaHref?: string
   comingSoon?: boolean
+  deliveryMode?: 'self_paced' | 'live_group'
 }
 
 export const courses: Course[] = [
@@ -76,6 +77,7 @@ export const courses: Course[] = [
       'Curso de Python desde cero con clases prácticas, ejercicios y proyecto final. Duración de ocho semanas.',
     whatsappMessage:
       'Hola, me interesa inscribirme en el curso Python Nivel 1 de C.O.A. Quisiera recibir más información.',
+    deliveryMode: 'live_group',
   },
   {
     slug: 'logica-de-programacion',
@@ -264,6 +266,7 @@ export const courses: Course[] = [
       'Curso de Python intermedio con programación en capas, orientación a objetos, archivos TXT y CSV, Tkinter, Excel y automatización.',
     whatsappMessage:
       'Hola, me interesa inscribirme en el curso Python Intermedio de C.O.A. Quisiera recibir más información.',
+    deliveryMode: 'live_group',
   },
   {
     slug: 'python-practico',
@@ -600,10 +603,12 @@ export function getCourse(slug: string) {
 }
 
 export function usesWhatsAppEnrollment(course: Course) {
+  if (course.deliveryMode === 'live_group') return false
   return Boolean(course.whatsappMessage)
 }
 
 export function courseEnrollmentHref(course: Course) {
+  if (course.deliveryMode === 'live_group') return `/inscripcion/${course.slug}`
   return course.whatsappMessage
     ? createWhatsAppLink(course.whatsappMessage)
     : `/inscripcion/${course.slug}`
