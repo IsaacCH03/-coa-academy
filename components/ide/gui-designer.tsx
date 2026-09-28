@@ -3,7 +3,7 @@ import { Component, useRef, useState, type CSSProperties, type PointerEvent, typ
 import { ChevronDown, ChevronRight, Copy, FileCode2, Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 import type { GuiImportResult } from '@/lib/ide/gui-designer'
 import type { ProjectEntry } from '@/lib/ide/project'
-import { resolvePreviewLayoutDetailed } from '@/lib/ide/gui-layout'
+import { minimumNativeSize, resolvePreviewLayoutDetailed } from '@/lib/ide/gui-layout'
 import { BOOTSTYLES, TTK_THEMES, WIDGET_REGISTRY, childrenOf, descendantsOf, generateV2Code, importGeneratedGui, newV2Design, nextV2Widget, normalizeV2Design, restoreV2Design, validateV2Design, type ExportMode, type LayoutManager, type V2Design, type V2Widget, type V2WidgetType } from '@/lib/ide/gui-designer-v2'
 import { ConfirmDialog } from './confirm-dialog'
 import { GeneratedCodePanel } from './generated-code-panel'
@@ -79,7 +79,7 @@ function GuiDesignerContent({ design: rawDesign, entries=[], onChange, onSave, o
     const bounds = canvas.current?.getBoundingClientRect(), moving = drag.current; if (!bounds || !moving) return
     const widget = widgets.find(item => item.id === moving.id);if(!widget)return
     const currentRect=resolvedDetails.local.get(widget.id)??widget.authoring??widget.layout
-    if(moving.resize){const sx=win.width/bounds.width,sy=win.height/bounds.height,w=Math.max(18,(moving.startWidth??currentRect.width)+(event.clientX-(moving.startX??0))*sx),h=Math.max(8,(moving.startHeight??currentRect.height)+(event.clientY-(moving.startY??0))*sy);onChange({...design,widgets:widgets.map(item=>item.id===moving.id?{...item,authoring:{x:currentRect.x,y:currentRect.y,width:moving.resize==='s'?currentRect.width:Math.round(w),height:moving.resize==='e'?currentRect.height:Math.round(h)}}:item)});return}const parent=widget.parentId?resolvedLayout.get(widget.parentId):undefined,parentWidget=widget.parentId?widgets.find(item=>item.id===widget.parentId):undefined,parentX=(parent?.x??0)+(parentWidget?.padding??0),parentY=(parent?.y??25)+(parentWidget?.padding??0)+(parentWidget?.type==='Labelframe'?22:parentWidget?.type==='Notebook'?34:0),snap=event.altKey?1:8
+    if(moving.resize){const sx=win.width/bounds.width,sy=win.height/bounds.height,minimum=minimumNativeSize(widget,win.framework),w=Math.max(minimum.width,(moving.startWidth??currentRect.width)+(event.clientX-(moving.startX??0))*sx),h=Math.max(minimum.height,(moving.startHeight??currentRect.height)+(event.clientY-(moving.startY??0))*sy);onChange({...design,widgets:widgets.map(item=>item.id===moving.id?{...item,authoring:{x:currentRect.x,y:currentRect.y,width:moving.resize==='s'?currentRect.width:Math.round(w),height:moving.resize==='e'?currentRect.height:Math.round(h)}}:item)});return}const parent=widget.parentId?resolvedLayout.get(widget.parentId):undefined,parentWidget=widget.parentId?widgets.find(item=>item.id===widget.parentId):undefined,parentX=(parent?.x??0)+(parentWidget?.padding??0),parentY=(parent?.y??25)+(parentWidget?.padding??0)+(parentWidget?.type==='Labelframe'?22:parentWidget?.type==='Notebook'?34:0),snap=event.altKey?1:8
     const x = Math.max(0, Math.round(((event.clientX - bounds.left) * win.width / bounds.width - moving.dx - parentX)/snap)*snap), y = Math.max(0, Math.round(((event.clientY - bounds.top) * win.height / bounds.height - moving.dy - parentY)/snap)*snap)
     onChange({ ...design, widgets: widgets.map(item => item.id === moving.id ? { ...item, authoring: {x,y,width:currentRect.width,height:currentRect.height} } : item) })
   }

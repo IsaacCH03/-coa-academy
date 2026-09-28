@@ -1,5 +1,5 @@
 import { generateGuiCode as generateLegacyGuiCode, type GuiControl, type GuiDesign as LegacyGuiDesign, type GuiImportResult, type ImportedGuiSource } from './gui-designer'
-import { compileLayoutForExport, resolvePreviewLayoutDetailed } from './gui-layout'
+import { compileLayoutForExport, resolvePreviewLayoutDetailed, safeTreeColumnWidth } from './gui-layout'
 
 export type DesignerTarget = 'coa' | 'tkinter' | 'ttkbootstrap'
 export type ExportMode = 'simple' | 'functions' | 'class'
@@ -277,8 +277,8 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
     const unsupported = design.widgets.filter((widget) => !WIDGET_REGISTRY[widget.type].coa)
     if (unsupported.length) throw new Error(`COA GUI todavía no admite: ${[...new Set(unsupported.map((item) => item.type))].join(', ')}.`)
   }
-  if(design.window.layoutExport)design=compileLayoutForExport(design,design.window.layoutExport)
-  else if(design.widgets.length&&design.widgets.every(widget=>widget.layout.manager==='place'))design=compileLayoutForExport(design,'faithful')
+  if(design.window.layoutExport)design=compileLayoutForExport(design,design.window.layoutExport,target)
+  else if(design.widgets.length&&design.widgets.every(widget=>widget.layout.manager==='place'))design=compileLayoutForExport(design,'faithful',target)
   const lines = target === 'coa' ? ['import coa_gui as gui'] : target === 'ttkbootstrap' ? ['import tkinter as tk', 'from pathlib import Path', 'import ttkbootstrap as ttk'] : ['import tkinter as tk', 'from tkinter import ttk', 'from pathlib import Path']
   lines.push('')
   const byId = new Map(design.widgets.map((widget) => [widget.id, widget]))
@@ -304,7 +304,7 @@ export function generateV2Code(design: V2Design, target = design.window.framewor
       const tabRef = `${ref(widget, mode)}_${tab.id.replace(/[^A-Za-z0-9_]/g, '_')}`
       out.push(`${indent}${tabRef} = ttk.Frame(${ref(widget, mode)})`, `${indent}${ref(widget, mode)}.add(${tabRef}, text=${py(tab.text)})`)
     }
-    if (widget.type === 'Treeview') for (const column of widget.columns ?? []) out.push(`${indent}${ref(widget, mode)}.heading(${py(column.id)}, text=${py(column.heading)})`, `${indent}${ref(widget, mode)}.column(${py(column.id)}, width=${column.width}, anchor=${py(column.anchor)}, stretch=${column.stretch === false ? 'False' : 'True'})`)
+    if (widget.type === 'Treeview') for (const column of widget.columns ?? []) out.push(`${indent}${ref(widget, mode)}.heading(${py(column.id)}, text=${py(column.heading)})`, `${indent}${ref(widget, mode)}.column(${py(column.id)}, width=${target==='coa'?column.width:safeTreeColumnWidth(column,widget.fontSize??13)}, anchor=${py(column.anchor)}, stretch=${column.stretch === false ? 'False' : 'True'})`)
     if (widget.rowWeights) for (const [index, weight] of widget.rowWeights.split(',').map(Number).entries()) if (Number.isFinite(weight)) out.push(`${indent}${ref(widget, mode)}.rowconfigure(${index}, weight=${weight})`)
     if (widget.columnWeights) for (const [index, weight] of widget.columnWeights.split(',').map(Number).entries()) if (Number.isFinite(weight)) out.push(`${indent}${ref(widget, mode)}.columnconfigure(${index}, weight=${weight})`)
     out.push(`${indent}${layoutLine(widget, mode)}`)
@@ -428,7 +428,7 @@ export function importGeneratedGui(source: string): V2Design | null {
   design.widgets=design.widgets.map((widget,index)=>({widget,index})).sort((left,right)=>geometryOrder(left.widget)-geometryOrder(right.widget)||left.index-right.index).map(item=>item.widget)
   if(!(design.widgets.length||geometry||title))return null
   const normalized=normalizeV2Design(design).design,layout=resolvePreviewLayoutDetailed(normalized)
-  normalized.widgets=normalized.widgets.map(widget=>({...widget,authoring:layout.local.get(widget.id)}))
+  normalized.widgets=normalized.widgets.map(widget=>({...widget,authoring:widget.layout.manager==='place'?{x:widget.layout.x,y:widget.layout.y,width:widget.layout.width,height:widget.layout.height}:layout.local.get(widget.id)}))
   return normalized
 }
 

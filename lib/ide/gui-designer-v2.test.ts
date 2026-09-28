@@ -103,7 +103,7 @@ describe('COA Designer V2', () => {
     design.widgets = [frame, combo]
     const code = generateV2Code(design, 'ttkbootstrap', 'class')
     expect(code).toContain('self.frame1.place(x=35, y=137, width=1017, height=175)')
-    expect(code).toContain('self.combo1.place(x=220, y=103, width=180, height=32)')
+    expect(code).toContain('self.combo1.place(x=220, y=103, width=180, height=41)')
     expect(code).not.toContain('self.combo1.place(x=255, y=240')
   })
 
