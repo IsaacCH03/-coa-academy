@@ -53,4 +53,37 @@ export const certificados: Certificado[] = [
     fechaEmision: '25/09/2026',
     estado: 'valido',
   },
+   {
+    codigo: 'COA-PYB-2026-0004',
+    nombre: 'Angel Harett Cordero Martínez',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '30/09/2026',
+    estado: 'valido',
+  },
+   {
+    codigo: 'COA-PYB-2026-0005',
+    nombre: 'Uriel Granados Morales',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '30/09/2026',
+    estado: 'valido',
+  },
+   {
+    codigo: 'COA-PYB-2026-0006',
+    nombre: 'Wendy Mena Mora',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '30/09/2026',
+    estado: 'valido',
+  },
+   {
+    codigo: 'COA-PYB-2026-0007',
+    nombre: 'Randall Jimenez Marin',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '30/09/2026',
+    estado: 'valido',
+  },
+  
 ]
