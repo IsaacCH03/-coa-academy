@@ -3,7 +3,7 @@ import { MAX_SUBMISSION_BYTES, MAX_SUBMISSION_FILES, submissionExtension, submis
 
 describe('submission files', () => {
   it('applies configurable per-file limits for live assignments', () => {
-    expect(validateSubmissionFiles([{ name: 'a.pdf', size: 6 * 1024 * 1024 }], 3, 5 * 1024 * 1024, true)).toContain('Cada archivo')
+    expect(validateSubmissionFiles([{ name: 'a.pdf', size: 6 * 1024 * 1024 }], 3, 5 * 1024 * 1024, true)).toBe('El archivo a.pdf supera el límite permitido de 5 MB.')
     expect(validateSubmissionFiles([{ name: 'a.pdf', size: 4 * 1024 * 1024 }, { name: 'b.pdf', size: 4 * 1024 * 1024 }], 3, 5 * 1024 * 1024, true)).toBeNull()
   })
   it('creates a stable private path without exposing the original filename', () => {

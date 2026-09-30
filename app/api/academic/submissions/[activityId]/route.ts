@@ -41,7 +41,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Debes iniciar sesión para entregar una actividad.' }, { status: 401 })
-  const formData = await request.formData()
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
+    return NextResponse.json({ error: 'No pudimos leer los archivos. Comprueba que no superen el límite permitido.' }, { status: 413 })
+  }
   const files = formData.getAll('files').filter((item): item is File => item instanceof File)
   const {data:activity}=await supabase.from('activities').select('max_files,max_file_size_bytes,due_at').eq('id',activityId).maybeSingle<{max_files:number;max_file_size_bytes:number;due_at:string|null}>()
   if(!activity)return NextResponse.json({error:'No tienes acceso a esta actividad.'},{status:403})

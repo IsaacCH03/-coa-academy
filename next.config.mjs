@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Los materiales administrativos admiten hasta 50 MB. El margen adicional
+    // cubre los headers y boundaries de multipart/form-data.
+    serverActions: { bodySizeLimit: '51mb' },
+    proxyClientMaxBodySize: '51mb',
+  },
   async headers() {
     const globalSecurityHeaders = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

@@ -27,7 +27,7 @@ export function validateSubmissionFiles(files: SubmissionFileLike[], maxFiles = 
     if (!file.name.trim()) return 'Todos los archivos deben tener nombre.'
     if (file.name.length > 255) return 'Uno de los nombres de archivo es demasiado largo.'
     if (file.size <= 0) return `El archivo ${file.name} está vacío.`
-    if (perFile && file.size > maxBytes) return `Cada archivo puede pesar como máximo ${Math.round(maxBytes / 1024 / 1024)} MB.`
+    if (perFile && file.size > maxBytes) return `El archivo ${file.name} supera el límite permitido de ${Math.round(maxBytes / 1024 / 1024)} MB.`
   }
   if (!perFile && files.reduce((total, file) => total + file.size, 0) > maxBytes) return 'El peso combinado supera el límite de 10 MB.'
   return null

@@ -28,13 +28,14 @@ export function SubmissionUploader({ activityId,maxFiles=MAX_SUBMISSION_FILES,ma
   const [loading, setLoading] = useState(true)
   const [available, setAvailable] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [limits, setLimits] = useState({ maxFiles, maxFileBytes, closed })
   const endpoint = `/api/academic/submissions/${encodeURIComponent(activityId)}`
 
   useEffect(() => {
     const controller = new AbortController()
     fetch(endpoint, { signal: controller.signal }).then(async (response) => {
       const body = await response.json()
-      if (response.ok) { setMode(body.mode ?? 'student'); setSubmission(body.submission); setRecord(body.submission?.record ?? body.record ?? null) }
+      if (response.ok) { setMode(body.mode ?? 'student'); setSubmission(body.submission); setRecord(body.submission?.record ?? body.record ?? null); if(body.settings)setLimits({maxFiles:body.settings.maxFiles,maxFileBytes:body.settings.maxFileBytes,closed:body.settings.closed}) }
       else if (response.status === 401) setMessage('Inicia sesión y matricúlate para realizar esta entrega.')
       else { setAvailable(false); setMessage(body.error) }
     }).catch((error) => { if (error.name !== 'AbortError') setMessage('No pudimos consultar tu entrega.') }).finally(() => setLoading(false))
@@ -43,40 +44,42 @@ export function SubmissionUploader({ activityId,maxFiles=MAX_SUBMISSION_FILES,ma
 
   const addFiles = useCallback((incoming: FileList | File[]) => {
     const next = [...files, ...Array.from(incoming)]
-    const error = validateSubmissionFiles(next,maxFiles,maxFileBytes,true)
+    const error = validateSubmissionFiles(next,limits.maxFiles,limits.maxFileBytes,true)
     if (error) { setMessage(error); return }
     setFiles(next); setMessage('')
-  }, [files,maxFileBytes,maxFiles])
+  }, [files,limits.maxFileBytes,limits.maxFiles])
 
   const upload = useCallback(async () => {
     if (uploading || !available) return
-    const error = validateSubmissionFiles(files,maxFiles,maxFileBytes,true)
+    const error = validateSubmissionFiles(files,limits.maxFiles,limits.maxFileBytes,true)
     if (error) { setMessage(error); return }
     setUploading(true); setMessage('')
     const formData = new FormData(); files.forEach((file) => formData.append('files', file))
     try {
       const response = await fetch(endpoint, { method: 'POST', body: formData })
-      const body = await response.json()
+      const text = await response.text()
+      const body = text ? (()=>{try{return JSON.parse(text)}catch{return{}}})() : {}
+      if(response.status===413)throw new Error(`El archivo supera el límite permitido de ${formatFileSize(limits.maxFileBytes)}.`)
       if (!response.ok) throw new Error(body.error || 'No pudimos completar la entrega.')
       setSubmission(body.submission); setRecord(body.submission.record); setFiles([])
       setMessage('Entrega guardada correctamente. Ahora está en revisión.')
       if (inputRef.current) inputRef.current.value = ''
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No pudimos completar la entrega.') }
     finally { setUploading(false) }
-  }, [available, endpoint, files, maxFileBytes,maxFiles,uploading])
+  }, [available, endpoint, files, limits.maxFileBytes,limits.maxFiles,uploading])
 
   if (loading) return <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" /> Consultando entrega…</div>
   if (mode === 'admin') return <div className="mt-6 rounded-xl border border-primary/25 bg-secondary/50 p-5"><h4 className="font-bold">Entrega interna</h4><p className="mt-1 text-sm text-muted-foreground">Vista de inspección administrativa. Revisa las entregas desde el expediente del estudiante.</p></div>
   const effective = record ?? { status: submission ? 'under_review' : 'pending', feedback: null, convalidation_note: null } as RecordState
   const total = files.reduce((sum, file) => sum + file.size, 0)
-  const canSubmit = !closed&&(effective.status === 'pending' || effective.status === 'correction' || effective.status === 'under_review')
+  const canSubmit = !limits.closed&&(effective.status === 'pending' || effective.status === 'correction' || effective.status === 'under_review')
 
   return <div className="mt-6 rounded-xl border border-primary/25 bg-background p-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="font-bold">Entrega interna</h4><p className="mt-1 text-sm text-muted-foreground">Hasta {maxFiles} archivos; máximo {formatFileSize(maxFileBytes)} por archivo.</p></div><span className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4" />{closed?'Entrega cerrada':statusCopy[effective.status].label}</span></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="font-bold">Entrega interna</h4><p className="mt-1 text-sm text-muted-foreground">Hasta {limits.maxFiles} archivos; máximo {formatFileSize(limits.maxFileBytes)} por archivo.</p></div><span className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4" />{limits.closed?'Entrega cerrada':statusCopy[effective.status].label}</span></div>
     <div className="mt-4 rounded-lg bg-secondary/60 p-4 text-sm"><p className="font-semibold">{statusCopy[effective.status].detail}</p>{effective.feedback && <p className="mt-2"><strong>Retroalimentación:</strong> {effective.feedback}</p>}{effective.convalidation_note && <p className="mt-2"><strong>Nota:</strong> {effective.convalidation_note}</p>}</div>
     {submission && <div className="mt-4 text-sm"><p className="font-semibold">Archivos entregados · {formatDate(submission.submitted_at)}</p><ul className="mt-2 space-y-1">{(submission.files ?? []).map((file) => <li key={file.id}>{file.original_filename} · {formatFileSize(file.size_bytes)}</li>)}</ul></div>}
-    {canSubmit && <><label onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); addFiles(event.dataTransfer.files) }} className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-primary/30 p-6 text-center hover:border-primary/60"><FileUp className="h-7 w-7 text-primary" /><span className="mt-2 text-sm font-bold">Seleccionar o arrastrar archivos</span><span className="mt-1 text-xs text-muted-foreground">{MAX_SUBMISSION_FILES} archivos · {MAX_SUBMISSION_BYTES / 1024 / 1024} MB combinados</span><input ref={inputRef} multiple type="file" className="sr-only" disabled={uploading || !available} onChange={(event) => event.target.files && addFiles(event.target.files)} /></label>
-      {files.length > 0 && <div className="mt-4 rounded-xl border border-border p-4"><p className="font-bold">Archivos seleccionados</p><ul className="mt-3 space-y-2">{files.map((file, index) => <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate">{file.name} · {formatFileSize(file.size)}</span><button type="button" className="inline-flex items-center gap-1 font-bold text-destructive" onClick={() => setFiles(files.filter((_, itemIndex) => itemIndex !== index))}><X className="h-4 w-4" />Quitar</button></li>)}</ul><p className="mt-3 text-xs text-muted-foreground">{files.length} de {maxFiles} archivos · {formatFileSize(total)} seleccionados</p><button type="button" disabled={uploading} onClick={() => void upload()} className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50">{uploading ? 'Entregando…' : submission ? 'Volver a entregar' : 'Entregar'}</button></div>}</>}
+    {canSubmit && <><label onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); addFiles(event.dataTransfer.files) }} className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-primary/30 p-6 text-center hover:border-primary/60"><FileUp className="h-7 w-7 text-primary" /><span className="mt-2 text-sm font-bold">Seleccionar o arrastrar archivos</span><span className="mt-1 text-xs text-muted-foreground">Hasta {limits.maxFiles} archivos de {formatFileSize(limits.maxFileBytes)} cada uno</span><input ref={inputRef} multiple type="file" className="sr-only" disabled={uploading || !available} onChange={(event) => event.target.files && addFiles(event.target.files)} /></label>
+      {files.length > 0 && <div className="mt-4 rounded-xl border border-border p-4"><p className="font-bold">Archivos seleccionados</p><ul className="mt-3 space-y-2">{files.map((file, index) => <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate">{file.name} · {formatFileSize(file.size)}</span><button type="button" className="inline-flex items-center gap-1 font-bold text-destructive" onClick={() => setFiles(files.filter((_, itemIndex) => itemIndex !== index))}><X className="h-4 w-4" />Quitar</button></li>)}</ul><p className="mt-3 text-xs text-muted-foreground">{files.length} de {limits.maxFiles} archivos · {formatFileSize(total)} seleccionados</p><button type="button" disabled={uploading} onClick={() => void upload()} className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50">{uploading ? 'Entregando…' : submission ? 'Volver a entregar' : 'Entregar'}</button></div>}</>}
     {message && <p role="status" className="mt-3 text-sm text-muted-foreground">{message}</p>}
   </div>
 }

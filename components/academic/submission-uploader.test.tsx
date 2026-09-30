@@ -45,4 +45,27 @@ describe('SubmissionUploader', () => {
     expect(options).toEqual(expect.objectContaining({ method: 'POST' }))
     expect((options?.body as FormData).getAll('files')).toHaveLength(2)
   })
+
+  it('uses the activity limit before uploading and reports the exact maximum', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ submission: null, settings: { maxFiles: 3, maxFileBytes: 5 * 1024 * 1024, closed: false } }), { status: 200 }))
+    render(<SubmissionUploader activityId="live-activity" />)
+    await screen.findByText(/5\.0 MB cada uno/)
+    const file = new File(['x'], 'grande.pdf', { type: 'application/pdf' })
+    Object.defineProperty(file, 'size', { value: 6 * 1024 * 1024 })
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } })
+    expect(await screen.findByText('El archivo grande.pdf supera el límite permitido de 5 MB.')).toBeTruthy()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts a file above 10 MB when the activity allows 20 MB', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ submission: null, settings: { maxFiles: 2, maxFileBytes: 20 * 1024 * 1024, closed: false } }), { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({ submission: submitted }), { status: 200 }))
+    render(<SubmissionUploader activityId="live-activity" />)
+    await screen.findByText(/20\.0 MB cada uno/)
+    const file = new File(['x'], 'proyecto.zip', { type: 'application/zip' })
+    Object.defineProperty(file, 'size', { value: 11 * 1024 * 1024 })
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } })
+    expect(await screen.findByText(/proyecto\.zip · 11\.0 MB/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Entregar' }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+  })
 })

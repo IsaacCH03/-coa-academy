@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('supabase/migrations/20260925000000_academic_beta_workflow.sql', 'utf8')
+const perFileLimitFix = readFileSync('supabase/migrations/20261002000000_fix_default_submission_per_file_limit.sql', 'utf8')
 
 describe('academic beta migration security and data preservation', () => {
   it('normalizes files and migrates the existing Phase 3B metadata', () => {
@@ -39,5 +40,13 @@ describe('academic beta migration security and data preservation', () => {
     expect(sql).toContain("array_length(storage.foldername(name),1)=3")
     expect(sql).toContain('academic_files_own_or_admin_delete_v2')
     expect(sql).not.toMatch(/service_role/i)
+  })
+})
+
+describe('default submission size correction', () => {
+  it('allows 10 MB per default file without overwriting custom totals', () => {
+    expect(perFileLimitFix).toContain('set max_total_size_bytes = max_files * 10485760')
+    expect(perFileLimitFix).toContain('and max_total_size_bytes = 10485760')
+    expect(perFileLimitFix).toContain('alter column max_total_size_bytes set default 52428800')
   })
 })
