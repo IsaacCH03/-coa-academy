@@ -23,7 +23,7 @@ export default async function GroupAdminPage({params,searchParams}:{params:Promi
     supabase.from('live_group_members').select('student_id,profiles(full_name)').eq('group_id',id).order('joined_at'),
     supabase.from('live_group_sections').select('id,title,status,display_order,live_group_items(id,item_type,title,content,url,original_filename,due_at,status,activity_id,display_order,max_files,max_file_size_bytes)').eq('group_id',id).order('display_order').order('display_order',{referencedTable:'live_group_items'}),
     supabase.from('live_group_announcements').select('id,title,message,published_at').eq('group_id',id).order('published_at',{ascending:false}),
-    q.length>=2?supabase.from('enrollments').select('student_id,profiles!enrollments_student_id_fkey(full_name)').eq('course_id',group.course_id).eq('status','active').ilike('profiles.full_name',`%${q}%`).limit(20):Promise.resolve({data:[]}),
+    q.length>=2?supabase.from('enrollments').select('student_id,profiles!enrollments_student_id_fkey!inner(full_name)').eq('course_id',group.course_id).eq('status','active').ilike('profiles.full_name',`%${q}%`).limit(20):Promise.resolve({data:[]}),
   ])
   const memberIds=new Set((members??[]).map(member=>member.student_id))
   const available=(candidates??[]).filter(candidate=>!memberIds.has(candidate.student_id))
