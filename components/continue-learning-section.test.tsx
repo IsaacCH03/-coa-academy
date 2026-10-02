@@ -30,7 +30,7 @@ vi.mock('@/components/course-rail',()=>({
 
 import { ContinueLearningSection } from './continue-learning-section'
 
-const row=(slug:string,status='active',courseStatus='published')=>({id:slug,status,enrolled_at:'2026-09-25T00:00:00Z',courses:{slug,title:slug,status:courseStatus}})
+const row=(slug:string,status='active',courseStatus='published')=>({id:slug,status,enrolled_at:'2026-09-25T00:00:00Z',courses:{id:`course-${slug}`,slug,title:slug,status:courseStatus}})
 const membership=(imagePath:string|null)=>({joined_at:'2026-09-28T00:00:00Z',live_groups:{id:'group-id',slug:'python-r26',name:'Python R26',status:'active',image_path:imagePath,courses:{title:'Python Nivel 1'}}})
 
 describe('ContinueLearningSection',()=>{

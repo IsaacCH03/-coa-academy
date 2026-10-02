@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light',
+  colorScheme: 'light dark',
   themeColor: '#4f5fe0',
 }
 
@@ -33,7 +33,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`light ${poppins.variable} bg-background`}>
+    <html lang="es" suppressHydrationWarning className={`${poppins.variable} bg-background`}>
+      <head><script dangerouslySetInnerHTML={{__html:"try{const d=localStorage.getItem('coa-theme')==='dark';document.documentElement.classList.add(d?'dark':'light')}catch{document.documentElement.classList.add('light')}"}}/></head>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

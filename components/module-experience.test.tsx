@@ -10,6 +10,7 @@ const visitedKey = 'coa-course-visited:test'
 function mount() {
   vi.useFakeTimers()
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => window.setTimeout(() => callback(0), 0))
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => window.clearTimeout(id))
   Object.defineProperty(window, 'scrollY', { configurable: true, value: 0, writable: true })
   const result = render(<ModuleExperience moduleId="test" moduleLabel="Test" items={items}>
     <section id="one" /><section id="two" />
@@ -59,4 +60,18 @@ it('remains usable when browser storage throws', () => {
   fireEvent.scroll(window)
   act(() => vi.advanceTimersByTime(200))
   expect(screen.getByText('100%')).toBeTruthy()
+})
+
+it('adds every rendered delivery point to desktop and mobile navigation', () => {
+  vi.useFakeTimers()
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => window.setTimeout(() => callback(0), 0))
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => window.clearTimeout(id))
+  render(<ModuleExperience moduleId="deliveries" moduleLabel="Test" items={items}>
+    <section id="one"/><section id="two"/>
+    <section data-activity-anchor="delivery-one" data-activity-label="Ejercicios" id="delivery-one"/>
+    <section data-activity-anchor="delivery-two" data-activity-label="Proyecto" id="delivery-two"/>
+  </ModuleExperience>)
+  act(() => vi.runOnlyPendingTimers())
+  expect(screen.getAllByText('Punto de entrega 1: Ejercicios')).toHaveLength(2)
+  expect(screen.getAllByText('Punto de entrega 2: Proyecto')).toHaveLength(2)
 })

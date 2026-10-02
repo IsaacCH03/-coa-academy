@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const nextQuery = next === '/mi-coa' ? '' : `?next=${encodeURIComponent(next)}`
   return (
     <AuthShell title="Inicia sesión" description="Accede a tu espacio personal de Cursos Online Avanzados.">
-      {params.confirmacion === 'correcta' && <p role="status" className="mb-5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">Tu correo fue confirmado correctamente. Ya puedes iniciar sesión.</p>}
+      {params.confirmacion === 'correcta' && <p role="status" className="mb-5 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/35 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">Tu correo fue confirmado correctamente. Ya puedes iniciar sesión.</p>}
       <AuthForm
         action={signInAction}
         fields={[

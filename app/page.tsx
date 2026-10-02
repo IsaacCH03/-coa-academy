@@ -9,6 +9,8 @@ import { WhatsAppFloat } from '@/components/whatsapp-float'
 import { createPublicMetadata, PUBLIC_ORIGIN } from '@/lib/seo'
 import { site } from '@/lib/site'
 import { ContinueLearningSection } from '@/components/continue-learning-section'
+import { PublicLiveGroupBanners } from '@/components/public-live-group-banners'
+import { getPublicLiveGroups } from '@/lib/public-live-groups'
 
 const title = 'C.O.A | Cursos Online Avanzados'
 const description =
@@ -27,14 +29,16 @@ const organizationJsonLd = {
   sameAs: [site.facebookUrl],
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const publicGroups=await getPublicLiveGroups()
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
       <main className="flex-1">
         <HeroSection />
+        <PublicLiveGroupBanners groups={publicGroups} />
         <ContinueLearningSection />
-        <CoursesSection />
+        <CoursesSection publicGroups={publicGroups} />
         <AboutSection />
         <ContactSection />
       </main>

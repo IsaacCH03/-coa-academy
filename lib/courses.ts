@@ -4,6 +4,7 @@ export type Course = {
   slug: string
   title: string
   category: string
+  catalogCategory: CatalogCategory
   level: string
   duration: string
   lessons: number
@@ -29,6 +30,7 @@ export type Course = {
 export const courses: Course[] = [
   {
     slug: 'python-nivel-1',
+    catalogCategory: 'Lenguajes de programación',
     title: 'Python Nivel 1',
     category: 'Programación',
     level: 'Básico',
@@ -81,6 +83,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'logica-de-programacion',
+    catalogCategory: 'Fundamentos',
     title: 'Lógica de Programación',
     category: 'Programación',
     level: 'Nivel básico',
@@ -147,6 +150,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'desarrollo-web-moderno',
+    catalogCategory: 'Tecnología',
     title:
       'Desarrollo Web Moderno con React, Next.js e Inteligencia Artificial',
     category: 'Programación',
@@ -213,6 +217,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'python-intermedio',
+    catalogCategory: 'Lenguajes de programación',
     title: 'Python Intermedio',
     category: 'Programación',
     level: 'Intermedio',
@@ -270,6 +275,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'python-practico',
+    catalogCategory: 'Ruta profesional',
     title: 'Python Práctico',
     category: 'Programación',
     level: 'Intermedio',
@@ -332,6 +338,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'sql-bases-datos',
+    catalogCategory: 'Ruta profesional',
     title: 'SQL y Bases de Datos Relacionales',
     category: 'Tecnología',
     level: 'Inicial a intermedio',
@@ -396,6 +403,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'desarrollo-software-python',
+    catalogCategory: 'Ruta profesional',
     title: 'Desarrollo de Software con Python',
     category: 'Programación',
     level: 'Avanzado',
@@ -462,6 +470,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'desarrollo-web-django',
+    catalogCategory: 'Ruta profesional',
     title: 'Desarrollo de Aplicaciones Web Profesionales con Django',
     category: 'Programación',
     level: 'Avanzado',
@@ -532,6 +541,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'programacion-con-ia',
+    catalogCategory: 'Tecnología',
     title: 'Programación Asistida por Inteligencia Artificial',
     category: 'Programación',
     level: 'Intermedio',
@@ -601,6 +611,15 @@ export const courses: Course[] = [
 export function getCourse(slug: string) {
   return courses.find((c) => c.slug === slug)
 }
+
+export const catalogCategories = [
+  'Fundamentos',
+  'Lenguajes de programación',
+  'Ruta profesional',
+  'Tecnología',
+  'Otros',
+] as const
+export type CatalogCategory = (typeof catalogCategories)[number]
 
 export function usesWhatsAppEnrollment(course: Course) {
   if (course.deliveryMode === 'live_group') return false

@@ -4,7 +4,9 @@ import { Clock, BookOpen, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Course } from '@/lib/courses'
 
-export function CourseCard({ course }: { course: Course }) {
+type CourseCardData = Pick<Course, 'slug'|'title'|'category'|'image'|'short'|'duration'|'modality'|'lessons'|'price'|'billing'|'comingSoon'>
+
+export function CourseCard({ course, href, actionLabel='Ver curso' }: { course: CourseCardData;href?:string;actionLabel?:string }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
@@ -58,8 +60,8 @@ export function CourseCard({ course }: { course: Course }) {
               size="sm"
               className="gap-1 bg-primary font-semibold hover:bg-primary/90"
             >
-              <Link href={`/cursos/${course.slug}`}>
-                Ver curso
+              <Link href={href??`/cursos/${course.slug}`}>
+                {actionLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

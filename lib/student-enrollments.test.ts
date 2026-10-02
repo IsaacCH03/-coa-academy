@@ -21,13 +21,13 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }))
 
-import { accessibleEnrollments, getCurrentStudentEnrollments, type StudentEnrollment } from './student-enrollments'
+import { accessibleEnrollments, dashboardEnrollments, getCurrentStudentEnrollments, type StudentEnrollment } from './student-enrollments'
 
 const enrollment = (status: StudentEnrollment['status'], courseStatus = 'published', slug = 'python-practico'): StudentEnrollment => ({
   id: `${status}-${slug}`,
   status,
   enrolled_at: '2026-09-25T00:00:00Z',
-  courses: { slug, title: slug, status: courseStatus },
+  courses: { id: `course-${slug}`, slug, title: slug, status: courseStatus },
 })
 
 describe('current student enrollments', () => {
@@ -62,8 +62,15 @@ describe('current student enrollments', () => {
       enrollment('completed', 'published', 'sql-bases-datos'),
       enrollment('cancelled', 'published', 'desarrollo-web-django'),
       enrollment('active', 'draft', 'programacion-con-ia'),
-      { ...enrollment('active', 'published', 'python-nivel-1'), courses: { slug: 'python-nivel-1', title: 'Python en vivo', status: 'published', delivery_mode: 'live_group' as const } },
+      { ...enrollment('active', 'published', 'python-nivel-1'), courses: { id: 'live-course', slug: 'python-nivel-1', title: 'Python en vivo', status: 'published', delivery_mode: 'live_group' as const } },
     ]
     expect(accessibleEnrollments(rows).map((row) => row.courses?.slug)).toEqual(['python-practico'])
+  })
+
+  it('hides a live base course only after assignment to its active group', () => {
+    const asyncCourse=enrollment('active','published','python-practico')
+    const liveCourse={...enrollment('active','published','python-nivel-1'),courses:{id:'live-course',slug:'python-nivel-1',title:'Python Nivel 1',status:'published',delivery_mode:'live_group' as const}}
+    expect(dashboardEnrollments([asyncCourse,liveCourse],new Set()).map(row=>row.courses?.slug)).toEqual(['python-practico','python-nivel-1'])
+    expect(dashboardEnrollments([asyncCourse,liveCourse],new Set(['live-course'])).map(row=>row.courses?.slug)).toEqual(['python-practico'])
   })
 })

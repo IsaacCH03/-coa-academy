@@ -50,7 +50,7 @@ export function AuthForm({
         </label>
       ))}
       {state.message && (
-        <div role={state.status === 'error' ? 'alert' : 'status'} className={`rounded-xl border px-4 py-3 text-sm leading-relaxed ${state.status === 'error' ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-emerald-300 bg-emerald-50 text-emerald-800'}`}>
+        <div role={state.status === 'error' ? 'alert' : 'status'} className={`rounded-xl border px-4 py-3 text-sm leading-relaxed ${state.status === 'error' ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/35 text-emerald-800 dark:text-emerald-100'}`}>
           {state.message}
         </div>
       )}

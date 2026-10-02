@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { courseEnrollmentHref, getCourse, usesWhatsAppEnrollment } from './courses'
+import { courseEnrollmentHref, courses, getCourse, usesWhatsAppEnrollment } from './courses'
+
+const expectedCatalogCategories = {
+  'logica-de-programacion': 'Fundamentos',
+  'python-nivel-1': 'Lenguajes de programación',
+  'python-intermedio': 'Lenguajes de programación',
+  'python-practico': 'Ruta profesional',
+  'sql-bases-datos': 'Ruta profesional',
+  'desarrollo-software-python': 'Ruta profesional',
+  'desarrollo-web-django': 'Ruta profesional',
+  'desarrollo-web-moderno': 'Tecnología',
+  'programacion-con-ia': 'Tecnología',
+} as const
+
+describe('clasificación del catálogo', () => {
+  it('clasifica explícitamente todos los cursos por slug', () => {
+    expect(Object.fromEntries(courses.map(course => [course.slug, course.catalogCategory])))
+      .toEqual(expectedCatalogCategories)
+  })
+})
 
 describe('destino de inscripción de cursos', () => {
   it('conserva la inscripción interna para un curso gratuito', () => {

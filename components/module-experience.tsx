@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUp, BookOpen, CheckCircle2, ChevronDown, PartyPopper, Play } from 'lucide-react'
 
@@ -35,6 +35,33 @@ export function ModuleExperience({
   const [visited, setVisited] = useState<string[]>([])
   const [resumePosition, setResumePosition] = useState(0)
   const [showTop, setShowTop] = useState(false)
+  const [deliveryItems, setDeliveryItems] = useState<ModuleTocItem[]>([])
+  const moduleContentRef = useRef<HTMLDivElement>(null)
+  const navigationItems = useMemo(() => {
+    const known = new Set(items.map((item) => item.id))
+    return [...items, ...deliveryItems.filter((item) => !known.has(item.id))]
+  }, [deliveryItems, items])
+
+  useEffect(() => {
+    const content = moduleContentRef.current
+    if (!content) return
+
+    const readDeliveryPoints = () => {
+      const points = Array.from(content.querySelectorAll<HTMLElement>('[data-activity-anchor]')).map((element, index) => ({
+        id: element.dataset.activityAnchor!,
+        label: `Punto de entrega ${index + 1}: ${element.dataset.activityLabel ?? 'Actividad'}`,
+      }))
+      setDeliveryItems(points)
+    }
+    const initialFrame = window.requestAnimationFrame(readDeliveryPoints)
+    const observer = new MutationObserver(readDeliveryPoints)
+    observer.observe(content, { childList: true, subtree: true })
+
+    return () => {
+      window.cancelAnimationFrame(initialFrame)
+      observer.disconnect()
+    }
+  }, [moduleId])
 
   useEffect(() => {
     let storedPosition = 0
@@ -48,7 +75,7 @@ export function ModuleExperience({
     const visitedIds = new Set<string>(
       Array.isArray(storedVisited)
         ? storedVisited.filter((id): id is string =>
-            typeof id === 'string' && items.some((item) => item.id === id))
+            typeof id === 'string' && navigationItems.some((item) => item.id === id))
         : [],
     )
     let position = Number.isFinite(storedPosition) && storedPosition > 0 ? storedPosition : 0
@@ -66,8 +93,8 @@ export function ModuleExperience({
     }
     const update = (persist = false) => {
       const marker = window.innerHeight * 0.38
-      let current = items[0]?.id ?? ''
-      for (const item of items) {
+      let current = navigationItems[0]?.id ?? ''
+      for (const item of navigationItems) {
         const element = document.getElementById(item.id)
         if (element && element.getBoundingClientRect().top <= marker) {
           current = item.id
@@ -103,11 +130,11 @@ export function ModuleExperience({
       window.clearTimeout(saveTimer)
       save()
     }
-  }, [items, storageKey, visitedKey])
+  }, [navigationItems, storageKey, visitedKey])
 
   const progress = useMemo(
-    () => (items.length ? Math.round((visited.length / items.length) * 100) : 0),
-    [items.length, visited.length],
+    () => (navigationItems.length ? Math.round((visited.length / navigationItems.length) * 100) : 0),
+    [navigationItems.length, visited.length],
   )
 
   function goTo(id: string) {
@@ -155,7 +182,7 @@ export function ModuleExperience({
                 className="h-11 w-full appearance-none rounded-xl border border-border bg-card pl-10 pr-10 text-sm font-semibold text-card-foreground outline-none focus:ring-2 focus:ring-ring"
                 aria-label="Índice del módulo"
               >
-                {items.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                {navigationItems.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
@@ -165,7 +192,7 @@ export function ModuleExperience({
                 Contenido
               </p>
               <ul className="max-h-[calc(100vh-10rem)] space-y-1 overflow-y-auto">
-                {items.map((item) => (
+                {navigationItems.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
@@ -185,7 +212,7 @@ export function ModuleExperience({
           </div>
         </aside>
 
-        <div className="min-w-0">
+        <div ref={moduleContentRef} className="min-w-0">
           {children}
 
           <section className="mt-16 rounded-3xl border border-accent/40 bg-secondary p-7 text-center md:p-10">

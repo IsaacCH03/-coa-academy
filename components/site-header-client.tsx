@@ -8,6 +8,8 @@ import { signOutAction } from '@/app/cuenta/actions'
 import type { UserRole } from '@/lib/auth/types'
 import { Button } from '@/components/ui/button'
 import { createWhatsAppLink } from '@/lib/site'
+import { NotificationBell } from '@/components/account/notification-bell'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navLinks = [
   { href: '/#cursos', label: 'Cursos' }, { href: '/#nosotros', label: 'Nosotros' },
@@ -62,11 +64,13 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
           <button ref={moreButton} type="button" onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen} aria-haspopup="menu" aria-controls="more-navigation" className="inline-flex items-center gap-1 text-sm font-medium text-foreground transition-colors hover:text-primary">Más<ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`} /></button>
           {moreOpen && <div id="more-navigation" role="menu" className="absolute right-0 top-full z-[60] mt-3 w-80 overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10">
             {moreLinks.map(({ href, label, description, icon: Icon }) => <Link role="menuitem" key={href} href={href} onClick={() => setMoreOpen(false)} className="flex gap-3 rounded-xl p-3 transition-colors hover:bg-secondary focus-visible:bg-secondary"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><Icon className="h-5 w-5" /></span><span><strong className="block text-sm">{label}</strong><span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{description}</span></span></Link>)}
+            <ThemeToggle/>
           </div>}
         </div>
         <a href={headerWhatsappLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"><MessageCircle className="h-4 w-4" />Escríbenos</a>
       </nav>
-      <div className="hidden xl:block">{account ? <div className="relative" ref={accountRef}>
+      <div className="flex items-center gap-2">{account&&<NotificationBell/>}
+      <div className="hidden items-center gap-2 xl:flex">{account ? <div className="relative" ref={accountRef}>
         <button ref={accountButton} type="button" onClick={() => setAccountOpen((value) => !value)} aria-expanded={accountOpen} aria-haspopup="menu" aria-controls="account-navigation" className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-2.5 text-sm font-semibold shadow-sm transition hover:bg-secondary"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-extrabold text-primary-foreground">{initials(account.fullName)}</span><span className="max-w-32 truncate">{compactName(account.fullName)}</span><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''}`} /></button>
         {accountOpen && <div id="account-navigation" role="menu" className="absolute right-0 top-full z-[60] mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10">
           <div className="border-b border-border px-3 py-3"><strong className="block truncate text-sm">{account.fullName}</strong><span className="mt-1 block text-xs text-muted-foreground">{account.role === 'admin' ? 'Administrador' : 'Estudiante'}</span></div>
@@ -77,11 +81,11 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
         <Button asChild className="h-10 gap-2 bg-primary px-3 font-semibold hover:bg-primary/90"><Link href="/cuenta/iniciar-sesion"><UserRound className="h-4 w-4" />Iniciar sesión</Link></Button>
         <Link href="/cuenta/registro" className="text-sm font-semibold text-primary hover:underline">Registrarse</Link>
       </div>}</div>
-      <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center justify-center rounded-md p-2 text-foreground xl:hidden" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={open}>{open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}</button>
+      <div className="flex items-center gap-2 xl:hidden"><button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center justify-center rounded-md p-2 text-foreground" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={open}>{open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}</button></div></div>
     </div>
     {open && <div className="border-t border-border bg-background xl:hidden"><nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4">
       {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-primary">{link.label}</Link>)}
-      <div className="my-2 border-t border-border pt-2"><p className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Más</p>{moreLinks.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-primary"><Icon className="h-4 w-4 text-primary" />{label}</Link>)}</div>
+      <div className="my-2 border-t border-border pt-2"><p className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Más</p>{moreLinks.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-primary"><Icon className="h-4 w-4 text-primary" />{label}</Link>)}<ThemeToggle compact/></div>
       {account ? <div className="rounded-xl border border-border bg-secondary/50 p-3">
         <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-extrabold text-primary-foreground">{initials(account.fullName)}</span><span className="min-w-0"><strong className="block truncate text-sm">{account.fullName}</strong><span className="block text-xs text-muted-foreground">{account.role === 'admin' ? 'Administrador' : 'Estudiante'}</span></span></div>
         <Link href={dashboardHref} onClick={() => setOpen(false)} className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-primary hover:bg-background"><LayoutDashboard className="h-4 w-4" />{account.role === 'admin' ? 'Panel de administración' : 'Mi COA'}</Link>

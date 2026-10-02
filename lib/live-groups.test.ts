@@ -1,13 +1,19 @@
 import{describe,expect,it}from'vitest'
-import{costaRicaDeadline,isSafeAcademicFilename,liveGroupSlug,resolveLiveGroupCover}from'./live-groups'
+import{costaRicaDeadline,isSafeAcademicFilename,liveGroupCourseId,liveGroupSlug,resolveLiveGroupCover,validateLiveGroupCover}from'./live-groups'
 
 describe('grupos en vivo',()=>{
   it('crea slugs estables',()=>expect(liveGroupSlug('Python H-26')).toBe('python-h-26'))
+  it('exige curso en privados y permite públicos independientes',()=>{expect(()=>liveGroupCourseId('private','')).toThrow(/obligatorio/);expect(liveGroupCourseId('private','course-1')).toBe('course-1');expect(liveGroupCourseId('public','')).toBeNull()})
   it('convierte límites de Costa Rica a UTC',()=>expect(costaRicaDeadline('2026-10-17','23:59')).toBe('2026-10-18T05:59:00.000Z'))
   it('rechaza ejecutables peligrosos',()=>{
     expect(isSafeAcademicFilename('tarea.pdf')).toBe(true)
     expect(isSafeAcademicFilename('tarea.exe')).toBe(false)
     expect(isSafeAcademicFilename('tarea.pdf','application/x-msdownload')).toBe(false)
+  })
+  it('valida MIME, extensión y límite de las portadas',()=>{
+    expect(validateLiveGroupCover({name:'grupo.png',type:'image/png',size:1024})).toBeNull()
+    expect(validateLiveGroupCover({name:'grupo.exe',type:'image/png',size:1024})).toMatch(/PNG/)
+    expect(validateLiveGroupCover({name:'grupo.png',type:'image/png',size:5*1024*1024+1})).toMatch(/5 MB/)
   })
 })
 

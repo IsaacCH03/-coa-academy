@@ -4,7 +4,7 @@ import { safeAuthDestination } from './redirects'
 const origin = 'https://cursoscoa.com'
 
 describe('destinos seguros de autenticación', () => {
-  it.each(['/', '/mi-coa', '/admin', '/cuenta/restablecer', '/inscripcion/python-practico', '/cursos/python-practico/curso', '/cursos/python-practico/curso/modulo-4'])('permite %s', (path) => {
+  it.each(['/', '/mi-coa', '/admin', '/cuenta/restablecer', '/inscripcion/python-practico', '/inscripcion/grupo/python-j26', '/cursos/python-practico/curso', '/cursos/python-practico/curso/modulo-4'])('permite %s', (path) => {
     expect(safeAuthDestination(path, origin)).toBe(path)
   })
 

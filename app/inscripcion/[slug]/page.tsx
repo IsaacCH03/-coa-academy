@@ -33,7 +33,7 @@ export default async function EnrollmentPage({ params, searchParams }: {
     .maybeSingle<{ id: string; title: string; slug: string; status: string; delivery_mode: 'self_paced'|'live_group' }>()
 
   if (courseError) console.error('[course-enrollment]', { operation: 'load-course', slug, code: courseError.code, message: courseError.message, details: courseError.details, hint: courseError.hint })
-  if (courseError || !course) return <AccountShell title="Inscripción no disponible" eyebrow="Matrícula"><p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">No pudimos cargar la información de matrícula de este curso. Inténtalo nuevamente; si el problema continúa, comunícate con COA.</p></AccountShell>
+  if (courseError || !course) return <AccountShell title="Inscripción no disponible" eyebrow="Matrícula"><p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/35 p-5 text-sm text-amber-900 dark:text-amber-100">No pudimos cargar la información de matrícula de este curso. Inténtalo nuevamente; si el problema continúa, comunícate con COA.</p></AccountShell>
   if (course.delivery_mode === 'self_paced' && !contentPath) notFound()
 
   const [{ data: profile, error: profileError }, { data: enrollment }] = await Promise.all([
@@ -44,7 +44,7 @@ export default async function EnrollmentPage({ params, searchParams }: {
   if (profileError || !profile) return <AccountShell title="Inscripción no disponible" eyebrow="Matrícula"><p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">No pudimos consultar tu perfil académico.</p></AccountShell>
 
   if (enrollment || query.estado === 'ya-inscrito') return <AccountShell title={course.title} eyebrow="Matrícula">
-    <div className="max-w-2xl rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-emerald-950">
+    <div className="max-w-2xl rounded-2xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/35 p-6 text-emerald-950 dark:text-emerald-100">
       <CheckCircle2 className="h-8 w-8 text-emerald-700" /><h2 className="mt-4 text-xl font-bold">{course.delivery_mode==='live_group'?'Inscripción recibida':'Ya estás inscrito en este curso.'}</h2>
       <p className="mt-2 text-sm leading-relaxed">{course.delivery_mode==='live_group'?`Ya registramos tu inscripción a ${course.title}. Asegúrate de completar el proceso de pago. Cuando confirmemos tu ingreso, te agregaremos al grupo correspondiente y podrás acceder desde COA.`:'Puedes abrirlo desde tu panel de estudiante.'}</p>
       <div className="mt-5 flex flex-wrap gap-3">{course.delivery_mode==='live_group'?<><a href={createWhatsAppLink(`Hola, completé mi inscripción a ${course.title} y deseo confirmar el proceso.`)} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Hablar por WhatsApp</a><Link href="/" className="inline-flex rounded-xl border border-emerald-700/30 px-4 py-2 text-sm font-bold">Volver al inicio</Link></>:<><Link href={`/mi-coa/cursos/${slug}`} className="inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Ir al curso</Link><Link href="/mi-coa" className="inline-flex rounded-xl border border-emerald-700/30 px-4 py-2 text-sm font-bold">Ir a Mi COA</Link></>}</div>

@@ -9,7 +9,7 @@ const typeLabels = {
 export function ActivityDeliveryPoint({ activityId }: { activityId: string }) {
   const activity = academicActivities.find((item) => item.id === activityId)
   if (!activity) return null
-  return <section data-activity-anchor={activity.id} className="my-10 border-y border-primary/20 py-8">
+  return <section data-activity-anchor={activity.id} data-activity-label={activity.visibleName} className="my-10 border-y border-primary/20 py-8">
     <p className="mb-4 text-sm font-bold uppercase tracking-wide text-primary">Punto de entrega</p>
     <article id={activity.id} className="rounded-2xl border border-primary/25 bg-card p-6 shadow-sm md:p-7">
       <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">{typeLabels[activity.activityType]}</span><span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary">Obligatoria</span></div>

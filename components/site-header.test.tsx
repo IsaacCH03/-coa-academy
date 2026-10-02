@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { SiteHeaderClient } from './site-header-client'
 
-afterEach(cleanup)
+beforeEach(()=>vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({notifications:[]}),{status:200}))))
+afterEach(()=>{cleanup();vi.unstubAllGlobals()})
 
 it('opens and closes Más by click, outside click and Escape',()=>{
   render(<SiteHeaderClient />)
@@ -52,6 +53,7 @@ it('shows the student account and links Mi COA to the student panel',()=>{
   expect(screen.getByRole('menuitem',{name:'Mi COA'}).getAttribute('href')).toBe('/mi-coa')
   expect(screen.getByRole('menuitem',{name:'Cerrar sesión'})).toBeTruthy()
   expect(screen.queryByRole('menuitem',{name:'Panel de administración'})).toBeNull()
+  expect(screen.getByRole('button',{name:'Notificaciones'})).toBeTruthy()
 })
 
 it('shows the admin account and links to the administration panel',()=>{
