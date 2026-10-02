@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 import{cleanup,fireEvent,render,screen}from'@testing-library/react'
+import{useState}from'react'
 import{afterEach,beforeAll,describe,expect,it,vi}from'vitest'
-import{newV2Design}from'@/lib/ide/gui-designer-v2'
+import{newV2Design,nextV2Widget,type V2Design}from'@/lib/ide/gui-designer-v2'
 import{GuiDesigner}from'./gui-designer'
 
 beforeAll(()=>{HTMLDialogElement.prototype.showModal=vi.fn()})
 afterEach(cleanup)
 const setup=()=>{const onChange=vi.fn();render(<GuiDesigner design={newV2Design()} entries={[]} onChange={onChange} onSave={async()=>{}} onAnalyze={async()=>({ok:false as const,reason:'missing' as const})}/>);return onChange}
+const interactiveSetup=(initial:V2Design)=>{function Harness(){const[design,setDesign]=useState(initial);return <GuiDesigner design={design} entries={[]} onChange={setDesign} onSave={async()=>{}} onAnalyze={async()=>({ok:false as const,reason:'missing' as const})}/>}render(<Harness/>)}
 
 describe('rework de COA Designer',()=>{
   it('prepara localmente una especificación para IA',()=>{setup();fireEvent.click(screen.getByRole('button',{name:'Preparar para IA'}));expect(screen.getByTestId('ai-design-spec').textContent).toContain('VENTANAS');expect(screen.getByRole('button',{name:'Copiar para IA'})).toBeTruthy()})
   it('bloquea exportadores experimentales sin modificar el diseño',()=>{const onChange=setup();fireEvent.click(screen.getByText('Experimental',{selector:'summary'}));fireEvent.click(screen.getByRole('button',{name:'Exportar a Tkinter'}));expect(document.querySelector('dialog[aria-label="Función experimental"]')).toBeTruthy();expect(onChange).not.toHaveBeenCalled()})
   it('crea una segunda ventana desde las pestañas',()=>{const onChange=setup();fireEvent.click(screen.getByRole('button',{name:'Crear ventana'}));const dialog=screen.getByRole('dialog',{name:'Crear ventana'});fireEvent.change(dialog.querySelector('input')!,{target:{value:'login'}});fireEvent.click(screen.getByRole('button',{name:'Crear'}));expect(onChange).toHaveBeenCalled();expect(onChange.mock.calls.at(-1)?.[0].windows).toHaveLength(2)})
   it('el zoom visual no modifica las dimensiones del diseño',()=>{const onChange=setup();fireEvent.click(screen.getByRole('button',{name:'Aumentar zoom'}));expect(screen.getByText('125%')).toBeTruthy();expect(onChange).not.toHaveBeenCalled()})
+  it('actualiza bootstyle y padding de LabelFrame en el preview y permite deshacer',()=>{const design=newV2Design(),card=nextV2Widget('Labelframe',[]);design.widgets=[card];interactiveSetup(design);const preview=screen.getByRole('button',{name:`Labelframe ${card.name}`});fireEvent.click(preview);fireEvent.change(screen.getByLabelText('Bootstyle'),{target:{value:'success'}});expect(preview.getAttribute('data-bootstyle')).toBe('success');const padding=screen.getByText('Padding interno').querySelector('input')!;fireEvent.change(padding,{target:{value:'15'}});fireEvent.blur(padding);expect(preview.getAttribute('data-padding')).toBe('15');fireEvent.click(screen.getByRole('button',{name:/Deshacer/}));expect(preview.getAttribute('data-padding')).toBe('0')})
+  it('mantiene texto e icono separados y representa izquierda, derecha y solo icono',()=>{const design=newV2Design(),button=nextV2Widget('Button',[]);button.text='Guardar';design.widgets=[button];interactiveSetup(design);const preview=screen.getByRole('button',{name:`Button ${button.name}`});fireEvent.click(preview);fireEvent.change(screen.getByLabelText('Icono / símbolo'),{target:{value:'✓'}});expect(preview.textContent).toContain('✓ Guardar');fireEvent.change(screen.getByLabelText('Posición del icono'),{target:{value:'right'}});expect(preview.textContent).toContain('Guardar ✓');fireEvent.change(screen.getByLabelText('Posición del icono'),{target:{value:'only'}});expect(preview.textContent?.trim()).toContain('✓');expect(screen.getByDisplayValue('Guardar')).toBeTruthy()})
+  it('el selector integrado actualiza iconos de Label',()=>{const design=newV2Design(),label=nextV2Widget('Label',[]);design.widgets=[label];interactiveSetup(design);const preview=screen.getByRole('button',{name:`Label ${label.name}`});fireEvent.click(preview);fireEvent.click(screen.getByRole('button',{name:'Elegir'}));expect(screen.getByRole('dialog',{name:'Elegir icono o símbolo'})).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'Configuración'}));expect(preview.textContent).toContain('⚙');expect(screen.queryByRole('dialog',{name:'Elegir icono o símbolo'})).toBeNull()})
 })
