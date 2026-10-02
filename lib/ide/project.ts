@@ -26,10 +26,12 @@ export type Project = {
   secondaryTabs?: string[]
 }
 export const extensions = ['py', 'txt', 'csv', 'json', 'md', 'xlsx']
+const designerAssetExtensions = ['png', 'jpg', 'jpeg', 'webp']
 export const MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024
 export const MAX_XLSX_FILE_SIZE = 20 * 1024 * 1024
 export const MAX_PROJECT_SIZE = 30 * 1024 * 1024
 export function fileSizeLimit(path: string) {
+  if (/\.(png|jpe?g|webp)$/i.test(path)) return 5 * 1024 * 1024
   return path.toLowerCase().endsWith('.xlsx')
     ? MAX_XLSX_FILE_SIZE
     : MAX_TEXT_FILE_SIZE
@@ -82,7 +84,7 @@ export function validPath(path: string, kind: ProjectEntry['kind'] = 'file') {
   }
   if (
     kind === 'file' &&
-    !extensions.includes(path.split('.').pop()?.toLowerCase() ?? '')
+    ![...extensions,...designerAssetExtensions].includes(path.split('.').pop()?.toLowerCase() ?? '')
   )
     throw new Error('Puedes abrir archivos .py, .txt, .csv, .json, .md y .xlsx.')
   return path

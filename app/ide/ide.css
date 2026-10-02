@@ -1098,6 +1098,8 @@
   gap: 7px;
   margin: 14px 0 8px;
 }
+.gui-project-name { display:grid;gap:5px;margin-top:10px;color:#b9c9df;font-size:11px; }
+.gui-project-name input { width:100%;padding:8px;background:#0d1828;color:#f0f5ff;border:1px solid #3a506e;border-radius:6px; }
 .gui-design-actions button {
   justify-content: flex-start;
   padding: 8px 10px;
@@ -1192,6 +1194,19 @@
   padding: 8px 10px;
   letter-spacing: 0;
 }
+.gui-zoom-value { display:inline-flex;align-items:center;min-width:42px;justify-content:center;color:#d7e5f8;letter-spacing:0; }
+.gui-window-tabs { display:flex;align-items:center;gap:5px;overflow-x:auto;min-height:44px;padding:6px 12px;border-bottom:1px solid var(--ide-border);background:#101b2b; }
+.gui-window-tabs>button { flex:none;padding:7px 12px;border:1px solid #314866;border-radius:7px;background:#16273d; }
+.gui-window-tabs>button[aria-selected='true'] { color:#fff;background:#294f80;border-color:#5d91d1; }
+.gui-window-tab-actions { display:flex;gap:5px;margin-left:auto; }
+.gui-window-tab-actions button { padding:6px 9px;font-size:10px; }
+.gui-experimental { margin:10px 0;padding:8px;border:1px solid #5f526d;border-radius:7px;background:#211d2b; }
+.gui-experimental summary { cursor:pointer;font-size:11px;font-weight:700;color:#dcc8f1; }
+.gui-experimental p { font-size:10px;color:#b9acc9; }
+.gui-experimental button { width:100%;justify-content:flex-start;margin-top:5px;padding:7px;font-size:10px; }
+.gui-window-dialog { height:auto;max-width:480px; }
+.gui-window-dialog label { display:grid;gap:5px;color:#c8d6e9;font-size:12px; }
+.gui-window-dialog input { padding:9px;background:#0d1623;color:#fff;border:1px solid #4b6485;border-radius:7px; }
 .gui-canvas-scroll {
   flex: 1;
   min-height: 260px;
@@ -1261,6 +1276,8 @@
 .gui-separator { background:#8794a5; }
 .gui-scrollbar { background:linear-gradient(90deg,#dce2e9,#9ba6b3);border:1px solid #87919e; }
 .gui-image { background:#eef1f5;border:1px dashed #8794a5;color:#59677a;padding:5px; }
+.gui-image-property-preview { min-height:110px;display:grid;place-items:center;overflow:hidden;margin:10px 0;border:1px dashed #506783;border-radius:7px;background:#0d1828;color:#9fb0c6; }
+.gui-image-property-preview img { max-width:100%;max-height:150px;object-fit:contain; }
 .gui-theme-dark { color:#f4f6f8; }
 .gui-theme-dark .gui-window-title { background:#30343a;color:#f4f6f8;border-color:#111; }
 .gui-control.layout-pack,.gui-control.layout-grid { margin:0;display:flex;cursor:default; }

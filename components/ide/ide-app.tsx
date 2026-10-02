@@ -849,6 +849,7 @@ export function IdeApp() {
             onChange={(guiDesign) => update((p) => ({ ...p, guiDesign }))}
             onSave={save}
             onAnalyze={(source) => runtime.current!.analyzeGui(source)}
+            onAddAsset={(entry) => update((p) => ({...p,entries:[...p.entries.filter(item=>item.path!==entry.path),entry]}))}
           />
         )}
         <div

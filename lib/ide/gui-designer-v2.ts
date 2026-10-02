@@ -8,7 +8,7 @@ export type V2WidgetType =
   | 'Label' | 'Entry' | 'Button' | 'Frame' | 'Labelframe'
   | 'Combobox' | 'Checkbutton' | 'Radiobutton' | 'Spinbox' | 'Scale'
   | 'Treeview' | 'Progressbar' | 'Notebook' | 'Separator'
-  | 'Canvas' | 'Scrollbar' | 'Text' | 'Image'
+  | 'Canvas' | 'Scrollbar' | 'Text' | 'Image' | 'Listbox'
 
 export type LayoutConfig = {
   manager: LayoutManager
@@ -60,15 +60,18 @@ export type V2Widget = {
   anchor?: 'w' | 'center' | 'e'
   showChar?: string
   wrap?: 'none' | 'char' | 'word'
-  imageFit?: 'contain' | 'original' | 'stretch'
+  imageFit?: 'contain' | 'cover' | 'original' | 'stretch'
   tkWidth?: number
   tkHeight?: number
   length?: number
   padding?: number
+  editorLocked?: boolean
+  editorHidden?: boolean
 }
 
 export type ThemeColors = Record<'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'danger' | 'light' | 'dark' | 'bg' | 'fg', string>
 export type V2Window = {
+  name?: string
   title: string; width: number; height: number
   framework: DesignerTarget
   theme: string
@@ -76,8 +79,12 @@ export type V2Window = {
   customColors?: Partial<ThemeColors>
   exportMode: ExportMode
   layoutExport?: 'faithful' | 'adaptive'
+  resizable?: boolean
+  centerOnOpen?: boolean
 }
-export type V2Design = { schemaVersion: 2; window: V2Window; widgets: V2Widget[]; importedSource?: ImportedGuiSource }
+export type DesignerWindow = { id:string; name:string; kind:'root'|'secondary'; window:V2Window; widgets:V2Widget[] }
+export type DesignerAsset = { id:string; path:string; name:string; mimeType:string; size:number }
+export type V2Design = { schemaVersion: 2; window: V2Window; widgets: V2Widget[]; windows?:DesignerWindow[]; activeWindowId?:string; projectName?:string; assets?:DesignerAsset[]; importedSource?: ImportedGuiSource }
 
 export type WidgetDefinition = {
   type: V2WidgetType
@@ -108,6 +115,7 @@ export const WIDGET_REGISTRY: Record<V2WidgetType, WidgetDefinition> = {
   Scrollbar: { type: 'Scrollbar', label: 'Scrollbar', category: 'Contenedores', coa: false, defaults: { layout: place(18, 160), orient: 'vertical' } },
   Text: { type: 'Text', label: 'Texto multilínea', category: 'Texto', coa: false, defaults: { layout: place(260, 120),fontFamily:'Courier New',fontSize:13,wrap:'word' } },
   Image: { type: 'Image', label: 'Imagen', category: 'Multimedia', coa: false, defaults: { layout: place(160, 100), text: 'Imagen', assetPath: 'assets/imagen.png',imageFit:'contain' } },
+  Listbox: { type: 'Listbox', label: 'Listbox', category: 'Datos', coa: false, defaults: { layout: place(220, 140), values: ['Elemento 1', 'Elemento 2'], fontFamily:'Arial', fontSize:13 } },
 }
 
 export const TTK_THEMES = ['cosmo', 'flatly', 'litera', 'minty', 'lumen', 'sandstone', 'yeti', 'pulse', 'united', 'journal', 'morph', 'simplex', 'cerculean', 'darkly', 'superhero', 'solar', 'cyborg', 'vapor'] as const
@@ -115,8 +123,26 @@ export const BOOTSTYLES = ['default', 'primary', 'secondary', 'success', 'info',
 const reserved = new Set(['False','None','True','and','as','assert','async','await','break','class','continue','def','del','elif','else','except','finally','for','from','global','if','import','in','is','lambda','nonlocal','not','or','pass','raise','return','try','while','with','yield'])
 
 export function newV2Design(): V2Design {
-  return { schemaVersion: 2, window: { title: 'Mi interfaz', width: 500, height: 400, framework: 'ttkbootstrap', theme: 'darkly', background: '#222222', exportMode: 'class', layoutExport:'faithful' }, widgets: [] }
+  const window:V2Window={ name:'principal',title: 'Mi interfaz', width: 500, height: 400, framework: 'ttkbootstrap', theme: 'darkly', background: '#222222', exportMode: 'class', layoutExport:'faithful',resizable:true,centerOnOpen:true }
+  return { schemaVersion: 2, projectName:'Mi aplicación',window,widgets:[],windows:[{id:'window-root',name:'principal',kind:'root',window:{...window},widgets:[]}],activeWindowId:'window-root',assets:[] }
 }
+
+export function designWindows(design:V2Design):DesignerWindow[]{
+  const existing=design.windows?.length?structuredClone(design.windows):[{id:'window-root',name:design.window.name||'principal',kind:'root' as const,window:structuredClone(design.window),widgets:structuredClone(design.widgets)}]
+  const active=design.activeWindowId&&existing.some(item=>item.id===design.activeWindowId)?design.activeWindowId:existing[0].id
+  return existing.map(item=>item.id===active?{...item,name:design.window.name||item.name,window:structuredClone(design.window),widgets:structuredClone(design.widgets)}:item)
+}
+export function synchronizeActiveWindow(design:V2Design):V2Design{const windows=designWindows(design),activeWindowId=design.activeWindowId&&windows.some(item=>item.id===design.activeWindowId)?design.activeWindowId:windows[0].id;return{...design,windows,activeWindowId}}
+export function activateDesignerWindow(design:V2Design,id:string):V2Design{const windows=designWindows(design),target=windows.find(item=>item.id===id);if(!target)return synchronizeActiveWindow(design);return{...design,windows,activeWindowId:id,window:structuredClone(target.window),widgets:structuredClone(target.widgets)}}
+export function addDesignerWindow(design:V2Design,input:{name:string;title:string;width:number;height:number}):V2Design{const synced=synchronizeActiveWindow(design),id=`window-${Date.now()}-${synced.windows!.length+1}`,window:V2Window={...newV2Design().window,name:input.name,title:input.title,width:Math.max(320,Math.min(1200,input.width)),height:Math.max(240,Math.min(900,input.height))},next={...synced,windows:[...synced.windows!,{id,name:input.name,kind:'secondary' as const,window,widgets:[]}],activeWindowId:id,window,widgets:[]};return synchronizeActiveWindow(next)}
+export function duplicateDesignerWindow(design:V2Design,id:string):V2Design{const synced=synchronizeActiveWindow(design),source=synced.windows!.find(item=>item.id===id);if(!source)return synced;const nextId=`window-${Date.now()}-${synced.windows!.length+1}`,ids=new Map(source.widgets.map(item=>[item.id,`${item.id}-copy-${nextId}`])),widgets=structuredClone(source.widgets).map(item=>({...item,id:ids.get(item.id)!,parentId:item.parentId?ids.get(item.parentId)??null:null,targetId:item.targetId?ids.get(item.targetId):undefined}));const copy={...source,id:nextId,kind:'secondary' as const,name:`${source.name}_copia`,window:{...source.window,name:`${source.name}_copia`,title:`${source.window.title} (copia)`},widgets};return activateDesignerWindow({...synced,windows:[...synced.windows!,copy]},nextId)}
+export function removeDesignerWindow(design:V2Design,id:string):V2Design{const synced=synchronizeActiveWindow(design);if(synced.windows!.length===1)return synced;const windows=synced.windows!.filter(item=>item.id!==id),target=windows[0];return{...synced,windows,activeWindowId:target.id,window:structuredClone(target.window),widgets:structuredClone(target.widgets)}}
+export function renameDesignerWindow(design:V2Design,id:string,name:string,title?:string):V2Design{const synced=synchronizeActiveWindow(design),windows=synced.windows!.map(item=>item.id===id?{...item,name,window:{...item.window,name,title:title??item.window.title}}:item),next={...synced,windows};return id===synced.activeWindowId?activateDesignerWindow(next,id):next}
+
+export function duplicateWidgetTree(design:V2Design,id:string):{design:V2Design;selectedId:string|null}{const source=design.widgets.find(item=>item.id===id);if(!source)return{design,selectedId:null};const originals=[source,...descendantsOf(design,id).map(child=>design.widgets.find(item=>item.id===child)!).filter(Boolean)],ids=new Map(originals.map((item,index)=>[item.id,`${item.id}-copy-${Date.now()}-${index}`])),names=new Set(design.widgets.map(item=>item.name));const copies=structuredClone(originals).map((item,index)=>{let name=`${item.name}_copia`,n=2;while(names.has(name))name=`${item.name}_copia${n++}`;names.add(name);return{...item,id:ids.get(item.id)!,name,parentId:item.id===id?item.parentId:(item.parentId?ids.get(item.parentId)??item.parentId:null),targetId:item.targetId?ids.get(item.targetId)??item.targetId:undefined,layout:{...item.layout,x:item.layout.x+(index?0:16),y:item.layout.y+(index?0:16)},authoring:item.authoring?{...item.authoring,x:item.authoring.x+(index?0:16),y:item.authoring.y+(index?0:16)}:undefined}});return{design:{...design,widgets:[...design.widgets,...copies]},selectedId:ids.get(id)!}}
+
+export function prepareDesignForAI(input:V2Design){const design=synchronizeActiveWindow(input),windows=designWindows(design),lines=[`PROYECTO\nNombre: ${design.projectName||'Mi aplicación'}`,`FRAMEWORK RECOMENDADO\n${design.window.framework}`,`VENTANAS\nTotal: ${windows.length}`];for(const page of windows){lines.push(`\nVENTANA\nNombre: ${page.name}\nTipo: ${page.kind==='root'?'principal/root':'secundaria'}\nTítulo: ${page.window.title}\nTamaño: ${page.window.width}x${page.window.height}\nFramework: ${page.window.framework}\nTema: ${page.window.theme}\nFondo: ${page.window.background}\nRedimensionable: ${page.window.resizable===false?'no':'sí'}\nCentrar al abrir: ${page.window.centerOnOpen===false?'no':'sí'}`);for(const widget of page.widgets){const parent=widget.parentId?page.widgets.find(item=>item.id===widget.parentId)?.name:'ventana',visual=widget.authoring??widget.layout;lines.push(`\nCOMPONENTE\nTipo: ${widget.type}\nNombre: ${widget.name}\nContenedor: ${parent||'ventana'}${widget.parentTabId?`\nPestaña: ${widget.parentTabId}`:''}\nPosición: x=${visual.x}, y=${visual.y}\nTamaño: ${visual.width}x${visual.height}${widget.text!==undefined?`\nTexto: ${widget.text}`:''}${widget.fontFamily?`\nFuente: ${widget.fontFamily}, ${widget.fontSize??13}${widget.bold?', negrita':''}${widget.italic?', cursiva':''}`:''}${widget.foreground?`\nColor de texto: ${widget.foreground}`:''}${widget.background?`\nFondo: ${widget.background}`:''}${widget.values?.length?`\nValores: ${widget.values.join(' | ')}`:''}${widget.columns?.length?`\nColumnas: ${widget.columns.map(column=>`${column.id} (${column.heading}, ${column.width}px)`).join(' | ')}`:''}${widget.tabs?.length?`\nPestañas: ${widget.tabs.map(tab=>tab.text).join(' | ')}`:''}${widget.assetPath?`\nRecurso de imagen: ${widget.assetPath}\nAjuste: ${widget.imageFit??'contain'}`:''}`)}}if(design.assets?.length)lines.push(`\nRECURSOS\n${design.assets.map(asset=>`- ${asset.path} (${asset.mimeType}, ${asset.size} bytes)`).join('\n')}`);return lines.join('\n')}
+export function aiClipboardText(design:V2Design){return`Utiliza la siguiente especificación creada con COA Designer para construir la interfaz en Python.\n\nRespeta la estructura visual, nombres de componentes, ventanas, jerarquía, posiciones y tamaños. Utiliza Tkinter/ttkbootstrap según la especificación. Separa la interfaz de la lógica de negocio. No inventes funcionalidades que no aparecen en la especificación. Los callbacks pueden implementarse posteriormente.\n\n${prepareDesignForAI(design)}`}
 
 function migratedWidget(control: LegacyGuiDesign['controls'][number]): V2Widget {
   return { id: control.id, type: control.type, name: control.variableName, parentId: null, text: control.text, event: control.commandName ? { event: 'command', handler: control.commandName } : undefined, sourceKey: control.sourceKey, layout: { manager: 'place', x: control.x, y: control.y, width: control.width, height: control.height } }
@@ -128,7 +154,7 @@ export function restoreV2Design(value: unknown): V2Design {
   if (raw.schemaVersion !== 2) {
     const legacy = raw as unknown as Partial<LegacyGuiDesign>
     if (!legacy.window || !Array.isArray(legacy.controls)) return newV2Design()
-    return { schemaVersion: 2, window: { title: legacy.window.title, width: legacy.window.width, height: legacy.window.height, framework: 'tkinter', theme: 'flatly', background: '#ffffff', exportMode: 'simple' }, widgets: legacy.controls.map(migratedWidget), importedSource: legacy.importedSource }
+    return normalizeV2Design({ schemaVersion: 2, window: { name:'principal',title: legacy.window.title, width: legacy.window.width, height: legacy.window.height, framework: 'tkinter', theme: 'flatly', background: '#ffffff', exportMode: 'simple' }, widgets: legacy.controls.map(migratedWidget), importedSource: legacy.importedSource }).design
   }
   return normalizeV2Design(raw).design
 }
@@ -164,11 +190,15 @@ export function normalizeV2Design(value: unknown): { design: V2Design; issues: s
       path.add(parentId); parentId = byId.get(parentId)?.parentId ?? null
     }
   }
-  return { design: { schemaVersion: 2, window: { ...base.window, ...raw.window, width: Math.max(320, Math.min(1200, Number(raw.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(raw.window?.height) || base.window.height)),layoutExport:Object.prototype.hasOwnProperty.call(raw.window??{},'layoutExport')?raw.window?.layoutExport:undefined }, widgets, importedSource: raw.importedSource }, issues }
+  const activeWindow={ ...base.window, ...raw.window, width: Math.max(320, Math.min(1200, Number(raw.window?.width) || base.window.width)), height: Math.max(240, Math.min(900, Number(raw.window?.height) || base.window.height)),layoutExport:Object.prototype.hasOwnProperty.call(raw.window??{},'layoutExport')?raw.window?.layoutExport:undefined }
+  const recoveredWindows=Array.isArray(raw.windows)&&raw.windows.length?raw.windows.flatMap((candidate,index)=>{if(!candidate||typeof candidate!=='object')return[];const page=candidate as DesignerWindow,normalized=normalizeV2Design({schemaVersion:2,window:page.window,widgets:page.widgets});issues.push(...normalized.issues.map(issue=>`${page.name||`Ventana ${index+1}`}: ${issue}`));return[{id:typeof page.id==='string'&&page.id?page.id:`window-${index+1}`,name:typeof page.name==='string'&&page.name?page.name:`ventana_${index+1}`,kind:index===0||page.kind==='root'?'root' as const:'secondary' as const,window:normalized.design.window,widgets:normalized.design.widgets}]}):[{id:'window-root',name:activeWindow.name||'principal',kind:'root' as const,window:structuredClone(activeWindow),widgets:structuredClone(widgets)}]
+  const activeWindowId=typeof raw.activeWindowId==='string'&&recoveredWindows.some(page=>page.id===raw.activeWindowId)?raw.activeWindowId:recoveredWindows[0].id
+  const synchronizedWindows=recoveredWindows.map(page=>page.id===activeWindowId?{...page,name:activeWindow.name||page.name,window:structuredClone(activeWindow),widgets:structuredClone(widgets)}:page)
+  return { design: { schemaVersion: 2, projectName:typeof raw.projectName==='string'?raw.projectName:'Mi aplicación',window:activeWindow,widgets,windows:synchronizedWindows,activeWindowId,assets:Array.isArray(raw.assets)?raw.assets.filter(asset=>asset&&typeof asset.path==='string'):[],importedSource: raw.importedSource }, issues }
 }
 
 export function nextV2Widget(type: V2WidgetType, widgets: V2Widget[], parentId: string | null = null): V2Widget {
-  const prefix: Record<V2WidgetType, string> = { Label:'label',Entry:'entry',Button:'button',Frame:'frame',Labelframe:'group',Combobox:'combo',Checkbutton:'check',Radiobutton:'radio',Spinbox:'spin',Scale:'scale',Treeview:'tree',Progressbar:'progress',Notebook:'notebook',Separator:'separator',Canvas:'canvas',Scrollbar:'scroll',Text:'text',Image:'image' }
+  const prefix: Record<V2WidgetType, string> = { Label:'label',Entry:'entry',Button:'button',Frame:'frame',Labelframe:'group',Combobox:'combo',Checkbutton:'check',Radiobutton:'radio',Spinbox:'spin',Scale:'scale',Treeview:'tree',Progressbar:'progress',Notebook:'notebook',Separator:'separator',Canvas:'canvas',Scrollbar:'scroll',Text:'text',Image:'image',Listbox:'listbox' }
   let index = 1
   const timestamp = Date.now()
   while (widgets.some((item) => item.name === `${prefix[type]}${index}` || item.id === `${type.toLowerCase()}-${timestamp}-${index}`)) index++
@@ -224,7 +254,7 @@ function widgetClass(widget: V2Widget, target: DesignerTarget) {
   if (target === 'coa') return `gui.${widget.type}`
   if (target === 'tkinter' && ['Label','Entry','Button','Frame','Canvas','Text'].includes(widget.type)) return `tk.${widget.type}`
   if (widget.type === 'Image') return target === 'ttkbootstrap' ? 'ttk.Label' : 'tk.Label'
-  if (['Canvas','Text'].includes(widget.type)) return `tk.${widget.type}`
+  if (['Canvas','Text','Listbox'].includes(widget.type)) return `tk.${widget.type}`
   return `ttk.${widget.type}`
 }
 type ConstructorCapability = 'font' | 'foreground' | 'background'

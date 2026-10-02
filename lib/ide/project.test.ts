@@ -24,6 +24,10 @@ it('applies separate text and Excel size limits', () => {
   expect(() => validateEntries([{ path: 'grande.xlsx', kind: 'file', content: twentyMb, encoding: 'base64' }])).not.toThrow()
   expect(() => validateEntries([{ path: 'demasiado.xlsx', kind: 'file', content: twentyMb + 'AAAA', encoding: 'base64' }])).toThrow('20 MB')
 })
+it('accepts persisted Designer image assets up to 5 MB',()=>{
+  expect(()=>validateEntries([{path:'assets/logo.webp',kind:'file',content:'AAAA',encoding:'base64'}])).not.toThrow()
+  expect(()=>validPath('assets/portada.jpeg')).not.toThrow()
+})
 it('opens new files in the active split group without changing group one', () => {
   const p = addEntries({ ...newProject(), splitEnabled: true, activeEditorGroup: 2 }, [{ path: 'logic.py', kind: 'file', content: '' }])
   expect(p.active).toBe('main.py')
