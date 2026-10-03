@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { MessageCircle, GraduationCap, Star, Code2 } from 'lucide-react'
+import { ArrowRight, ClipboardList, Code2, FolderKanban, GraduationCap, MessageCircle, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createWhatsAppLink } from '@/lib/site'
 
@@ -47,6 +47,18 @@ export function HeroSection() {
             <Link href="/ide" prefetch={false} className="relative inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-primary shadow-md transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
               <Code2 className="h-5 w-5" /> Abrir IDE Online
               <span className="absolute -right-1 -top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">Nuevo</span>
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/proyectos" className="group flex items-center gap-3 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 p-3.5 transition hover:-translate-y-0.5 hover:bg-primary-foreground/15">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-foreground text-primary"><FolderKanban className="h-5 w-5"/></span>
+              <span className="min-w-0 flex-1"><strong className="block text-sm">Proyectos COA</strong><span className="block text-xs text-primary-foreground/75">Descubre trabajos estudiantiles</span></span>
+              <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1"/>
+            </Link>
+            <Link href="/solicitudes" className="group flex items-center gap-3 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 p-3.5 transition hover:-translate-y-0.5 hover:bg-primary-foreground/15">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-foreground text-primary"><ClipboardList className="h-5 w-5"/></span>
+              <span className="min-w-0 flex-1"><strong className="block text-sm">Solicita nuevos cursos</strong><span className="block text-xs text-primary-foreground/75">Apoya las próximas propuestas</span></span>
+              <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1"/>
             </Link>
           </div>
           <div className="flex items-center gap-6 pt-2 text-sm text-primary-foreground/80">

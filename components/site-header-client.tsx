@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Award, ChevronDown, Gift, LayoutDashboard, LogOut, Menu, MessageCircle, Scale, UserRound, X } from 'lucide-react'
+import { Award, ChevronDown, ClipboardList, FolderKanban, Gift, LayoutDashboard, LogOut, Menu, MessageCircle, Scale, UserRound, X } from 'lucide-react'
 import { signOutAction } from '@/app/cuenta/actions'
 import type { UserRole } from '@/lib/auth/types'
 import { Button } from '@/components/ui/button'
@@ -16,13 +16,15 @@ const navLinks = [
   { href: '/experiencia-profesional', label: 'Experiencia' }, { href: '/#contacto', label: 'Contacto' },
 ]
 const secondaryLinks = [
+  { href: '/proyectos', label: 'Proyectos COA', description: 'Trabajos creados por estudiantes de COA', icon: FolderKanban },
+  { href: '/solicitudes', label: 'Solicitudes de cursos', description: 'Expresa interés real en próximos cursos', icon: ClipboardList },
   { href: '/certificados', label: 'Certificados', description: 'Verificar certificados emitidos por COA', icon: Award },
   { href: '/#beneficios', label: 'Beneficios', description: 'Conoce los beneficios de COA', icon: Gift },
   { href: '/terminos-y-condiciones', label: 'Términos y condiciones', description: 'Información legal', icon: Scale },
 ]
 const headerWhatsappLink = createWhatsAppLink('Hola, me interesa recibir más información sobre los cursos de C.O.A.')
 
-export type HeaderAccount = { fullName: string; role: UserRole }
+export type HeaderAccount = { fullName: string; role: UserRole; avatarUrl?: string | null }
 const compactName = (name: string) => name.trim().split(/\s+/).slice(0, 2).join(' ')
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'CO'
 
@@ -71,9 +73,10 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
       </nav>
       <div className="flex items-center gap-2">{account&&<NotificationBell/>}
       <div className="hidden items-center gap-2 xl:flex">{account ? <div className="relative" ref={accountRef}>
-        <button ref={accountButton} type="button" onClick={() => setAccountOpen((value) => !value)} aria-expanded={accountOpen} aria-haspopup="menu" aria-controls="account-navigation" className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-2.5 text-sm font-semibold shadow-sm transition hover:bg-secondary"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-extrabold text-primary-foreground">{initials(account.fullName)}</span><span className="max-w-32 truncate">{compactName(account.fullName)}</span><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''}`} /></button>
+        <button ref={accountButton} type="button" onClick={() => setAccountOpen((value) => !value)} aria-expanded={accountOpen} aria-haspopup="menu" aria-controls="account-navigation" className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-2.5 text-sm font-semibold shadow-sm transition hover:bg-secondary">{account.avatarUrl?<Image src={account.avatarUrl} alt="" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover"/>:<span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-extrabold text-primary-foreground">{initials(account.fullName)}</span>}<span className="max-w-32 truncate">{compactName(account.fullName)}</span><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''}`} /></button>
         {accountOpen && <div id="account-navigation" role="menu" className="absolute right-0 top-full z-[60] mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10">
           <div className="border-b border-border px-3 py-3"><strong className="block truncate text-sm">{account.fullName}</strong><span className="mt-1 block text-xs text-muted-foreground">{account.role === 'admin' ? 'Administrador' : 'Estudiante'}</span></div>
+          <Link role="menuitem" href="/mi-coa/perfil" onClick={() => setAccountOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl p-3 text-sm font-semibold hover:bg-secondary"><UserRound className="h-4 w-4 text-primary" />Mi perfil</Link>
           <Link role="menuitem" href={dashboardHref} onClick={() => setAccountOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl p-3 text-sm font-semibold hover:bg-secondary"><LayoutDashboard className="h-4 w-4 text-primary" />{account.role === 'admin' ? 'Panel de administración' : 'Mi COA'}</Link>
           <form action={signOutAction}><button role="menuitem" className="flex w-full items-center gap-3 rounded-xl p-3 text-left text-sm font-semibold text-destructive hover:bg-destructive/10"><LogOut className="h-4 w-4" />Cerrar sesión</button></form>
         </div>}
@@ -87,7 +90,8 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
       {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-primary">{link.label}</Link>)}
       <div className="my-2 border-t border-border pt-2"><p className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Más</p>{moreLinks.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-primary"><Icon className="h-4 w-4 text-primary" />{label}</Link>)}<ThemeToggle compact/></div>
       {account ? <div className="rounded-xl border border-border bg-secondary/50 p-3">
-        <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-extrabold text-primary-foreground">{initials(account.fullName)}</span><span className="min-w-0"><strong className="block truncate text-sm">{account.fullName}</strong><span className="block text-xs text-muted-foreground">{account.role === 'admin' ? 'Administrador' : 'Estudiante'}</span></span></div>
+        <div className="flex items-center gap-3">{account.avatarUrl?<Image src={account.avatarUrl} alt="" width={36} height={36} unoptimized className="h-9 w-9 shrink-0 rounded-full object-cover"/>:<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-extrabold text-primary-foreground">{initials(account.fullName)}</span>}<span className="min-w-0"><strong className="block truncate text-sm">{account.fullName}</strong><span className="block text-xs text-muted-foreground">{account.role === 'admin' ? 'Administrador' : 'Estudiante'}</span></span></div>
+        <Link href="/mi-coa/perfil" onClick={() => setOpen(false)} className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-primary hover:bg-background"><UserRound className="h-4 w-4" />Mi perfil</Link>
         <Link href={dashboardHref} onClick={() => setOpen(false)} className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-primary hover:bg-background"><LayoutDashboard className="h-4 w-4" />{account.role === 'admin' ? 'Panel de administración' : 'Mi COA'}</Link>
         <form action={signOutAction}><button className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-semibold text-destructive hover:bg-destructive/10"><LogOut className="h-4 w-4" />Cerrar sesión</button></form>
       </div> : <div className="rounded-xl border border-border bg-secondary/50 p-3">

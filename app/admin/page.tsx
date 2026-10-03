@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, Inbox, ShieldCheck, UsersRound } from 'lucide-react'
+import { BookOpen, ClipboardList, FolderKanban, Inbox, ShieldCheck, UsersRound } from 'lucide-react'
 import { AccountShell } from '@/components/account/account-shell'
 import { requireAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
@@ -24,6 +24,7 @@ export default async function AdminDashboard() {
       </div>
       <Link href="/admin/entregas" className="mt-5 flex items-center gap-3 rounded-2xl border border-primary/25 bg-background p-5 transition hover:border-primary/50"><Inbox className="h-7 w-7 text-primary" /><div><h2 className="font-bold">Entregas académicas</h2><p className="text-sm text-muted-foreground">Consultar y descargar los archivos enviados por estudiantes.</p></div></Link>
       <Link href="/admin/grupos" className="mt-5 flex items-center gap-3 rounded-2xl border border-primary/25 bg-background p-5 transition hover:border-primary/50"><UsersRound className="h-7 w-7 text-primary" /><div><h2 className="font-bold">Grupos en vivo</h2><p className="text-sm text-muted-foreground">Administrar participantes, contenido, anuncios y entregas.</p></div></Link>
+      <div className="mt-5 grid gap-5 md:grid-cols-2"><Link href="/admin/solicitudes" className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-background p-5"><ClipboardList className="h-7 w-7 text-primary"/><div><h2 className="font-bold">Solicitudes de cursos</h2><p className="text-sm text-muted-foreground">Propuestas, demanda y disponibilidad.</p></div></Link><Link href="/admin/proyectos" className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-background p-5"><FolderKanban className="h-7 w-7 text-primary"/><div><h2 className="font-bold">Proyectos COA</h2><p className="text-sm text-muted-foreground">Revisar y moderar publicaciones.</p></div></Link></div>
       <section className="mt-10" aria-labelledby="admin-courses">
         <div className="flex items-center gap-3"><BookOpen className="h-7 w-7 text-primary" /><h2 id="admin-courses" className="text-2xl font-extrabold">Cursos</h2></div>
         {coursesError ? <p role="alert" className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">No pudimos cargar los cursos. Verifica que la migración de Fase 2 esté aplicada.</p> : <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

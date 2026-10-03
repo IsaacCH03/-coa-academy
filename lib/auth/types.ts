@@ -4,6 +4,7 @@ export type Profile = {
   id: string
   full_name: string
   role: UserRole
+  avatar_path: string | null
   created_at: string
   updated_at: string
 }

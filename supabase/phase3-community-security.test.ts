@@ -1,0 +1,15 @@
+import{readFileSync}from'node:fs';import{describe,expect,it}from'vitest'
+const sql=readFileSync(new URL('./migrations/20261007000000_course_demand_and_coa_projects.sql',import.meta.url),'utf8')
+const avatarSql=readFileSync(new URL('./migrations/20261008000000_public_profile_avatars.sql',import.meta.url),'utf8')
+describe('seguridad Fase 3',()=>{
+ it('garantiza una solicitud por persona y propuesta',()=>{expect(sql).toMatch(/primary key\s*\(proposal_id,user_id\)/i);expect(sql).toMatch(/on conflict\s*\(proposal_id,user_id\)\s*do update/i)})
+ it('valida propuesta abierta y opción perteneciente antes del upsert',()=>{expect(sql).toMatch(/o\.proposal_id=p_proposal and p\.status='open'/i);expect(sql).toMatch(/security definer set search_path=''/i)})
+ it('no crea grupos, matrículas ni cobros al alcanzar la meta',()=>{expect(sql).not.toMatch(/insert into public\.(live_groups|live_group_members|enrollments|payments)/i)})
+ it('solo expone propuestas abiertas al público',()=>{expect(sql).toMatch(/proposals_public_read[\s\S]*status='open'/i);expect(sql).toMatch(/proposals_admin_manage[\s\S]*is_admin/i)})
+ it('impide que el autor publique o modere su proyecto',()=>{expect(sql).toMatch(/projects_author_insert[\s\S]*status in\('draft','pending'\)/i);expect(sql).toMatch(/projects_author_update[\s\S]*status in\('draft','pending'\)[\s\S]*moderated_by is null/i);expect(sql).toMatch(/moderate_student_project[\s\S]*is_admin/i)})
+ it('el público solo lee proyectos publicados',()=>{expect(sql).toMatch(/projects_visible[\s\S]*status='published'/i);expect(sql).toMatch(/project_images_visible[\s\S]*p\.status='published'/i)})
+ it('limita capturas por tipo, tamaño, propietario y cinco posiciones',()=>{expect(sql).toMatch(/file_size_limit,allowed_mime_types[\s\S]*5242880[\s\S]*image\/webp/i);expect(sql).toMatch(/display_order smallint not null check\(display_order between 1 and 5\)/i);expect(sql).toMatch(/storage\.foldername\(name\)\)\[1\]=auth\.uid\(\)::text/i)})
+ it('expone un perfil público de columnas limitadas',()=>{const view=sql.match(/create view public\.public_profiles[\s\S]*?from public\.profiles;/i)?.[0]??'';expect(view).toContain('full_name');expect(view).not.toMatch(/email|phone|identification/i)})
+ it('mantiene el bucket privado y sin videos',()=>{expect(sql).toMatch(/'phase3-media','phase3-media',false/i);expect(sql).not.toMatch(/video\//i)})
+ it('limita avatares a la carpeta propia y conserva lectura mediante perfil',()=>{expect(avatarSql).toMatch(/foldername\(name\)\)\[1\].*auth\.uid/i);expect(avatarSql).toMatch(/foldername\(name\)\)\[2\]\s*=\s*'avatars'/i);expect(avatarSql).toMatch(/p\.avatar_path\s*=\s*name/i)})
+})
