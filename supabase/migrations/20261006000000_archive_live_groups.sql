@@ -6,3 +6,4 @@ alter table public.live_groups
 create index live_groups_archived_at_idx
   on public.live_groups(archived_at);
 
+
