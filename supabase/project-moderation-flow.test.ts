@@ -1,0 +1,15 @@
+import{readFileSync}from'node:fs';import{describe,expect,it}from'vitest'
+const migration=readFileSync(new URL('./migrations/20261007000000_course_demand_and_coa_projects.sql',import.meta.url),'utf8')
+const publicFix=readFileSync(new URL('./migrations/20261009000000_fix_anonymous_public_discovery.sql',import.meta.url),'utf8')
+const actions=readFileSync(new URL('../app/phase3-actions.ts',import.meta.url),'utf8')
+const admin=readFileSync(new URL('../app/admin/proyectos/page.tsx',import.meta.url),'utf8')
+const gallery=readFileSync(new URL('../app/proyectos/page.tsx',import.meta.url),'utf8')
+const detail=readFileSync(new URL('../app/proyectos/[slug]/page.tsx',import.meta.url),'utf8')
+describe('flujo de moderación y visibilidad de proyectos',()=>{
+ it('crea siempre pending y la consulta admin desambigua autor sin inner join',()=>{expect(actions).toMatch(/status:'pending'/);expect(admin).toContain('profiles!student_projects_author_id_fkey');expect(admin).not.toContain('!inner')})
+ it('no convierte un error administrativo en empty state',()=>{expect(admin).toMatch(/if \(error\).*console\.error/);expect(admin).toContain('No pudimos consultar los proyectos')})
+ it('solo admin puede moderar y la RPC admite published, rejected y pending',()=>{expect(migration).toMatch(/moderate_student_project[\s\S]*is_admin\(\)[\s\S]*p_status not in\('published','rejected','pending'\)/i);expect(actions).toMatch(/requireAdmin\(\)[\s\S]*moderate_student_project/)})
+ it('la galería y el detalle público filtran published',()=>{expect(gallery).toMatch(/eq\('status',\s*'published'\)/);expect(detail).toMatch(/eq\('status','published'\)/)})
+ it('anónimo solo lee proyectos e imágenes published',()=>{expect(publicFix).toMatch(/projects_anon_read[\s\S]*status = 'published'/i);expect(publicFix).toMatch(/project_images_anon_read[\s\S]*p\.status = 'published'/i);expect(publicFix).toMatch(/phase3_media_anon_read[\s\S]*p\.status = 'published'/i)})
+ it('autor ve sus estados y admin ve todos mediante la policy autenticada',()=>{expect(publicFix).toMatch(/projects_authenticated_read[\s\S]*author_id = \(select auth\.uid\(\)\)[\s\S]*is_admin/i)})
+})

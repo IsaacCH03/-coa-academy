@@ -1,3 +1,30 @@
-import{AccountShell}from'@/components/account/account-shell';
-const relationName=(value:unknown)=>{const row=Array.isArray(value)?value[0]:value;return row&&typeof row==='object'&&'full_name'in row?String(row.full_name):'Estudiante COA'};import{moderateProject}from'@/app/phase3-actions';import{requireAdmin}from'@/lib/auth/session';import{createClient}from'@/lib/supabase/server'
-export default async function Page(){await requireAdmin();const supabase=await createClient(),{data:projects}=await supabase.from('student_projects').select('id,title,description,technologies,youtube_id,github_url,status,rejection_reason,author_id,profiles(full_name)').order('created_at',{ascending:false});return <AccountShell eyebrow="Moderación" title="Proyectos COA"><div className="flex flex-wrap gap-2 text-sm"><a href="#pending">Pendientes</a><a href="#published">Publicados</a><a href="#rejected">Rechazados</a></div>{(['pending','published','rejected']as const).map(status=><section id={status} key={status} className="mt-10"><h2 className="text-2xl font-bold capitalize">{status}</h2><div className="mt-4 grid gap-5">{projects?.filter(p=>p.status===status).map(p=><article key={p.id} className="rounded-2xl border bg-background p-6"><h3 className="text-xl font-bold">{p.title}</h3><p className="text-sm text-muted-foreground">{relationName(p.profiles)}</p><p className="mt-4 whitespace-pre-wrap">{p.description}</p><p className="mt-3 text-sm">{p.technologies.join(' · ')}</p>{p.youtube_id&&<a className="mt-3 inline-block text-primary" href={`https://youtube.com/watch?v=${p.youtube_id}`} target="_blank" rel="noopener noreferrer">Revisar video</a>}{p.github_url&&<a className="ml-4 text-primary" href={p.github_url} target="_blank" rel="noopener noreferrer">Revisar GitHub</a>}<form action={moderateProject} className="mt-5 flex flex-wrap gap-2"><input type="hidden" name="project_id" value={p.id}/><input className="min-h-10 flex-1 rounded-xl border bg-background px-3" name="reason" placeholder="Motivo de rechazo"/><button name="status" value="published" className="rounded-xl bg-primary px-4 font-bold text-primary-foreground">Aprobar</button><button name="status" value="rejected" className="rounded-xl border px-4 font-bold text-destructive">Rechazar</button>{status==='published'&&<button name="status" value="pending" className="rounded-xl border px-4">Retirar</button>}</form></article>)}{!projects?.some(p=>p.status===status)&&<p className="text-muted-foreground">No hay proyectos en este estado.</p>}</div></section>)}</AccountShell>}
+import { AccountShell } from '@/components/account/account-shell'
+import { AdminProjectModeration, type AdminProject } from '@/components/projects/admin-project-moderation'
+import { requireAdmin } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
+
+export default async function Page() {
+  await requireAdmin()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('student_projects')
+    .select('id,slug,title,description,technologies,youtube_id,github_url,status,rejection_reason,created_at,author:profiles!student_projects_author_id_fkey(full_name),course:courses!student_projects_course_id_fkey(title),student_project_images(storage_path,alt_text,display_order)')
+    .order('created_at', { ascending: false })
+
+  if (error) console.error('[Proyectos COA] admin project query failed', { stage: 'admin_project_query', code: error.code, message: error.message, details: error.details, hint: error.hint })
+
+  const projects = error ? [] : await Promise.all(((data ?? []) as unknown as AdminProject[]).map(async project => ({
+    ...project,
+    student_project_images: await Promise.all(project.student_project_images
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(async image => ({ ...image, url: (await supabase.storage.from('phase3-media').createSignedUrl(image.storage_path, 3600)).data?.signedUrl ?? null }))),
+  })))
+
+  return <AccountShell eyebrow="Moderación" title="Proyectos COA">
+    <p className="mt-2 text-muted-foreground">Revisa y administra los proyectos enviados por estudiantes.</p>
+    {error
+      ? <p role="alert" className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 font-semibold text-destructive">No pudimos consultar los proyectos. Revisa el diagnóstico del servidor.</p>
+      : <AdminProjectModeration projects={projects}/>
+    }
+  </AccountShell>
+}
