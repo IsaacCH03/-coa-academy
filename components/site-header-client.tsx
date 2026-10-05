@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Award, ChevronDown, ClipboardList, FolderKanban, Gift, LayoutDashboard, LogOut, Menu, MessageCircle, Scale, UserRound, X } from 'lucide-react'
@@ -13,7 +14,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 const navLinks = [
   { href: '/#cursos', label: 'Cursos' }, { href: '/#nosotros', label: 'Nosotros' },
-  { href: '/experiencia-profesional', label: 'Experiencia' }, { href: '/#contacto', label: 'Contacto' },
+  { href: '/experiencia-profesional', label: 'Experiencia' }, { href: '/proyectos', label: 'Proyectos' }, { href: '/#contacto', label: 'Contacto' },
 ]
 const secondaryLinks = [
   { href: '/proyectos', label: 'Proyectos COA', description: 'Trabajos creados por estudiantes de COA', icon: FolderKanban },
@@ -36,6 +37,7 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
   const moreButton = useRef<HTMLButtonElement>(null)
   const accountRef = useRef<HTMLDivElement>(null)
   const accountButton = useRef<HTMLButtonElement>(null)
+  const pathname = usePathname()
   const dashboardHref = account?.role === 'admin' ? '/admin' : account ? '/mi-coa' : '/cuenta/iniciar-sesion'
   const moreLinks = [{ href: dashboardHref, label: 'Mi COA', description: account ? 'Volver a tu panel personal' : 'Ingresa a tu cuenta y panel personal', icon: UserRound }, ...secondaryLinks]
 
@@ -61,7 +63,7 @@ export function SiteHeaderClient({ account = null }: { account?: HeaderAccount |
         <span className="flex flex-col leading-none"><span className="text-lg font-extrabold tracking-tight text-primary">C.O.A</span><span className="text-[10px] font-medium text-muted-foreground">Cursos Online Avanzados</span></span>
       </Link>
       <nav className="hidden items-center gap-4 xl:flex xl:gap-6">
-        {navLinks.map((link) => <Link key={link.href} href={link.href} className="text-sm font-medium text-foreground transition-colors hover:text-primary">{link.label}</Link>)}
+        {navLinks.map((link) => <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-primary ${link.href === '/proyectos' && pathname.startsWith('/proyectos') ? 'border-b-2 border-primary pb-2 text-primary' : 'text-foreground'}`}>{link.label}</Link>)}
         <div className="relative" ref={moreRef}>
           <button ref={moreButton} type="button" onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen} aria-haspopup="menu" aria-controls="more-navigation" className="inline-flex items-center gap-1 text-sm font-medium text-foreground transition-colors hover:text-primary">Más<ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`} /></button>
           {moreOpen && <div id="more-navigation" role="menu" className="absolute right-0 top-full z-[60] mt-3 w-80 overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10">

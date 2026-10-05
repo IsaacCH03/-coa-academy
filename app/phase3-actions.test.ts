@@ -14,6 +14,9 @@ const state = vi.hoisted(() => ({
   projectPayloads: [] as Array<Record<string, unknown>>,
   imagePayloads: [] as Array<Record<string, unknown>>,
   deletedProjectIds: [] as string[],
+  saved: false,
+  saveInserts: [] as Array<Record<string, unknown>>,
+  projectAvailable: true,
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
@@ -39,6 +42,12 @@ vi.mock('@/lib/supabase/server', () => ({
           state.deletedProjectIds.push(id)
           return { error: null }
         } }),
+        select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => state.projectAvailable ? { data: { id: 'project-public' }, error: null } : { data: null, error: null } }) }) }),
+      }
+      if (table === 'student_project_saves') return {
+        select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: state.saved ? { project_id: 'project-public' } : null, error: null }) }) }) }),
+        insert: async (payload: Record<string, unknown>) => { state.saved = true; state.saveInserts.push(payload); return { error: null } },
+        delete: () => ({ eq: () => ({ eq: async () => { state.saved = false; return { error: null } } }) }),
       }
       if (table === 'student_project_images') return {
         insert: async (payload: Record<string, unknown>) => {
@@ -67,7 +76,7 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
 }))
 
-import { createProject } from './phase3-actions'
+import { createProject, toggleProjectSave } from './phase3-actions'
 
 function form(overrides: { course?: string; files?: File[]; status?: string } = {}) {
   const data = new FormData()
@@ -99,6 +108,9 @@ describe('createProject', () => {
     state.projectPayloads = []
     state.imagePayloads = []
     state.deletedProjectIds = []
+    state.saved = false
+    state.saveInserts = []
+    state.projectAvailable = true
     vi.restoreAllMocks()
   })
 
@@ -162,5 +174,23 @@ describe('createProject', () => {
     state.authenticated = false
     expect(await redirected(createProject(form()))).toBe('/cuenta/iniciar-sesion')
     expect(state.projectPayloads).toHaveLength(0)
+  })
+})
+
+describe('toggleProjectSave', () => {
+  beforeEach(() => { state.authenticated = true; state.saved = false; state.saveInserts = []; state.projectAvailable = true })
+  it('guarda una vez y después la elimina sin duplicados', async () => {
+    await expect(toggleProjectSave('project-public')).resolves.toEqual({ saved: true })
+    await expect(toggleProjectSave('project-public')).resolves.toEqual({ saved: false })
+    expect(state.saveInserts).toEqual([{ user_id: 'user-1', project_id: 'project-public' }])
+  })
+  it('no guarda un proyecto que no está publicado', async () => {
+    state.projectAvailable = false
+    await expect(toggleProjectSave('project-hidden')).resolves.toEqual({ error: 'Este proyecto ya no está disponible.' })
+    expect(state.saveInserts).toHaveLength(0)
+  })
+  it('requiere sesión para guardar', async () => {
+    state.authenticated = false
+    expect(await redirected(toggleProjectSave('project-public'))).toBe('/cuenta/iniciar-sesion')
   })
 })

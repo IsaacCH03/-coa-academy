@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+vi.mock('next/navigation',()=>({usePathname:()=>'/'}))
 import { SiteHeaderClient } from './site-header-client'
 
 beforeEach(()=>vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({notifications:[]}),{status:200}))))
