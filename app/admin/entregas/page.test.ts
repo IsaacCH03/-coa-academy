@@ -1,7 +1,13 @@
 import{describe,expect,it}from'vitest'
-import{submissionGroupName,type AdminSubmission}from'./page'
-const base={id:'s',student_id:'student',activity_id:'activity',submitted_at:'2026-09-30T20:00:00Z',profiles:{full_name:'Eva Valverde'},courses:{title:'Python Nivel 1',slug:'python-nivel-1'},submission_files:[]} satisfies Omit<AdminSubmission,'activities'>
-describe('entregas administrativas',()=>{
-  it('muestra el grupo asociado por la actividad',()=>expect(submissionGroupName({...base,activities:{title:'Tarea 4',live_groups:{name:'Python J26'}}})).toBe('Python J26'))
-  it('omite la línea para actividades asincrónicas',()=>expect(submissionGroupName({...base,activities:{title:'Proyecto',live_groups:null}})).toBeUndefined())
+import{activityMatchesContext,parseSubmissionContext,submissionGroupName,submissionInboxHref,submissionReviewStatus,type AdminSubmission}from'./page'
+
+const base:AdminSubmission={id:'s',student_id:'student',activity_id:'activity',submitted_at:'2026-09-30T20:00:00Z',admin_archived_at:null,status:'submitted',grade:null,student:{full_name:'Eva Valverde'},course:{title:'Python Nivel 1',slug:'python-nivel-1'},activity:{id:'activity',title:'Tarea 4',course_id:'11111111-1111-1111-1111-111111111111',live_group_id:null,live_group:null},submission_files:[],review:null}
+
+describe('bandeja administrativa de entregas',()=>{
+ it('muestra el grupo asociado por la relación real de la actividad',()=>expect(submissionGroupName({...base,activity:{...base.activity as Exclude<typeof base.activity,unknown[]|null>,live_group_id:'22222222-2222-2222-2222-222222222222',live_group:{id:'22222222-2222-2222-2222-222222222222',name:'Python J26'}}})).toBe('Python J26'))
+ it('omite grupo para actividades asincrónicas',()=>expect(submissionGroupName(base)).toBeUndefined())
+ it('usa la revisión vigente y deja under_review como estado inicial',()=>{expect(submissionReviewStatus({...base,review:{status:'approved'}})).toBe('approved');expect(submissionReviewStatus(base)).toBe('under_review')})
+ it('acepta contextos tipados y rechaza identificadores manipulados',()=>{expect(parseSubmissionContext('group:22222222-2222-2222-2222-222222222222')).toEqual({kind:'group',id:'22222222-2222-2222-2222-222222222222'});expect(parseSubmissionContext('course:externo')).toBeNull()})
+ it('limita actividades al curso o grupo seleccionado',()=>{const course=parseSubmissionContext('course:11111111-1111-1111-1111-111111111111'),group=parseSubmissionContext('group:22222222-2222-2222-2222-222222222222');expect(activityMatchesContext({course_id:'11111111-1111-1111-1111-111111111111',live_group_id:null},course)).toBe(true);expect(activityMatchesContext({course_id:'11111111-1111-1111-1111-111111111111',live_group_id:'22222222-2222-2222-2222-222222222222'},course)).toBe(false);expect(activityMatchesContext({course_id:null,live_group_id:'22222222-2222-2222-2222-222222222222'},group)).toBe(true)})
+ it('preserva filtros combinados al paginar',()=>{const href=submissionInboxHref({view:'active',context:'group:22222222-2222-2222-2222-222222222222',activity:'tarea-1',q:'Génesis',page:'1'},{page:'2'});expect(href).toContain('view=active');expect(href).toContain('context=group%3A');expect(href).toContain('activity=tarea-1');expect(href).toContain('q=G%C3%A9nesis');expect(href).toContain('page=2')})
 })

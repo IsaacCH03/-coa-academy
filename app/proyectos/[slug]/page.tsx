@@ -11,7 +11,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     .from('student_projects')
     .select('*,student_project_images(*)')
     .eq('slug', slug)
-    .eq('status', 'published')
+    .eq('status','published')
     .maybeSingle()
   if (!project) notFound()
 

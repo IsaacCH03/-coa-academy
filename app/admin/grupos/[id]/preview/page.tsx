@@ -5,11 +5,13 @@ import { LiveGroupView, type LiveGroupAnnouncement, type LiveGroupPublicMember, 
 import { requireAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import { resolveLiveGroupCover } from '@/lib/live-groups'
+import { safeAdminReturnTo } from '@/lib/admin-navigation'
 
-export default async function LiveGroupPreviewPage({ params, searchParams }:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>}) {
+export default async function LiveGroupPreviewPage({ params, searchParams }:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string;returnTo?:string}>}) {
   await requireAdmin()
   const { id } = await params
-  const { tab='curso' } = await searchParams
+  const { tab='curso',returnTo:rawReturnTo } = await searchParams
+  const returnTo=safeAdminReturnTo(rawReturnTo,'/admin/grupos')
   const supabase = await createClient()
   const { data:group } = await supabase.from('live_groups').select('id,slug,name,image_path,courses(title)').eq('id',id).maybeSingle()
   if (!group) notFound()
@@ -21,7 +23,7 @@ export default async function LiveGroupPreviewPage({ params, searchParams }:{par
   const course = Array.isArray(group.courses) ? group.courses[0] : group.courses
   const coverUrl=await resolveLiveGroupCover(supabase,group.image_path)
   return <AccountShell title={group.name} eyebrow={course?.title??'Grupo en vivo'}>
-    <Link href={`/admin/grupos/${id}`} className="mb-5 inline-flex text-sm font-bold text-primary hover:underline">← Volver a administrar</Link>
+    <Link href={`/admin/grupos/${id}?returnTo=${encodeURIComponent(returnTo)}`} className="mb-5 inline-flex text-sm font-bold text-primary hover:underline">← Volver a administrar</Link>
     <LiveGroupView preview coverUrl={coverUrl} slug={group.slug} tab={tab} tabBaseHref={`/admin/grupos/${id}/preview`} sections={(sections??[]) as unknown as LiveGroupViewSection[]} members={(members??[]) as LiveGroupPublicMember[]} announcements={(announcements??[]) as LiveGroupAnnouncement[]} records={[]} />
   </AccountShell>
 }
