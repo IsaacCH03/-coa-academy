@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Bot, MessageCircle, Send, X } from 'lucide-react'
 import { initialAssistantMessage, quickQuestions } from '@/lib/chatbot/knowledge'
 import { localChatResponder } from '@/lib/chatbot/responder'
-import type { ChatMessage } from '@/lib/chatbot/types'
+import type { ChatContext, ChatMessage } from '@/lib/chatbot/types'
 
 const initialMessage: ChatMessage = {
   id: 'welcome',
@@ -17,6 +17,7 @@ export function PublicChatbot() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage])
+  const [context, setContext] = useState<ChatContext>({})
   const messageId = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -40,7 +41,7 @@ export function PublicChatbot() {
   function ask(value: string) {
     const question = value.trim()
     if (!question) return
-    const response = localChatResponder.respond(question)
+    const response = localChatResponder.respond(question, context)
     const id = ++messageId.current
     setMessages((current) => [
       ...current,
@@ -48,6 +49,7 @@ export function PublicChatbot() {
       { id: `assistant-${id}`, role: 'assistant', ...response },
     ])
     setInput('')
+    setContext(response.context ?? context)
   }
 
   function submit(event: FormEvent) {

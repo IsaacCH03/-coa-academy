@@ -8,6 +8,12 @@ export type ChatResponse = {
   text: string
   links?: ChatLink[]
   suggestions?: string[]
+  context?: ChatContext
+}
+
+export type ChatContext = {
+  courseSlug?: string
+  activeMenu?: 'main'
 }
 
 export type ChatMessage = {
@@ -19,5 +25,5 @@ export type ChatMessage = {
 }
 
 export interface ChatResponder {
-  respond(question: string): ChatResponse
+  respond(question: string, context?: ChatContext): ChatResponse
 }

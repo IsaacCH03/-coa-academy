@@ -1,159 +1,66 @@
 import { createWhatsAppLink } from '@/lib/site'
-import { publicCourses, type PublicCourse } from './knowledge'
-import type { ChatResponder, ChatResponse } from './types'
+import { knowledge, publicCourses, type PublicCourse } from './knowledge'
+import type { ChatContext, ChatResponder, ChatResponse } from './types'
 
-export function normalizeQuestion(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9ñ]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ')
+const corrections:Record<string,string>={presio:'precio',presios:'precios',incribirme:'inscribirme',inscribrime:'inscribirme',sertificado:'certificado',gravadas:'grabadas',compu:'computadora'}
+export function normalizeQuestion(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9ñ]+/g,' ').trim().replace(/\s+/g,' ').split(' ').map(word=>corrections[word]??word).join(' ')}
+const has=(q:string,terms:string[])=>terms.some(term=>q.includes(term))
+function aliases(c:PublicCourse){const values=[normalizeQuestion(c.title),normalizeQuestion(c.slug.replaceAll('-',' '))];if(c.slug==='python-nivel-1')values.push('python','python basico','python nivel uno','el basico');if(c.slug==='sql-bases-datos')values.push('sql','bases de datos');if(c.slug==='programacion-con-ia')values.push('programacion con ia','inteligencia artificial');if(c.slug==='desarrollo-web-moderno')values.push('react','next js');if(c.slug==='desarrollo-web-django')values.push('django');return values}
+const matches=(q:string)=>publicCourses.filter(c=>aliases(c).some(alias=>{
+  if(alias==='python'&&has(q,['python intermedio','python practico','software con python']))return false
+  return q===alias||q.includes(alias)
+}))
+const price=(c:PublicCourse)=>`${c.price}${c.billing?` ${c.billing}`:''}`
+function total(c:PublicCourse){if(normalizeQuestion(c.billing??'')!=='por mes')return null;const weeks=c.duration.match(/(\d+)\s*semanas?/i)?.[1],amount=Number(c.price.replace(/\D/g,''));if(!weeks||!amount||Number(weeks)%4)return null;const months=Number(weeks)/4;return{months,value:`₡${new Intl.NumberFormat('es-CR').format(amount*months)}`}}
+function wa(question?:string,text?:string):ChatResponse{const message=question?`Hola, tengo esta consulta sobre C.O.A.: ${question}`:'Hola, quisiera hablar con un asesor de C.O.A.';return{text:text??(question?'No tengo información suficiente para responder esa consulta con seguridad. Puede enviársela a un asesor de COA por WhatsApp.':'Puede conversar directamente con un asesor de COA por WhatsApp.'),links:[{label:'Abrir WhatsApp',href:createWhatsAppLink(message),external:true}]}}
+function remember(response:ChatResponse,course?:PublicCourse){return course?{...response,context:{courseSlug:course.slug}}:response}
+function priceAnswer(c:PublicCourse){const summary=total(c);return remember({text:summary?`${c.title} cuesta ${price(c)} durante ${summary.months} meses, para un total de ${summary.value}.`:`${c.title} tiene un precio publicado de ${price(c)}.`,links:[{label:'Ver curso',href:c.href}]},c)}
+
+export class LocalChatResponder implements ChatResponder{
+ respond(raw:string,context:ChatContext={}):ChatResponse{
+  const q=normalizeQuestion(raw);if(!q)return{text:'Escriba una pregunta o seleccione una opción disponible.',context}
+  if(context.activeMenu==='main'&&/^[1-8]$/.test(q)){const menu:Record<string,string>={'1':'que es coa','2':'certificados','3':'las clases quedan grabadas','4':'que se aprende en python basico','5':'como funcionan los pagos','6':'quiero inscribirme','7':'que puedo hacer al terminar python basico','8':'como se desarrolla python basico'};return this.respond(menu[q],{...context,activeMenu:undefined})}
+  if(/^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|que tal)( coa)?$/.test(q))return{text:'¡Hola! Con gusto le ayudo. Puede preguntarme por cursos, precios, modalidades, inscripciones, requisitos o certificados.',suggestions:['Ver cursos','Precios','Soy principiante','Inscripciones']}
+  if(has(q,['gracias','muchas gracias','pura vida']))return{text:'¡Con mucho gusto! Si necesita información sobre algún curso o inscripción, aquí estoy para ayudarle.',suggestions:['Ver cursos','Hablar con un asesor'],context}
+  if(has(q,['adios','hasta luego','nos vemos','no me interesa','no estoy interesado']))return{text:'Entendido. Gracias por conversar con COA. Cuando desee retomar su aprendizaje, estaremos disponibles.'}
+  if(has(q,['asesor','persona','alguien','whatsapp','contactar','contacto humano']))return wa()
+  if(has(q,['que es coa','quienes son','quienes somos','sobre coa','donde estan','ubicados','ubicacion']))return{text:`${knowledge('institution').answer} Su ubicación de referencia es Guápiles, Costa Rica, y sus cursos públicos se ofrecen principalmente de forma virtual.`,links:[{label:'Conocer COA',href:'/#nosotros'}]}
+  if(has(q,['principiante','desde cero','por donde empiezo','como empiezo','comenzar a programar'])){const selected=publicCourses.filter(c=>['logica-de-programacion','python-nivel-1'].includes(c.slug));return{text:'Si comienza desde cero, puede iniciar con Lógica de Programación para reforzar las bases y continuar con Python Nivel 1.',links:selected.map(c=>({label:`Ver ${c.title}`,href:c.href}))}}
+  if(has(q,['confirmar mi pago','recibieron mi pago','comprobante','pago recibido','ya pague']))return wa(raw,'La confirmación de pagos o comprobantes requiere revisión administrativa. Puede solicitarla por WhatsApp.')
+  if(has(q,['beca','becas']))return wa(raw,`${knowledge('scholarships').answer} Consulte el procedimiento vigente con un asesor.`)
+  if(has(q,['sinpe','transferencia','como puedo pagar','como funcionan los pagos','metodo de pago','metodos de pago']))return wa(raw,knowledge('payment-methods').answer)
+  if(has(q,['pagar despues','pago despues','sin pagar','pagar luego','todo de una vez','cuotas']))return wa(raw,'Las condiciones y fechas de pago dependen de la convocatoria vigente. Puede iniciar desde el enlace oficial y coordinar el pago con un asesor.')
+  if(has(q,['certificado','certificacion','diploma'])){if(has(q,['curriculum','curriculo','linkedin']))return{text:'Puede incluir un certificado de COA como formación complementaria. No equivale a una licencia profesional ni garantiza empleo.',links:[{label:'Verificar certificado',href:'/certificados'}]};return{text:`${knowledge('certificates').answer} Las condiciones dependen del curso y del cumplimiento de sus actividades.`,links:[{label:'Verificar certificado',href:'/certificados'}]}}
+  if(has(q,['computadora','ordenador','laptop','ram','tarjeta grafica','equipo necesito']))return{text:'Para comenzar con Python no necesita una computadora potente. Una computadora de uso normal con Internet es suficiente; 4 GB de RAM pueden funcionar y 8 GB ofrecen mayor comodidad. No requiere tarjeta gráfica dedicada.'}
+  if(has(q,['celular','telefono movil','desde el movil']))return{text:'Algunas actividades iniciales pueden realizarse desde un móvil, pero se recomienda una computadora para ejercicios y proyectos. No todas las herramientas están garantizadas en teléfonos.'}
+  if(has(q,['16 anos','menor de edad','edad minima','que edad']))return{text:'Una persona de 16 años puede llevar Python Nivel 1 porque comienza desde cero. Si es menor, la persona responsable puede coordinar inscripción y pago.',links:[{label:'Ver Python Nivel 1',href:'/cursos/python-nivel-1'}]}
+  if(has(q,['saber programar','conocimientos previos','saber python','saber ingles']))return{text:has(q,['ingles'])?'No necesita saber inglés para comenzar Python Nivel 1, aunque encontrará términos propios del lenguaje.':'No necesita conocimientos previos para comenzar Python Nivel 1.',links:[{label:'Ver Python Nivel 1',href:'/cursos/python-nivel-1'}],context:{courseSlug:'python-nivel-1'}}
+  if(has(q,['garantiza empleo','conseguir trabajo','garantia de empleo','pasantia']))return{text:'Los cursos desarrollan habilidades, pero no garantizan empleo, contratación ni pasantías automáticas.'}
+
+  const found=matches(q),previous=context.courseSlug?publicCourses.find(c=>c.slug===context.courseSlug):undefined,course=found.length===1?found[0]:found.length===0?previous:undefined
+  if(found.length>1)return{text:'Encontré más de un curso relacionado. ¿Sobre cuál desea consultar?',links:found.map(c=>({label:c.title,href:c.href})),suggestions:found.map(c=>c.title)}
+  const asksPrice=has(q,['precio','precios','cuanto cuesta','cuanto vale','costo','valor','cuanto pagar','gratis','gratuito','precio total','total']),asksDuration=has(q,['duracion','cuanto dura','cuanto duran','horas','semanas','y cuanto dura']),asksModality=has(q,['modalidad','modalidades','virtual','autodidacta','en vivo','presencial']),asksRecording=has(q,['grabada','grabadas','grabacion','grabaciones','no puedo asistir']),asksTopics=has(q,['que aprendo','que se aprende','temario','contenidos','materias','que ensenan']),asksOutcome=has(q,['que puedo hacer','al terminar','cuando termine','hasta que nivel']),asksDevelopment=has(q,['como se desarrolla','como funciona el curso','hay tareas','hay examenes','metodologia']),asksNext=has(q,['que sigue','curso sigue','despues de','continuar con otros cursos','ruta educativa']),asksEnrollment=has(q,['inscribir','inscribo','inscripcion','matricula','matricular','quiero entrar']),asksStart=has(q,['cuando inicia','cuando comienza','fecha de inicio','proximo grupo','horario','cupos'])
+  const combined:string[]=[];if(course&&asksPrice)combined.push(priceAnswer(course).text);if(course&&asksDuration)combined.push(`Su duración publicada es ${course.duration}.`);if(course&&asksModality)combined.push(`Su modalidad publicada es ${course.modality}.`);if(combined.length>1)return remember({text:combined.join(' '),links:[{label:'Ver curso',href:course!.href}]},course)
+  if(course&&asksPrice)return priceAnswer(course)
+  if(course&&asksDuration)return remember({text:`${course.title} tiene una duración publicada de ${course.duration}.`,links:[{label:'Ver curso',href:course.href}]},course)
+  if(course&&asksModality)return remember({text:`La modalidad publicada de ${course.title} es ${course.modality}.`,links:[{label:'Ver curso',href:course.href}]},course)
+  if(course&&asksRecording)return remember({text:course.deliveryMode==='live_group'?`Las convocatorias en vivo de ${course.title} contemplan grabaciones. El horario debe confirmarse para el grupo vigente.`:`${course.title} es ${course.modality.toLowerCase()} y se estudia a ritmo propio.`,links:[{label:'Ver curso',href:course.href}]},course)
+  if(course&&asksTopics)return remember({text:`${course.title} incluye: ${course.learn.slice(0,6).join('; ')}.`,links:[{label:'Ver temario',href:course.href}]},course)
+  if(course&&asksOutcome)return remember({text:`Al completar ${course.title}, habrá trabajado: ${course.learn.slice(0,5).join('; ')}. Esto no garantiza empleo.`,links:[{label:'Ver curso',href:course.href}]},course)
+  if(course&&asksDevelopment)return remember({text:course.deliveryMode==='live_group'?`${course.title} se desarrolla como formación en vivo, con explicaciones progresivas, ejercicios y actividades. Las condiciones exactas dependen del grupo vigente.`:`${course.title} es ${course.modality.toLowerCase()} y permite avanzar con los contenidos publicados a su propio ritmo.`,links:[{label:'Ver curso',href:course.href}]},course)
+  if(course&&asksEnrollment)return remember({text:`Puede iniciar el proceso desde el enlace oficial de ${course.title}. La matrícula requiere las verificaciones correspondientes.`,links:[{label:'Inscribirme',href:course.enrollmentHref}]},course)
+  if(course&&asksStart)return remember(wa(raw,`No hay una fecha, horario o cantidad de cupos vigentes publicados para ${course.title}. Puede consultarlos con un asesor.`),course)
+  if(asksRecording)return{text:'Los grupos en vivo pueden incluir grabaciones; los autodidactas se estudian a ritmo propio. Indíqueme el curso.',suggestions:publicCourses.slice(0,4).map(c=>c.title),context}
+  if(asksTopics||asksOutcome)return{text:'La respuesta depende del curso. ¿Cuál le interesa?',suggestions:publicCourses.slice(0,5).map(c=>c.title),context}
+  if(asksNext)return{text:'Una ruta recomendada es Lógica de Programación o Python Nivel 1, luego Python Intermedio y posteriormente desarrollo de software, bases de datos o desarrollo web, según disponibilidad.',links:[{label:'Ver cursos',href:'/#cursos'}]}
+  if(asksEnrollment)return{text:'Seleccione el curso y use su enlace oficial de inscripción. ¿Cuál desea llevar?',links:[{label:'Ver cursos',href:'/#cursos'}],suggestions:publicCourses.slice(0,5).map(c=>c.title),context}
+  if(asksStart)return wa(raw,'Las fechas, horarios y cupos cambian según la convocatoria. Puede confirmarlos con un asesor.')
+  if(asksPrice){const free=publicCourses.filter(c=>normalizeQuestion(c.price)==='gratis');if(has(q,['gratis','gratuito']))return{text:`Actualmente el catálogo muestra como gratuitos: ${free.map(c=>c.title).join(', ')}.`,links:free.map(c=>({label:c.title,href:c.href}))};return{text:`Precios publicados: ${publicCourses.map(c=>`${c.title}: ${price(c)}`).join('; ')}.`,links:[{label:'Ver catálogo',href:'/#cursos'}]}}
+  if(asksModality)return{text:'COA ofrece cursos autodidactas y en vivo según el curso. La modalidad exacta aparece en cada ficha.',links:[{label:'Ver cursos',href:'/#cursos'}]}
+  if(asksDuration)return{text:'La duración depende del curso. Indíqueme cuál le interesa.',suggestions:publicCourses.slice(0,5).map(c=>c.title),context}
+  if(course)return remember({text:`${course.title}: duración ${course.duration}, modalidad ${course.modality} y precio ${price(course)}.`,links:[{label:'Ver curso',href:course.href},{label:'Inscribirme',href:course.enrollmentHref}],suggestions:['¿Qué se aprende?','¿Cuánto dura?','¿Cómo me inscribo?']},course)
+  if(has(q,['curso','cursos','que ofrecen','que tienen','catalogo']))return{text:`El catálogo actual incluye: ${publicCourses.map(c=>c.title).join(', ')}.`,links:[{label:'Ver catálogo',href:'/#cursos'}]}
+  return wa(raw.trim())
+ }
 }
-
-function hasAny(question: string, terms: string[]) {
-  return terms.some((term) => question.includes(term))
-}
-
-function courseAliases(course: PublicCourse) {
-  const aliases = [normalizeQuestion(course.title), normalizeQuestion(course.slug.replaceAll('-', ' '))]
-  if (course.slug === 'python-nivel-1') aliases.push('python basico', 'python básico', 'python nivel uno')
-  if (course.slug === 'sql-bases-datos') aliases.push('sql', 'bases de datos')
-  if (course.slug === 'programacion-con-ia') aliases.push('programacion con ia', 'inteligencia artificial')
-  if (course.slug === 'desarrollo-web-moderno') aliases.push('react', 'next js', 'desarrollo web moderno')
-  if (course.slug === 'desarrollo-web-django') aliases.push('django')
-  return aliases.map(normalizeQuestion)
-}
-
-function matchingCourses(question: string) {
-  return publicCourses.filter((course) => courseAliases(course).some((alias) => question.includes(alias)))
-}
-
-function price(course: PublicCourse) {
-  return `${course.price}${course.billing ? ` ${course.billing}` : ''}`
-}
-
-function whatsappResponse(question?: string): ChatResponse {
-  const message = question
-    ? `Hola, tengo esta consulta sobre C.O.A.: ${question}`
-    : 'Hola, quisiera hablar con un asesor de C.O.A.'
-  return {
-    text: question
-      ? 'No tengo información suficiente para responder esa consulta con seguridad. Puede enviársela a un asesor de COA por WhatsApp.'
-      : 'Puede conversar directamente con un asesor de COA por WhatsApp. El asistente no enviará ningún mensaje automáticamente.',
-    links: [{ label: 'Abrir WhatsApp', href: createWhatsAppLink(message), external: true }],
-  }
-}
-
-export class LocalChatResponder implements ChatResponder {
-  respond(rawQuestion: string): ChatResponse {
-    const question = normalizeQuestion(rawQuestion)
-    if (!question) return { text: 'Escriba una pregunta o seleccione una de las opciones disponibles.' }
-
-    if (hasAny(question, ['asesor', 'persona', 'alguien', 'whatsapp', 'contactar', 'contacto humano'])) {
-      return whatsappResponse()
-    }
-
-    if (hasAny(question, ['principiante', 'desde cero', 'por donde empiezo', 'como empiezo', 'comenzar a programar'])) {
-      const logic = publicCourses.find((course) => course.slug === 'logica-de-programacion')
-      const python = publicCourses.find((course) => course.slug === 'python-nivel-1')
-      return {
-        text: 'Si está comenzando desde cero, puede iniciar con Lógica de Programación para desarrollar las bases y luego continuar con Python Nivel 1.',
-        links: [logic, python].filter((course): course is PublicCourse => Boolean(course)).map((course) => ({ label: `Ver ${course.title}`, href: course.href })),
-      }
-    }
-
-    if (hasAny(question, ['certificado', 'certificacion', 'diploma'])) {
-      return {
-        text: 'Al completar un curso, el estudiante puede recibir un certificado de participación emitido por COA. También puede verificar públicamente un certificado mediante su código.',
-        links: [{ label: 'Verificar certificado', href: '/certificados' }],
-      }
-    }
-
-    if (hasAny(question, ['grabada', 'grabadas', 'grabacion', 'grabaciones'])) {
-      return {
-        text: 'Las clases se realizan de forma virtual. En algunos cursos las sesiones pueden quedar grabadas; para confirmar un curso específico debe consultarlo con un asesor.',
-        links: [{ label: 'Consultar por WhatsApp', href: createWhatsAppLink(`Hola, quisiera confirmar si las clases quedan grabadas para este curso: ${rawQuestion}`), external: true }],
-      }
-    }
-
-    const matches = matchingCourses(question)
-    const asksPrice = hasAny(question, ['precio', 'precios', 'cuanto cuesta', 'costo', 'valor', 'gratis', 'gratuito'])
-    const asksDuration = hasAny(question, ['duracion', 'cuanto dura', 'cuanto duran', 'horas', 'semanas'])
-    const asksModality = hasAny(question, ['modalidad', 'modalidades', 'virtual', 'autodidacta', 'en vivo', 'presencial'])
-
-    if (matches.length === 1 && asksPrice) {
-      const course = matches[0]
-      return { text: `${course.title} tiene un precio publicado de ${price(course)}.`, links: [{ label: 'Ver curso', href: course.href }] }
-    }
-    if (matches.length === 1 && asksDuration) {
-      const course = matches[0]
-      return { text: `${course.title} tiene una duración publicada de ${course.duration}.`, links: [{ label: 'Ver curso', href: course.href }] }
-    }
-    if (matches.length === 1 && asksModality) {
-      const course = matches[0]
-      return { text: `La modalidad publicada de ${course.title} es ${course.modality}.`, links: [{ label: 'Ver curso', href: course.href }] }
-    }
-    if (matches.length === 1) {
-      const course = matches[0]
-      return {
-        text: `${course.title}: duración ${course.duration}, modalidad ${course.modality} y precio ${price(course)}.`,
-        links: [{ label: 'Ver curso', href: course.href }, { label: 'Inscribirme', href: course.enrollmentHref }],
-      }
-    }
-    if (matches.length > 1) {
-      return {
-        text: 'Encontré más de un curso relacionado. ¿Sobre cuál desea consultar?',
-        links: matches.map((course) => ({ label: course.title, href: course.href })),
-        suggestions: ['Ver cursos', 'Precios', 'Modalidades'],
-      }
-    }
-
-    if (asksPrice) {
-      const free = publicCourses.filter((course) => normalizeQuestion(course.price) === 'gratis')
-      if (hasAny(question, ['gratis', 'gratuito'])) {
-        return {
-          text: `Actualmente el catálogo muestra como gratuitos: ${free.map((course) => course.title).join(', ')}.`,
-          links: free.map((course) => ({ label: course.title, href: course.href })),
-        }
-      }
-      return {
-        text: `Estos son los precios publicados: ${publicCourses.map((course) => `${course.title}: ${price(course)}`).join('; ')}.`,
-        links: [{ label: 'Ver catálogo', href: '/#cursos' }],
-      }
-    }
-
-    if (asksModality) {
-      return {
-        text: 'COA ofrece cursos autodidactas y cursos en vivo, según el curso. La modalidad exacta aparece en cada ficha pública.',
-        links: [{ label: 'Ver cursos', href: '/#cursos' }],
-      }
-    }
-
-    if (asksDuration) {
-      return {
-        text: 'La duración depende del curso. Puede indicarme el nombre del curso o consultar su ficha pública.',
-        suggestions: publicCourses.slice(0, 4).map((course) => course.title),
-      }
-    }
-
-    if (hasAny(question, ['inscribir', 'inscribo', 'inscripcion', 'matricula', 'matricular'])) {
-      return {
-        text: 'Abra la ficha del curso que le interesa y seleccione “Inscribirme”. El flujo disponible depende de la modalidad de ese curso.',
-        links: [{ label: 'Ver cursos', href: '/#cursos' }],
-      }
-    }
-
-    if (hasAny(question, ['curso', 'cursos', 'que ofrecen', 'que tienen', 'catalogo'])) {
-      return {
-        text: `El catálogo actual incluye: ${publicCourses.map((course) => course.title).join(', ')}.`,
-        links: [{ label: 'Ver catálogo', href: '/#cursos' }],
-      }
-    }
-
-    return whatsappResponse(rawQuestion.trim())
-  }
-}
-
-export const localChatResponder = new LocalChatResponder()
+export const localChatResponder=new LocalChatResponder()
