@@ -1,11 +1,18 @@
+'use client'
+
 import { MessageCircle } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { createWhatsAppLink } from '@/lib/site'
+import { isChatbotRoute } from '@/components/chatbot/chatbot-gate'
 
 const floatingWhatsappLink = createWhatsAppLink(
   'Hola, quisiera recibir información sobre C.O.A.',
 )
 
 export function WhatsAppFloat() {
+  const pathname = usePathname()
+  if (isChatbotRoute(pathname)) return null
+
   return (
     <a
       href={floatingWhatsappLink}

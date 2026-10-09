@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import './globals.css'
 import { PUBLIC_ORIGIN } from '@/lib/seo'
+import { ChatbotGate } from '@/components/chatbot/chatbot-gate'
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -37,6 +38,7 @@ export default function RootLayout({
       <head><script dangerouslySetInnerHTML={{__html:"try{const d=localStorage.getItem('coa-theme')==='dark';document.documentElement.classList.add(d?'dark':'light')}catch{document.documentElement.classList.add('light')}"}}/></head>
       <body className="font-sans antialiased">
         {children}
+        <ChatbotGate />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
