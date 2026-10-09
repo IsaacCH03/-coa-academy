@@ -64,7 +64,7 @@ export function HeroSection() {
           <div className="flex items-center gap-6 pt-2 text-sm text-primary-foreground/80">
             <div>
               <p className="text-xl font-bold text-primary-foreground">+800</p>
-              <p>Estudiantes</p>
+              <p>Inscritos</p>
             </div>
             <div>
               <p className="text-xl font-bold text-primary-foreground">9</p>
