@@ -85,5 +85,13 @@ export const certificados: Certificado[] = [
     fechaEmision: '30/09/2026',
     estado: 'valido',
   },
+   {
+    codigo: 'COA-PYB-2026-0008',
+    nombre: 'Breyner Gamboa Badilla',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '10/10/2026',
+    estado: 'valido',
+  },
   
 ]
