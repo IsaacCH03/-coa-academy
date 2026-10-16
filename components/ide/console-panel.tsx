@@ -114,7 +114,15 @@ export function ConsolePanel({
       </pre>
       {diagnostic && !collapsed && (
         <aside className="runtime-diagnostic" role="alert">
-          <strong>❌ {diagnostic.line ? `Error en ${diagnostic.path ? `${diagnostic.path}, ` : ''}línea ${diagnostic.line}` : 'Error de Python'}</strong>
+          <strong>❌ {diagnostic.line
+            ? `Error en ${diagnostic.path ? `${diagnostic.path}, ` : ''}línea ${diagnostic.line}`
+            : diagnostic.kind === 'capability'
+              ? 'Problema de compatibilidad del navegador'
+              : diagnostic.kind === 'load'
+                ? 'No se pudo cargar Python'
+                : diagnostic.kind === 'runtime'
+                  ? 'Problema interno del entorno'
+                  : 'Error de Python'}</strong>
           <p>{diagnostic.title}</p>
           <small>{diagnostic.explanation}</small>
           <details>

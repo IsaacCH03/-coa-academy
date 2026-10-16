@@ -4,6 +4,7 @@ import type { BuilderAnalysis } from './builder'
 import type { CodeDiagnostic } from './diagnostics'
 export type RuntimeState =
   'loading' | 'ready' | 'running' | 'input' | 'stopped' | 'error'
+export type RuntimeIssueKind = 'python' | 'runtime' | 'capability' | 'load'
 export type RunResult = {
   ok: boolean
   output: string
@@ -35,7 +36,8 @@ export type CoaGuiDialogRequest = {
 type RuntimeEvents = {
   state: (state: RuntimeState) => void
   output: (text: string) => void
-  error: (text: string) => void
+  error: (text: string, kind: RuntimeIssueKind) => void
+  inputRequest: (requestId: number) => void
   dialog: (request: CoaGuiDialogRequest) => void
 }
 export class PythonRuntime {
@@ -53,10 +55,15 @@ export class PythonRuntime {
   private timeout: ReturnType<typeof setTimeout> | undefined
   private loadingTimeout: ReturnType<typeof setTimeout> | undefined
   private ready = false
+  private workerGeneration = 0
+  private runSequence = 0
+  private activeRunId: number | undefined
+  private pendingInput: { runId: number; requestId: number } | undefined
   private openpyxlWheels: Promise<Uint8Array[]> | undefined
   constructor(private events: RuntimeEvents) {}
   start() {
     this.dispose()
+    const generation = ++this.workerGeneration
     this.events.state('loading')
     this.buffer =
       typeof SharedArrayBuffer !== 'undefined' && crossOriginIsolated
@@ -72,15 +79,23 @@ export class PythonRuntime {
       90000,
     )
     worker.onmessage = ({ data }) => {
-      if (this.worker !== worker) return
+      if (this.worker !== worker || generation !== this.workerGeneration) return
+      if (data.runId !== undefined && data.runId !== this.activeRunId) return
       if (data.type === 'ready') {
         clearTimeout(this.loadingTimeout)
         this.ready = true
         this.events.state('ready')
       }
       if (data.type === 'output') this.events.output(data.text)
-      if (data.type === 'input') this.events.state('input')
-      if (data.type === 'python-error') this.events.error(data.text)
+      if (data.type === 'input') {
+        this.pendingInput = { runId: data.runId, requestId: data.requestId }
+        this.events.inputRequest(data.requestId)
+        this.events.state('input')
+      }
+      if (data.type === 'python-error') this.events.error(data.text, 'python')
+      if (data.type === 'runtime-error') this.events.error(data.text, 'runtime')
+      if (data.type === 'capability-error') this.events.error(data.text, 'capability')
+      if (data.type === 'load-error') this.fail(data.text, 'load')
       if (data.type === 'gui-dialog') this.events.dialog(data.dialog)
       if (data.type === 'gui-update') {
         this.events.state('ready')
@@ -124,9 +139,11 @@ export class PythonRuntime {
         this.resolveDiagnostics = undefined
         this.rejectDiagnostics = undefined
       }
-      if (data.type === 'fatal') this.fail(data.text)
+      if (data.type === 'fatal') this.fail(data.text, 'runtime')
       if (data.type === 'done') {
         clearTimeout(this.timeout)
+        this.pendingInput = undefined
+        this.activeRunId = undefined
         this.events.state('ready')
         this.resolve?.(data)
         this.resolve = undefined
@@ -135,12 +152,13 @@ export class PythonRuntime {
     worker.onerror = () =>
       this.fail(
         'No se pudo iniciar el entorno Python. Pulsa Reiniciar entorno para volver a intentarlo.',
+        this.ready ? 'runtime' : 'load',
       )
     worker.postMessage({ type: 'init', inputBuffer: this.buffer })
   }
-  private fail(message: string) {
+  private fail(message: string, kind: RuntimeIssueKind = 'runtime') {
     this.dispose()
-    this.events.error(message)
+    this.events.error(message, kind)
     this.events.output(message + '\n')
     this.events.state('error')
   }
@@ -163,6 +181,8 @@ export class PythonRuntime {
     }))
     const openpyxlWheels = needsOpenpyxl ? await this.openpyxlWheels : undefined
     this.events.state('running')
+    const runId = ++this.runSequence
+    this.activeRunId = runId
     return new Promise((resolve) => {
       this.resolve = resolve
       if (inputs)
@@ -174,6 +194,7 @@ export class PythonRuntime {
         }, 10000)
       this.worker!.postMessage({
         type: 'run',
+        runId,
         entries: project.entries,
         active: project.active,
         inputs,
@@ -181,14 +202,18 @@ export class PythonRuntime {
       })
     })
   }
-  input(text: string) {
+  input(text: string, requestId: number) {
     if (!this.buffer)
       throw new Error(
         'La entrada interactiva no está disponible en este navegador.',
       )
+    const request = this.pendingInput
+    if (!request || request.runId !== this.activeRunId || request.requestId !== requestId)
+      throw new Error('Python no está esperando una respuesta en este momento.')
     const bytes = new TextEncoder().encode(text)
     if (bytes.length > 65536)
       throw new Error('La respuesta es demasiado larga (máximo 64 KB).')
+    this.pendingInput = undefined
     const control = new Int32Array(this.buffer, 0, 2)
     new Uint8Array(this.buffer, 8).set(bytes)
     Atomics.store(control, 1, bytes.length)
@@ -245,10 +270,14 @@ export class PythonRuntime {
   }
   stop() {
     this.dispose()
-    this.events.state('stopped')
+    this.events.output('\nPrograma detenido. Preparando un entorno Python nuevo…\n')
+    this.start()
   }
   dispose() {
     this.ready = false
+    this.workerGeneration += 1
+    this.activeRunId = undefined
+    this.pendingInput = undefined
     this.worker?.terminate()
     this.worker = null
     clearTimeout(this.timeout)

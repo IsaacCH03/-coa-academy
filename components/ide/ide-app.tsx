@@ -38,7 +38,7 @@ import {
   mergeRuntimeEntries,
   type Project,
 } from '@/lib/ide/project'
-import { PythonRuntime, type CoaGuiDialogRequest, type RuntimeState } from '@/lib/ide/runtime'
+import { PythonRuntime, type CoaGuiDialogRequest, type RuntimeIssueKind, type RuntimeState } from '@/lib/ide/runtime'
 import type { CoaGuiPreview as CoaGuiPreviewModel } from '@/lib/ide/runtime'
 import { builderInsertion } from '@/lib/ide/insertion'
 import { educationalHints, explainCode } from '@/lib/ide/education'
@@ -67,9 +67,32 @@ const statusLabels: Record<RuntimeState, string> = {
 }
 type Panel = 'learn' | 'files' | 'ai' | 'exercise' | 'designer' | 'github' | 'settings' | 'extensions'
 
+function explainIdeError(technical: string, kind: RuntimeIssueKind): RuntimeDiagnostic {
+  if (kind === 'python') return explainRuntimeError(technical)
+  if (kind === 'capability') return {
+    kind,
+    title: 'Este navegador no puede usar la entrada interactiva de Python.',
+    explanation: 'Abre COA mediante HTTPS o localhost en un navegador actualizado. Si el problema continúa, revisa que el sitio conserve los encabezados de aislamiento.',
+    technical,
+  }
+  if (kind === 'load') return {
+    kind,
+    title: 'No se pudo cargar el motor de Python.',
+    explanation: 'Revisa tu conexión y pulsa Reiniciar entorno para volver a intentarlo. Tu código permanece guardado.',
+    technical,
+  }
+  return {
+    kind,
+    title: 'El entorno de Python encontró un problema interno.',
+    explanation: 'Pulsa Reiniciar entorno para preparar un motor nuevo. Tu código permanece guardado.',
+    technical,
+  }
+}
+
 export function IdeApp() {
   const { project, update, save, saveStatus, storageError } = useProject()
   const [state, setState] = useState<RuntimeState>('loading')
+  const [inputRequestId, setInputRequestId] = useState<number | null>(null)
   const [output, setOutput] = useState('')
   const [pythonError, setPythonError] = useState('')
   const [notice, setNotice] = useState('')
@@ -211,22 +234,26 @@ export function IdeApp() {
     const runner = new PythonRuntime({
       state: (next) => {
         setState(next)
+        if (next === 'ready' || next === 'error' || next === 'stopped') setInputRequestId(null)
         if (next === 'ready' && restartPending.current) {
           restartPending.current = false
           setNotice('Entorno reiniciado correctamente.')
+        } else if (next === 'ready') {
+          setNotice((current) => current === 'Programa detenido. Preparando Python…' ? 'Python está listo para ejecutar de nuevo.' : current)
         } else if (next === 'error' && restartPending.current) {
           restartPending.current = false
           setNotice('No se pudo reiniciar completamente el entorno.')
         }
       },
       output: append,
-      error: (technical) => {
+      inputRequest: setInputRequestId,
+      error: (technical, kind) => {
         setPythonError(technical)
-        const explained = explainRuntimeError(technical)
+        const explained = explainIdeError(technical, kind)
         const current = projectRef.current
         const path = explained.path ?? current?.active
         setRuntimeDiagnostic({ ...explained, path })
-        if (path && explained.line) {
+        if (kind === 'python' && path && explained.line) {
           setRuntimeMarkerSource(current?.entries.find((entry) => entry.path === path)?.content ?? '')
           setRuntimeMarker({
             id: `runtime-${path}-${explained.line}`,
@@ -379,10 +406,9 @@ export function IdeApp() {
   function stop() {
     cancelTests.current = true
     runtime.current?.stop()
+    setInputRequestId(null)
     setGuiDialog(null)
-    append(
-      '\nPrograma detenido. Pulsa Reiniciar entorno para volver a ejecutar.\n',
-    )
+    setNotice('Programa detenido. Preparando Python…')
   }
   async function restartEnvironment() {
     if (restartPending.current) return
@@ -392,6 +418,7 @@ export function IdeApp() {
       cancelTests.current = true
       restartPending.current = true
       setPythonError('')
+      setInputRequestId(null)
       setRuntimeDiagnostic(null)
       setRuntimeMarker(null)
       setRuntimeMarkerSource('')
@@ -942,7 +969,9 @@ export function IdeApp() {
               waiting={state === 'input'}
               onInput={(text) => {
                 try {
-                  runtime.current?.input(text)
+                  if (inputRequestId === null) throw new Error('Esta solicitud de entrada ya no está activa.')
+                  runtime.current?.input(text, inputRequestId)
+                  setInputRequestId(null)
                 } catch (e) {
                   report((e as Error).message)
                 }

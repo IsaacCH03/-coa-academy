@@ -8,6 +8,8 @@ let lastFlush = 0
 let truncated = false
 let output = ''
 let testing = false
+let currentRunId
+let inputRequestSequence = 0
 const LIMIT = 200000
 const decoder = new TextDecoder()
 let openpyxlReady = false
@@ -180,11 +182,12 @@ def _coa_invoke(widget_id, values):
 `
 function flush() {
   if (pending) {
-    self.postMessage({ type: 'output', text: pending })
+    self.postMessage({ type: 'output', text: pending, runId: currentRunId })
     pending = ''
   }
   lastFlush = Date.now()
 }
+self.coaFlushOutput = flush
 function write(buffer) {
   const text = decoder.decode(buffer, { stream: true })
   if (printed < LIMIT) {
@@ -257,10 +260,10 @@ self.onmessage = async ({ data }) => {
       })
       python.FS.mkdirTree('/home/coa')
       python.FS.writeFile('/home/pyodide/coa_gui.py', COA_GUI_MODULE)
-      self.postMessage({ type: 'ready' })
+      self.postMessage({ type: 'ready', interactiveInput: Boolean(inputBuffer) })
     } catch (error) {
       self.postMessage({
-        type: 'fatal',
+        type: 'load-error',
         text:
           'No se pudo cargar Python. Revisa tu conexión e inténtalo de nuevo. ' +
           String(error),
@@ -887,6 +890,22 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
         is_unused_coa_gui = local == 'gui' and isinstance(node, __ast.Import) and any(alias.name == 'coa_gui' for alias in node.names)
         if loads.get(local, 0) == 0 and not is_unused_coa_gui:
             __coa_diagnostics.append(__coa_item(__coa_path, 'unused-import', node, f'El import "{local}" no se utiliza.', 'Elimina este import si no es necesario para el programa.', 'warning'))
+    def __coa_class_methods(class_name, visiting=None):
+        visiting = set() if visiting is None else set(visiting)
+        if class_name in visiting or class_name not in classes: return {}, False
+        visiting.add(class_name)
+        cls = classes[class_name]
+        methods, complete = {}, True
+        # Reverse update preserves Python's left-most-base precedence.
+        for base in reversed(cls.bases):
+            if not isinstance(base, __ast.Name) or base.id not in classes:
+                complete = False
+                continue
+            inherited, inherited_complete = __coa_class_methods(base.id, visiting)
+            methods.update(inherited)
+            complete = complete and inherited_complete
+        methods.update({item.name: item for item in cls.body if isinstance(item, (__ast.FunctionDef, __ast.AsyncFunctionDef))})
+        return methods, complete
     # Simple literal operations whose result is certain without executing code.
     for node in __ast.walk(__coa_tree):
         if isinstance(node, __ast.BinOp) and isinstance(node.op, (__ast.Div, __ast.FloorDiv, __ast.Mod)) and isinstance(node.right, __ast.Constant) and node.right.value == 0:
@@ -920,32 +939,30 @@ for __coa_path, __coa_diagnostic_source in __coa_python.items():
                     __coa_diagnostics.append(__coa_item(__coa_path, 'constructor-args', node, f'El constructor de "{node.func.id}" necesita {required if required == maximum else f"entre {required} y {maximum}"} argumentos y recibió {received}.', 'self se envía automáticamente; revisa los demás parámetros.'))
         if isinstance(node, __ast.Call) and isinstance(node.func, __ast.Attribute) and isinstance(node.func.value, __ast.Name) and node.func.value.id in instances:
             class_name = instances[node.func.value.id]
-            cls = classes[class_name]
-            methods = {item.name: item for item in cls.body if isinstance(item, (__ast.FunctionDef, __ast.AsyncFunctionDef))}
-            if node.func.attr not in methods:
+            methods, hierarchy_complete = __coa_class_methods(class_name)
+            if node.func.attr not in methods and hierarchy_complete:
                 suggestion = __coa_best(node.func.attr, methods)
                 item = __coa_item(__coa_path, 'method', node.func, f'{class_name} no tiene un método llamado "{node.func.attr}".', 'Revisa los métodos definidos en la clase.')
                 if suggestion:
                     item['explanation'] += f' ¿Querías "{suggestion}"?'
                     item['fix'] = {'title': f'Cambiar por "{suggestion}"', 'startLine': node.func.lineno, 'startColumn': node.func.end_col_offset - len(node.func.attr) + 1, 'endLine': node.func.end_lineno, 'endColumn': node.func.end_col_offset + 1, 'text': suggestion}
                 __coa_diagnostics.append(item)
-            else:
+            elif node.func.attr in methods:
                 method = methods[node.func.attr]
                 expected = max(0, len(method.args.args) - 1)
                 if not method.args.vararg and len(node.args) != expected:
                     __coa_diagnostics.append(__coa_item(__coa_path, 'method-args', node, f'El método "{node.func.attr}" necesita {expected} argumentos y recibió {len(node.args)}.', 'self se envía automáticamente; revisa los demás parámetros.'))
         if isinstance(node, __ast.Call) and isinstance(node.func, __ast.Attribute) and isinstance(node.func.value, __ast.Attribute) and isinstance(node.func.value.value, __ast.Name) and node.func.value.value.id == 'self' and node.func.value.attr in self_instances:
             class_name = self_instances[node.func.value.attr]
-            cls = classes[class_name]
-            methods = {item.name: item for item in cls.body if isinstance(item, (__ast.FunctionDef, __ast.AsyncFunctionDef))}
-            if node.func.attr not in methods:
+            methods, hierarchy_complete = __coa_class_methods(class_name)
+            if node.func.attr not in methods and hierarchy_complete:
                 suggestion = __coa_best(node.func.attr, methods)
                 item = __coa_item(__coa_path, 'self-method', node.func, f'El método "{node.func.attr}" no existe en {class_name}.', 'Revisa los métodos definidos en la clase conocida.', 'warning')
                 if suggestion:
                     item['explanation'] += f' ¿Quisiste decir "{suggestion}"?'
                     item['fix'] = {'title': f'Cambiar a "{suggestion}"', 'startLine': node.func.lineno, 'startColumn': node.func.end_col_offset - len(node.func.attr) + 1, 'endLine': node.func.end_lineno, 'endColumn': node.func.end_col_offset + 1, 'text': suggestion}
                 __coa_diagnostics.append(item)
-            else:
+            elif node.func.attr in methods:
                 method = methods[node.func.attr]
                 expected = max(0, len(method.args.args) - 1)
                 if not method.args.vararg and len(node.args) != expected:
@@ -1003,6 +1020,7 @@ __json.dumps(__coa_diagnostics)
     return
   }
   if (data.type !== 'run' || !python) return
+  currentRunId = data.runId
   pending = ''
   output = ''
   printed = 0
@@ -1010,6 +1028,7 @@ __json.dumps(__coa_diagnostics)
   testing = Array.isArray(data.inputs)
   let ok = true
   let gui
+  let environmentErrorReported = false
   try {
     python.FS.chdir('/home/pyodide')
     removeTree('/home/coa')
@@ -1033,13 +1052,21 @@ __json.dumps(__coa_diagnostics)
     python.setStdin({
       stdin: () => {
         flush()
-        if (!inputBuffer)
+        if (!inputBuffer) {
+          environmentErrorReported = true
+          self.postMessage({
+            type: 'capability-error',
+            runId: currentRunId,
+            text: 'La entrada interactiva necesita aislamiento del navegador (SharedArrayBuffer y crossOriginIsolated). Abre COA mediante HTTPS o localhost y vuelve a intentarlo.',
+          })
           throw new Error(
             'input() necesita aislamiento del navegador. Recarga /ide usando HTTPS o localhost.',
           )
+        }
         const control = new Int32Array(inputBuffer, 0, 2)
+        const requestId = ++inputRequestSequence
         Atomics.store(control, 0, 0)
-        self.postMessage({ type: 'input' })
+        self.postMessage({ type: 'input', runId: currentRunId, requestId })
         Atomics.wait(control, 0, 0)
         const length = Atomics.load(control, 1)
         // TextDecoder requires a non-shared ArrayBuffer view in browsers.
@@ -1048,6 +1075,19 @@ __json.dumps(__coa_diagnostics)
         )
       },
     })
+    python.runPython(`
+import sys as __coa_stream_sys
+from js import coaFlushOutput as __coa_flush_output
+class __CoaOutputProxy:
+    def __init__(self, target): self.target = target
+    def write(self, value): return self.target.write(value)
+    def flush(self):
+        self.target.flush()
+        __coa_flush_output()
+    def __getattr__(self, name): return getattr(self.target, name)
+__coa_stream_sys.stdout = __CoaOutputProxy(__coa_stream_sys.stdout)
+__coa_stream_sys.stderr = __CoaOutputProxy(__coa_stream_sys.stderr)
+`)
     const needsOpenpyxl = data.entries.some((entry) => entry.kind === 'file' && /\.py$/i.test(entry.path) && /(^|\n)\s*(?:from\s+openpyxl\b|import\s+openpyxl\b)/.test(entry.content))
     if (needsOpenpyxl && !openpyxlReady) {
       self.postMessage({ type: 'output', text: 'Preparando openpyxl por primera vez…\n' })
@@ -1101,18 +1141,23 @@ __coa_json.dumps(__coa_module._coa_snapshot()) if __coa_module else 'null'
   } catch (error) {
     ok = false
     const message = String(error)
-    self.postMessage({ type: 'python-error', text: message })
+    if (!environmentErrorReported) {
+      const pythonError = error?.name === 'PythonError' || /PythonError:|Traceback \(most recent call last\)/.test(message)
+      self.postMessage({ type: pythonError ? 'python-error' : 'runtime-error', text: message, runId: currentRunId })
+    }
   }
   flush()
   try {
     self.postMessage({
       type: 'done',
+      runId: currentRunId,
       ok,
       output,
       gui: testing ? undefined : gui,
       entries: testing ? undefined : snapshot(),
     })
   } catch {
-    self.postMessage({ type: 'done', ok, output })
+    self.postMessage({ type: 'done', runId: currentRunId, ok, output })
   }
+  currentRunId = undefined
 }

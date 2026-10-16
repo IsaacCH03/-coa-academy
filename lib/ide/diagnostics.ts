@@ -22,6 +22,7 @@ export type CodeDiagnostic = {
   origin?: 'static' | 'runtime'
 }
 export type RuntimeDiagnostic = {
+  kind?: 'python' | 'runtime' | 'capability' | 'load'
   title: string
   explanation: string
   line?: number
