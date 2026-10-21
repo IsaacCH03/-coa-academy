@@ -173,4 +173,20 @@ export const certificados: Certificado[] = [
     fechaEmision: '20/10/2026',
     estado: 'valido',
   },
+  {
+    codigo: 'COA-PYB-2026-0019',
+    nombre: 'Gabriel Dario Sequeira López',
+    curso: 'Python Básico',
+    modalidad: 'Virtual',
+    fechaEmision: '20/10/2026',
+    estado: 'valido',
+  },
+  {
+    codigo: 'COA-PYI-2026-0003',
+    nombre: 'Gabriel Dario Sequeira López',
+    curso: 'Python Intermedio',
+    modalidad: 'Virtual',
+    fechaEmision: '20/10/2026',
+    estado: 'valido',
+  },
 ]
