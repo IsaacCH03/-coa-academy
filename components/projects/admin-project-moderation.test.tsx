@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/app/phase3-actions',()=>({moderateProject:vi.fn()}))
+vi.mock('@/app/phase3-actions',()=>({moderateProject:vi.fn(),archiveProject:vi.fn(),archiveProjects:vi.fn(async()=>({message:null,error:null,failed:[]}))}))
 import { AdminProjectModeration, type AdminProject } from './admin-project-moderation'
 
 const projects:AdminProject[]=[
@@ -18,4 +18,6 @@ describe('AdminProjectModeration',()=>{
  it('cambia a una sola categoría y conserva proyectos sin curso ni imágenes',()=>{render(<AdminProjectModeration projects={projects}/>);fireEvent.click(screen.getByRole('tab',{name:'Publicados 1'}));expect(screen.getAllByText('Proyecto publicado')).toHaveLength(2);expect(screen.getByText('Sin imágenes')).toBeTruthy();expect(screen.queryByText('Proyecto pendiente')).toBeNull()})
  it('abre el detalle con autor, curso, enlaces y acciones',()=>{render(<AdminProjectModeration projects={projects}/>);fireEvent.click(screen.getByRole('button',{name:'Ver proyecto'}));expect(screen.getAllByText('Eva Valverde')).toHaveLength(2);expect(screen.getByText('Python Intermedio')).toBeTruthy();expect(screen.getByText('Descripción pendiente')).toBeTruthy();expect(screen.getAllByRole('button',{name:'Aprobar'}).length).toBeGreaterThan(0);expect(screen.getByText('YouTube')).toBeTruthy()})
  it('distingue el empty state de una consulta válida',()=>{render(<AdminProjectModeration projects={[]}/>);expect(screen.getByText('No hay proyectos pendientes de revisión.')).toBeTruthy()})
+ it('muestra archivados y permite restaurarlos sin convertirlos en rechazados',()=>{render(<AdminProjectModeration projects={[{...projects[0],admin_archived_at:'2026-10-05T12:00:00Z'}]}/>);fireEvent.click(screen.getByRole('tab',{name:'Archivados 1'}));expect(screen.getAllByText('Archivado').length).toBeGreaterThan(0);expect(screen.getAllByRole('button',{name:/Restaurar/}).length).toBeGreaterThan(0)})
+ it('marca coincidencias cercanas únicamente como posibles duplicados',()=>{render(<AdminProjectModeration projects={[{...projects[0],possible_duplicate:true}]}/>);expect(screen.getByText('Posible duplicado')).toBeTruthy()})
 })
