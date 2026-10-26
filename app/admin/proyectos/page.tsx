@@ -3,9 +3,10 @@ import { AdminProjectModeration, type AdminProject } from '@/components/projects
 import { requireAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await requireAdmin()
   const supabase = await createClient()
+  const { error: actionError } = await searchParams
   const { data, error } = await supabase
     .from('student_projects')
     .select('id,author_id,slug,title,description,technologies,youtube_id,github_url,status,rejection_reason,created_at,admin_archived_at,author:profiles!student_projects_author_id_fkey(full_name),course:courses!student_projects_course_id_fkey(title),student_project_images(storage_path,alt_text,display_order)')
@@ -25,6 +26,7 @@ export default async function Page() {
 
   return <AccountShell eyebrow="Moderación" title="Proyectos COA">
     <p className="mt-2 text-muted-foreground">Revisa y administra los proyectos enviados por estudiantes.</p>
+    {actionError && <p role="alert" className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 font-semibold text-destructive">{actionError}</p>}
     {error
       ? <p role="alert" className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 font-semibold text-destructive">No pudimos consultar los proyectos. Revisa el diagnóstico del servidor.</p>
       : <AdminProjectModeration projects={projects}/>

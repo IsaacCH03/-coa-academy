@@ -22,7 +22,7 @@ function Actions({project,compact=false}:{project:AdminProject;compact?:boolean}
  if(project.admin_archived_at)return <div className={compact?'':'mt-5'}><ArchiveAction project={project} restore/></div>
  if(project.status==='rejected')return null
  return <div className={`flex flex-wrap gap-2 ${compact?'':'mt-5'}`}>
-  {project.status==='pending'&&<form action={moderateProject}><input type="hidden" name="project_id" value={project.id}/><PendingButton className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Aprobar</PendingButton></form>}
+  {project.status==='pending'&&<form action={moderateProject}><input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="status" value="published"/><PendingButton className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Aprobar</PendingButton></form>}
   <form action={moderateProject} className="flex min-w-56 flex-1 gap-2"><input type="hidden" name="project_id" value={project.id}/>{project.status==='pending'&&<input name="reason" required className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm" placeholder="Motivo del rechazo"/>}<PendingButton className="rounded-xl border px-4 py-2 text-sm font-bold text-destructive">{project.status==='published'?'Retirar':'Rechazar'}</PendingButton><input type="hidden" name="status" value={project.status==='published'?'pending':'rejected'}/></form>
   {project.status==='pending'&&<ArchiveAction project={project}/>}
  </div>

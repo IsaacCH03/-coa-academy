@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   projectsByKey: new Map<string, { id: string; upload_state: string; created_at:string }>(),
   admin: true,
   archiveCalls: [] as Array<{ p_projects: string[]; p_archived: boolean }>,
+  moderateCalls: [] as Array<Record<string, unknown>>,
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
@@ -69,7 +70,7 @@ vi.mock('@/lib/supabase/server', () => ({
       }
       throw new Error(`Unexpected table ${table}`)
     },
-    rpc: async (name:string,args:Record<string,unknown>) => {if(name==='set_own_project_upload_state'){for(const project of state.projectsByKey.values())if(project.id===args.p_project)project.upload_state=String(args.p_state);return{data:true,error:null}}if(name!=='set_student_projects_archived')throw new Error(`Unexpected rpc ${name}`);const archiveArgs=args as {p_projects:string[];p_archived:boolean};state.archiveCalls.push(archiveArgs);return{data:[{project_id:archiveArgs.p_projects[0],changed:true}],error:null}},
+    rpc: async (name:string,args:Record<string,unknown>) => {if(name==='set_own_project_upload_state'){for(const project of state.projectsByKey.values())if(project.id===args.p_project)project.upload_state=String(args.p_state);return{data:true,error:null}}if(name==='moderate_student_project'){state.moderateCalls.push(args);return{data:null,error:null}}if(name!=='set_student_projects_archived')throw new Error(`Unexpected rpc ${name}`);const archiveArgs=args as {p_projects:string[];p_archived:boolean};state.archiveCalls.push(archiveArgs);return{data:[{project_id:archiveArgs.p_projects[0],changed:true}],error:null}},
     storage: { from: (bucket: string) => {
       if (bucket !== 'phase3-media') throw new Error(`Unexpected bucket ${bucket}`)
       return {
@@ -126,6 +127,7 @@ describe('createProject', () => {
     state.projectsByKey = new Map()
     state.admin = true
     state.archiveCalls = []
+    state.moderateCalls = []
     vi.restoreAllMocks()
   })
 
@@ -166,8 +168,19 @@ describe('createProject', () => {
   it('registra el error real del INSERT y devuelve un error controlado', async () => {
     state.projectInsertError = { code: '42501', message: 'permission denied for table student_projects' }
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    expect(await redirected(createProject(form()))).toContain('No pudimos crear el proyecto.')
-    expect(log).toHaveBeenCalledWith('[Proyectos COA] create project failed', expect.objectContaining({ stage: 'project_insert', code: '42501' }))
+    vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    expect(await redirected(createProject(form()))).toContain('PROJECT-INSERT-PERMISSION')
+    expect(log).toHaveBeenCalledWith('[Proyectos COA] create project failed', expect.objectContaining({ stage: 'project_insert', code: '42501', diagnosticId: expect.stringMatching(/^[0-9a-f]{8}$/) }))
+    expect(log.mock.calls[0][1]).not.toHaveProperty('details')
+  })
+
+  it('distingue caché de esquema y curso inválido sin exponer el error interno', async () => {
+    state.projectInsertError = { code: 'PGRST204', message: "Could not find the 'submission_key' column" }
+    expect(await redirected(createProject(form()))).toContain('PROJECT-SCHEMA-CACHE')
+    state.projectInsertError = { code: '23503', message: 'foreign key violation with internal details' }
+    const message = await redirected(createProject(form()))
+    expect(message).toContain('curso seleccionado ya no está disponible')
+    expect(message).not.toContain('internal details')
   })
 
   it('limpia proyecto e imágenes previas si falla Storage', async () => {
@@ -198,6 +211,8 @@ describe('createProject', () => {
 })
 
 describe('archivado administrativo',()=>{beforeEach(()=>{state.admin=true;state.archiveCalls=[]});it('archiva varios proyectos sin invocar moderación',async()=>{const{archiveProjects}=await import('./phase3-actions');const data=new FormData();data.append('project_ids','one');data.append('project_ids','two');data.set('mode','archive');await expect(archiveProjects({message:null,error:null,failed:[]},data)).resolves.toMatchObject({message:expect.stringContaining('2 proyectos'),failed:[]});expect(state.archiveCalls).toEqual([{p_projects:['one'],p_archived:true},{p_projects:['two'],p_archived:true}])});it('exige permisos administrativos',async()=>{state.admin=false;const{archiveProjects}=await import('./phase3-actions');await expect(archiveProjects({message:null,error:null,failed:[]},new FormData())).rejects.toThrow('admin required')})})
+
+describe('moderación administrativa',()=>{beforeEach(()=>{state.admin=true;state.moderateCalls=[]});it('envía al RPC el contrato completo para aprobar',async()=>{const{moderateProject}=await import('./phase3-actions'),data=new FormData();data.set('project_id','project-1');data.set('status','published');await moderateProject(data);expect(state.moderateCalls).toEqual([{p_project:'project-1',p_status:'published',p_reason:null}])});it('rechaza una acción incompleta antes del RPC',async()=>{const{moderateProject}=await import('./phase3-actions'),data=new FormData();data.set('project_id','project-1');expect(await redirected(moderateProject(data))).toContain('acción de moderación no es válida');expect(state.moderateCalls).toHaveLength(0)})})
 
 describe('toggleProjectSave', () => {
   beforeEach(() => { state.authenticated = true; state.saved = false; state.saveInserts = []; state.projectAvailable = true })
