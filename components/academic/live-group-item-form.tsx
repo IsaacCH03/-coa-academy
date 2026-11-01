@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { createItem } from '@/app/admin/grupos/actions'
+import { useActionState, useState } from 'react'
+import { createItemForm, type CreateLiveGroupItemState } from '@/app/admin/grupos/actions'
 import type { LiveGroupItemType } from '@/lib/live-groups'
 
 const inputClass = 'mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-normal'
 
 export function LiveGroupItemForm({ groupId, sectionId }: { groupId: string; sectionId: string }) {
   const [type, setType] = useState<LiveGroupItemType>('text')
-  return <form action={createItem} className="mt-5 grid gap-4 rounded-xl bg-secondary/60 p-4 sm:grid-cols-2">
+  const [state,action,pending]=useActionState(createItemForm,{error:null,success:false} satisfies CreateLiveGroupItemState)
+  return <form action={action} className="mt-5 grid gap-4 rounded-xl bg-secondary/60 p-4 sm:grid-cols-2">
     <input type="hidden" name="group_id" value={groupId} />
     <input type="hidden" name="section_id" value={sectionId} />
     <label className="text-sm font-bold">Tipo
@@ -39,6 +40,8 @@ export function LiveGroupItemForm({ groupId, sectionId }: { groupId: string; sec
       <label className="text-sm font-bold">Máximo de archivos<input name="max_files" type="number" min="1" max="20" required defaultValue="3" className={inputClass} /></label>
       <label className="text-sm font-bold">MB por archivo<input name="max_file_mb" type="number" min="1" max="50" required defaultValue="20" className={inputClass} /></label>
     </>}
-    <button className="h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground sm:col-span-2">Añadir contenido</button>
+    {state.error&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive sm:col-span-2">{state.error}</p>}
+    {state.success&&<p role="status" className="rounded-lg bg-primary/10 p-3 text-sm font-semibold text-primary sm:col-span-2">Contenido añadido correctamente.</p>}
+    <button disabled={pending} className="h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2">{pending?'Añadiendo…':'Añadir contenido'}</button>
   </form>
 }
