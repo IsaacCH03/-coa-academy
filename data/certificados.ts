@@ -357,4 +357,12 @@ export const certificados: Certificado[] = [
     fechaEmision: '10/11/2026',
     estado: 'valido',
   },
+   {
+    codigo: 'COA-DAP-2026-0013',
+    nombre: 'Stefan Guerrero Ugalde',
+    curso: 'Desarrollo de Apps con Python e IA',
+    modalidad: 'Virtual',
+    fechaEmision: '10/11/2026',
+    estado: 'valido',
+  },
 ]
